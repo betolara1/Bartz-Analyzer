@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electron', {
     reprocessOne: (p) => ipcRenderer.invoke('analyzer:reprocessOne', p),
       replaceCoringa: (filePath, from, to) => ipcRenderer.invoke('analyzer:replaceCoringa', { filePath, from, to }),
       undoReplace: (filePath) => ipcRenderer.invoke('analyzer:undoReplace', { filePath }),
+  replaceCgGroups: (filePath, map) => ipcRenderer.invoke('analyzer:replaceCgGroups', { filePath, map }),
 
   },
 

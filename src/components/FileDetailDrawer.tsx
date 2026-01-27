@@ -68,6 +68,16 @@ export default function FileDetailDrawer({
     setCoringaTo("");
   }, [data]);
 
+  // detect if any coringa matches contain CG1 or CG2
+  const hasCG1 = React.useMemo(() => {
+    return !!((data?.meta?.coringaMatches || []) as string[]).find(m => /cg1/i.test(String(m)));
+  }, [data]);
+  const hasCG2 = React.useMemo(() => {
+    return !!((data?.meta?.coringaMatches || []) as string[]).find(m => /cg2/i.test(String(m)));
+  }, [data]);
+  const [cg1Replace, setCg1Replace] = React.useState('');
+  const [cg2Replace, setCg2Replace] = React.useState('');
+
   // if file revalidated and the replaced token no longer exists, clear lastReplace
   React.useEffect(() => {
     if (!lastReplace) return;
@@ -333,6 +343,47 @@ export default function FileDetailDrawer({
                       </button>
                     )}
                   </div>
+                  {/* CG1 / CG2 bulk replace UI (only show if detected) */}
+                  {(hasCG1 || hasCG2) && (
+                    <div className="mt-3 border-t border-amber-600/20 pt-3">
+                      <div className="text-sm text-zinc-200 mb-2">Troca em lote por sigla (CG1 / CG2)</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-zinc-300 mb-1 block">CG1 →</label>
+                          <input value={cg1Replace} onChange={(e)=>setCg1Replace(e.target.value)} placeholder="Ex: LA" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-zinc-300 mb-1 block">CG2 →</label>
+                          <input value={cg2Replace} onChange={(e)=>setCg2Replace(e.target.value)} placeholder="Ex: MO" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          disabled={!(cg1Replace || cg2Replace)}
+                          onClick={async () => {
+                            if (!data) return;
+                            const map: any = {};
+                            if (cg1Replace) map['CG1'] = cg1Replace;
+                            if (cg2Replace) map['CG2'] = cg2Replace;
+                            const id = toast.loading('Aplicando trocas CG1/CG2...');
+                            try {
+                              const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
+                              if (res?.ok) {
+                                toast.success(`Substituições aplicadas (total: ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)})`);
+                                setLastReplace({ backupPath: res.backupPath, map: map, counts: res.counts });
+                              } else {
+                                toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                              }
+                            } catch (e:any) { toast.error(String(e?.message || e)); }
+                            finally { toast.dismiss(id); }
+                          }}
+                          className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50"
+                        >
+                          Trocar CG1/CG2
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
             )}

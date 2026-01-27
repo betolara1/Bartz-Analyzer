@@ -102,6 +102,7 @@ async function validateXml(fileFullPath, cfg = {}) {
     "CHAPA_CG2_06","CHAPA_CG2_18","CHAPA_CG2_37","CHAPA_CG2_15","CHAPA_CG2_25",
     "TAPAFURO_CG1_06","TAPAFURO_CG1_18","TAPAFURO_CG1_37","TAPAFURO_CG1_15","TAPAFURO_CG1_25",
     "TAPAFURO_CG2_06","TAPAFURO_CG2_18","TAPAFURO_CG2_37","TAPAFURO_CG2_15","TAPAFURO_CG2_25",
+    "CAPA_CG1","CAPA_CG1", "FITA_CG1_19", "FITA_CG2_19", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG1", "CAPA_CG2"
   ];
   // detect and record all matching "cor coringa" tokens (unique, uppercase)
   try {
@@ -562,6 +563,65 @@ ipcMain.handle('analyzer:undoReplace', async (_e, obj) => {
     return { ok: false, message: 'no-history' };
   } catch (e) {
     send('error', { where: 'undoReplace', message: String((e && e.message) || e) });
+    return { ok: false, message: String((e && e.message) || e) };
+  }
+});
+
+/** --- replace all CG1/CG2 occurrences in a file according to provided map --- **/
+ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
+  try {
+    const { filePath, map } = obj || {};
+    if (!filePath || !map || (typeof map !== 'object')) { return { ok: false, message: 'invalid-params' }; }
+
+    const cfg = currentCfg || (await loadCfg());
+    const real = await resolveFilePathMaybeBase(filePath, cfg);
+    if (!real) return { ok: false, message: 'not-found' };
+
+    const raw = await fsp.readFile(real, 'utf8');
+    let replacedText = raw;
+    const counts = {};
+    // apply replacements for known keys (cg1, cg2) -- case-insensitive
+    for (const key of Object.keys(map)) {
+      const val = map[key];
+      if (!val) { counts[key] = 0; continue; }
+      const re = new RegExp(escapeRegExp(key.toString()), 'gi');
+      let c = 0;
+      replacedText = replacedText.replace(re, (m) => { c++; return String(val); });
+      counts[key] = c;
+    }
+
+    const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
+    if (total === 0) return { ok: false, message: 'no-match' };
+
+    // backup
+    await fse.ensureDir(REPLACE_BACKUP_DIR);
+    const base = path.basename(real);
+    const backupName = `${base.replace(/\.xml$/i,'')}_backup_cg_${Date.now()}.xml`;
+    const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
+
+    // write replaced
+    await fsp.writeFile(real, replacedText, 'utf8');
+
+    // history entry
+    const entry = {
+      id: Date.now(),
+      file: path.resolve(real),
+      backupPath,
+      timestamp: new Date().toISOString(),
+      type: 'cg-groups',
+      map,
+      counts,
+      undone: false,
+    };
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignore */ }
+
+    // reprocess
+    try { await processOne(real, cfg); } catch (e) { /* ignore */ }
+
+    return { ok: true, counts, backupPath };
+  } catch (e) {
+    send('error', { where: 'replaceCgGroups', message: String((e && e.message) || e) });
     return { ok: false, message: String((e && e.message) || e) };
   }
 });
