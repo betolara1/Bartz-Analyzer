@@ -125,7 +125,7 @@ async function validateXml(fileFullPath, cfg = {}) {
     "TAPAFURO_CG2_06","TAPAFURO_CG2_18","TAPAFURO_CG2_37","TAPAFURO_CG2_15","TAPAFURO_CG2_25",
     "CAPA_CG1","CAPA_CG1", "FITA_CG1_19", "FITA_CG2_19", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG1", "CAPA_CG2",
   ];
-  // detect and record all matching "cor coringa" tokens (unique, uppercase)
+  // detectar e registrar todos os tokens "cor coringa" correspondidos (únicos, maiúsculos)
   try {
     const corRegex = new RegExp(`\\b(${COR_CORINGA_LIST.join("|")})\\b`, "gi");
     const corMatches = Array.from(new Set(Array.from(txt.matchAll(corRegex)).map(m => (m[1] || m[0] || '').toString().toUpperCase()))).filter(Boolean);
@@ -276,13 +276,27 @@ async function processOne(fileFullPath, cfg) {
     const destDir  = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
 
     let finalPath = path.resolve(fileFullPath);
+    const originalPath = path.resolve(fileFullPath); // Guardar caminho original
     let movedTo = null;
 
     if (destDir) {
       await fse.ensureDir(destDir);
       const target = path.join(destDir, baseName);
       if (path.resolve(target).toLowerCase() !== finalPath.toLowerCase()) {
-        try { await fse.move(finalPath, target, { overwrite: true }); finalPath = path.resolve(target); movedTo = path.resolve(destDir); } catch {}
+        try { 
+          await fse.move(finalPath, target, { overwrite: true }); 
+          finalPath = path.resolve(target); 
+          movedTo = path.resolve(destDir);
+          
+          // ✅ DELETAR arquivo antigo de ERRO se foi movido para OK
+          if (isOK && originalPath.toLowerCase() !== finalPath.toLowerCase()) {
+            try {
+              await fse.remove(originalPath);
+            } catch (delErr) {
+              // Falha ao deletar é aceitável
+            }
+          }
+        } catch {}
       }
     }
 
@@ -484,11 +498,11 @@ ipcMain.handle("analyzer:reprocessOne", async (_e, fileFullPath) => {
   }
 });
 
-// helper to escape regex special chars
+// função auxiliar para escapar caracteres especiais de regex
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&");
 }
-// backup/history files for replace/undo
+// arquivos de backup/histórico para replace/desfazer
 const REPLACE_BACKUP_DIR = path.join(app.getPath('userData'), 'backups');
 const REPLACE_HISTORY_FILE = path.join(app.getPath('userData'), 'replace-history.json');
 
@@ -522,17 +536,17 @@ ipcMain.handle("analyzer:replaceCoringa", async (_e, obj) => {
     const replaced = raw.replace(re, (m) => { count++; return String(to); });
     if (count === 0) return { ok: false, message: 'no-match' };
 
-    // ensure backup dir and write backup copy
+    // garantir diretório de backup e escrever cópia de backup
     await fse.ensureDir(REPLACE_BACKUP_DIR);
     const base = path.basename(real);
     const backupName = `${base.replace(/\.xml$/i,'')}_backup_${Date.now()}.xml`;
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
-    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue even if backup fails */ }
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continuar mesmo se backup falhar */ }
 
-    // write replaced content
+    // escrever conteúdo substituído
     await fsp.writeFile(real, replaced, 'utf8');
 
-    // append history entry
+    // adicionar entrada ao histórico
     const entry = {
       id: Date.now(),
       file: path.resolve(real),
@@ -543,10 +557,10 @@ ipcMain.handle("analyzer:replaceCoringa", async (_e, obj) => {
       replaced: count,
       undone: false,
     };
-    try { await appendReplaceHistory(entry); } catch (e) { /* ignore */ }
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignorar */ }
 
-    // reprocess the updated file (will revalidate and move if needed)
-    try { await processOne(real, cfg); } catch (e) { /* ignore */ }
+    // reprocessar arquivo atualizado (vai revalidar e mover se necessário)
+    try { await processOne(real, cfg); } catch (e) { /* ignorar */ }
 
     return { ok: true, replaced: count, backupPath };
   } catch (e) {
@@ -562,21 +576,21 @@ ipcMain.handle('analyzer:undoReplace', async (_e, obj) => {
     if (!filePath) return { ok: false, message: 'invalid-params' };
     const real = path.resolve(filePath);
     const hist = await readReplaceHistory();
-    // find last matching entry for this file that is not undone
+    // encontrar última entrada correspondente para este arquivo que não foi desfeita
     for (let i = hist.length - 1; i >= 0; i--) {
       const en = hist[i];
       if (!en || en.undone) continue;
-      // match either exact path or same basename (in case file was moved after processing)
+      // corresponder caminho exato ou mesmo nome base (caso arquivo foi movido após processamento)
       if (path.resolve(en.file) === real || path.basename(en.file) === path.basename(real)) {
         const backup = en.backupPath;
         if (!backup || !(await fse.pathExists(backup))) return { ok: false, message: 'backup-not-found' };
-        // restore
+        // restaurar
         try { await fse.copy(backup, real, { overwrite: true }); } catch (e) { return { ok: false, message: 'restore-failed' }; }
-        // mark undone
+        // marcar desfeito
         hist[i].undone = true;
         await writeReplaceHistory(hist);
-        // reprocess
-        try { await processOne(real, currentCfg || await loadCfg()); } catch (e) { /* ignore */ }
+        // reprocessar
+        try { await processOne(real, currentCfg || await loadCfg()); } catch (e) { /* ignorar */ }
         return { ok: true, restored: true, entry: hist[i] };
       }
     }
@@ -600,7 +614,7 @@ ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
     const raw = await fsp.readFile(real, 'utf8');
     let replacedText = raw;
     const counts = {};
-    // apply replacements for known keys (cg1, cg2) -- case-insensitive
+    // aplicar substituições para chaves conhecidas (cg1, cg2) -- case-insensitive
     for (const key of Object.keys(map)) {
       const val = map[key];
       if (!val) { counts[key] = 0; continue; }
@@ -618,12 +632,12 @@ ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
     const base = path.basename(real);
     const backupName = `${base.replace(/\.xml$/i,'')}_backup_cg_${Date.now()}.xml`;
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
-    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continuar */ }
 
-    // write replaced
+    // escrever substituído
     await fsp.writeFile(real, replacedText, 'utf8');
 
-    // history entry
+    // entrada do histórico
     const entry = {
       id: Date.now(),
       file: path.resolve(real),
@@ -634,10 +648,10 @@ ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
       counts,
       undone: false,
     };
-    try { await appendReplaceHistory(entry); } catch (e) { /* ignore */ }
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignorar */ }
 
-    // reprocess
-    try { await processOne(real, cfg); } catch (e) { /* ignore */ }
+    // reprocessar
+    try { await processOne(real, cfg); } catch (e) { /* ignorar */ }
 
     return { ok: true, counts, backupPath };
   } catch (e) {
@@ -692,7 +706,7 @@ ipcMain.handle('analyzer:fillReferencia', async (_e, obj) => {
   }
 });
 
-/** --- fill REFERENCIA only for specific ITEM IDs --- **/
+/** --- preencher REFERENCIA apenas para IDs específicas de ITEM --- **/
 ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
   try {
     const { filePath, replacements } = obj || {};
@@ -710,11 +724,48 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       const id = rep?.id;
       const value = rep?.value;
       if (!id || typeof value === 'undefined') { counts[id] = 0; continue; }
-
-      const re = new RegExp(`(<ITEM\\b[^>]*\\bID\\s*=\\s*"${escapeRegExp(String(id))}"[^>]*?)\\bREFERENCIA\\s*=\\s*""([^>]*>)`, 'gi');
+      
+      // Encontrar a tag ITEM com ID correspondente e substituir REFERENCIA dentro dela
+      // FIX CRÍTICO: Não usar [\s\S]*? sem terminação apropriada
+      // Em vez disso, corresponder apenas até /> ou fechamento > 
+      const escapedId = escapeRegExp(String(id));
+      
+      // Este regex lida adequadamente com tags multi-linha ao:
+      // 1. Começar com <ITEM
+      // 2. Usar [^<]* para corresponder atributos (qualquer coisa exceto outra tag)
+      // 3. Permitir quebras de linha nos atributos com \s explícito
+      // 4. Corresponder atributo ID
+      // 5. Corresponder resto dos atributos até > ou />
+      const itemRegex = new RegExp(`<ITEM(?:[^<]|\\n)*?ID\\s*=\\s*"${escapedId}"(?:[^<]|\\n)*?(?:>|/>)`, 'gi');
+      
       let c = 0;
-      raw = raw.replace(re, (m, p1, p2) => { c++; return `${p1}REFERENCIA="${String(value)}"${p2}`; });
+      const originalRaw = raw; // Guardar para debug
+      raw = raw.replace(itemRegex, (itemMatch) => {
+        // Passo 2: Substituir REFERENCIA dentro dessa tag ITEM específica
+        // Lidar com casos onde REFERENCIA talvez não exista ainda (adicionar se necessário)
+        let updated = itemMatch;
+        // Procurar atributo REFERENCIA - usar [\s\S] para lidar com quebras de linha
+        if (/REFERENCIA\s*=\s*"[^"]*"/i.test(updated)) {
+          updated = updated.replace(
+            /REFERENCIA\s*=\s*"[^"]*"/i,
+            `REFERENCIA="${String(value)}"`
+          );
+        } else {
+          // Atributo REFERENCIA não existe, adiciona antes do fechamento
+          // Encontrar o > no final, tratando possível espaçamento/quebras de linha antes dele
+          updated = updated.replace(/[\s\S]*?>/, (match) => {
+            return match.replace(/[\s\n]*>/, ` REFERENCIA="${String(value)}"`);
+          });
+        }
+        c++;
+        return updated;
+      });
+      
       counts[id] = c;
+      
+      if (c === 0) {
+        // Nenhuma correspondência encontrada
+      }
     }
 
     const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
@@ -727,8 +778,11 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
     try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
 
-    // write
+    // escrever arquivo
     await fsp.writeFile(real, raw, 'utf8');
+    
+    // Verificar se foi escrito
+    const writtenContent = await fsp.readFile(real, 'utf8');
 
     // history
     const entry = {
@@ -741,11 +795,51 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       counts,
       undone: false,
     };
-    try { await appendReplaceHistory(entry); } catch (e) { /* ignore */ }
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignorar */ }
 
-    try { await processOne(real, cfg); } catch (e) { /* ignore */ }
+    // Reprocessar arquivo (isso também o moverá se necessário)
+    // Mas precisamos rastrear o novo caminho se ele se mover
+    let finalPath = path.resolve(real);
+    const originalPath = finalPath; // Guardar caminho original para limpeza
+    try { 
+      const analysis = await validateXml(real, cfg);
+      const isOK = (analysis.erros || []).length === 0;
+      const baseName = path.basename(real);
+      const destDir  = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
 
-    return { ok: true, counts, backupPath };
+      if (destDir) {
+        await fse.ensureDir(destDir);
+        const target = path.join(destDir, baseName);
+        if (path.resolve(target).toLowerCase() !== finalPath.toLowerCase()) {
+          try { 
+            await fse.move(finalPath, target, { overwrite: true }); 
+            finalPath = path.resolve(target);
+            
+            // DELETAR arquivo antigo de ERRO se foi movido para OK
+            if (isOK && originalPath.toLowerCase() !== finalPath.toLowerCase()) {
+              try {
+                await fse.remove(originalPath);
+              } catch (delErr) {
+                // Falha ao deletar é aceitável
+              }
+            }
+          } catch {}
+        }
+      }
+
+      const logDir = isOK ? cfg.logsProcessed : cfg.logsErrors;
+      if (logDir) {
+        await fse.ensureDir(logDir);
+        const logName = baseName.replace(/\.xml$/i, '') + `_${isOK ? 'ok' : 'erro'}.json`;
+        await fsp.writeFile(path.join(logDir, logName), JSON.stringify(analysis, null, 2), 'utf8');
+      }
+
+      send('file-validated', { ...analysis, arquivo: finalPath });
+    } catch (e) { 
+      send('error', { where: 'fillReferenciaByIds-processOne', message: String(e?.message || e) });
+    }
+
+    return { ok: true, counts, backupPath, arquivo: finalPath };
   } catch (e) {
     send('error', { where: 'fillReferenciaByIds', message: String((e && e.message) || e) });
     return { ok: false, message: String((e && e.message) || e) };

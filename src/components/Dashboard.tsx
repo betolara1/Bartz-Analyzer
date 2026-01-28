@@ -160,7 +160,20 @@ export default function Dashboard() {
             copy[i] = row;
             return copy;
           }
-          return [row, ...prev];
+          // When file moves from ERRO to OK, remove the old ERRO entry
+          // by checking if we have the same filename in ERRO folder
+          const baseName = row.filename;
+          const filtered = prev.filter((r) => {
+            const sameFile = r.filename === baseName;
+            const isInErroFolder = r.fullpath.toLowerCase().includes('\\erro\\') || r.fullpath.toLowerCase().includes('/erro/');
+            // If this is OK status and we find same file in ERRO folder, remove it
+            if (row.status === 'OK' && sameFile && isInErroFolder) {
+              console.log(`[Dashboard] Removing old ERRO entry: ${r.fullpath}`);
+              return false;
+            }
+            return true;
+          });
+          return [row, ...filtered];
         });
 
         // if the detail drawer currently shows this file, refresh its data so the UI (coringa select) updates
