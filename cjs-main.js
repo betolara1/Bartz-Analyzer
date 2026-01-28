@@ -92,6 +92,27 @@ async function validateXml(fileFullPath, cfg = {}) {
   if (/\bQUANTIDADE\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM QUANTIDADE" });
   if (/\bPRECO_TOTAL\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM PREÇO" });
 
+  // coletar ocorrências de REFERENCIA="" para permitir preenchimento manual
+  try {
+    const refEmptyMatches = [];
+    for (const m of txt.matchAll(/<ITEM\b[^>]*\bREFERENCIA\s*=\s*""[^>]*>/gi)) {
+      const snippet = ((m[0] || '').trim()).slice(0, 400);
+      const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
+      const id = idMatch ? idMatch[1] : null;
+      refEmptyMatches.push({ id, snippet });
+    }
+    if (refEmptyMatches.length) {
+      payload.meta = payload.meta || {};
+      // dedupe by id or snippet
+      const map = new Map();
+      for (const r of refEmptyMatches) {
+        const key = r.id ? `id:${r.id}` : `sn:${r.snippet}`;
+        if (!map.has(key)) map.set(key, r);
+      }
+      payload.meta.referenciaEmpty = Array.from(map.values());
+    }
+  } catch (e) { /* ignore */ }
+
   // Cor coringa
   const COR_CORINGA_LIST = [
     "PAINEL_CG1_06","PAINEL_CG1_18","PAINEL_CG1_37","PAINEL_CG1_15","PAINEL_CG1_25",
@@ -102,7 +123,7 @@ async function validateXml(fileFullPath, cfg = {}) {
     "CHAPA_CG2_06","CHAPA_CG2_18","CHAPA_CG2_37","CHAPA_CG2_15","CHAPA_CG2_25",
     "TAPAFURO_CG1_06","TAPAFURO_CG1_18","TAPAFURO_CG1_37","TAPAFURO_CG1_15","TAPAFURO_CG1_25",
     "TAPAFURO_CG2_06","TAPAFURO_CG2_18","TAPAFURO_CG2_37","TAPAFURO_CG2_15","TAPAFURO_CG2_25",
-    "CAPA_CG1","CAPA_CG1", "FITA_CG1_19", "FITA_CG2_19", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG1", "CAPA_CG2"
+    "CAPA_CG1","CAPA_CG1", "FITA_CG1_19", "FITA_CG2_19", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG1", "CAPA_CG2",
   ];
   // detect and record all matching "cor coringa" tokens (unique, uppercase)
   try {
@@ -165,7 +186,6 @@ if (!isFerragensOnly) {
   }));
 }
 
-  // ===== AUTO-FIX =====
   // ===== AUTO-FIX =====
 if (cfg.enableAutoFix) {
   let changed = false;
@@ -622,6 +642,112 @@ ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
     return { ok: true, counts, backupPath };
   } catch (e) {
     send('error', { where: 'replaceCgGroups', message: String((e && e.message) || e) });
+    return { ok: false, message: String((e && e.message) || e) };
+  }
+});
+
+/** --- fill empty REFERENCIA attributes (REFERENCIA="" -> REFERENCIA="<value>") --- **/
+ipcMain.handle('analyzer:fillReferencia', async (_e, obj) => {
+  try {
+    const { filePath, value } = obj || {};
+    if (!filePath || typeof value === 'undefined') return { ok: false, message: 'invalid-params' };
+
+    const cfg = currentCfg || (await loadCfg());
+    const real = await resolveFilePathMaybeBase(filePath, cfg);
+    if (!real) return { ok: false, message: 'not-found' };
+
+    const raw = await fsp.readFile(real, 'utf8');
+    const re = /\bREFERENCIA\s*=\s*""/gi;
+    let count = 0;
+    const replaced = raw.replace(re, (m) => { count++; return `REFERENCIA="${String(value)}"`; });
+    if (count === 0) return { ok: false, message: 'no-match' };
+
+    // backup
+    await fse.ensureDir(REPLACE_BACKUP_DIR);
+    const base = path.basename(real);
+    const backupName = `${base.replace(/\.xml$/i,'')}_backup_ref_${Date.now()}.xml`;
+    const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
+
+    await fsp.writeFile(real, replaced, 'utf8');
+
+    const entry = {
+      id: Date.now(),
+      file: path.resolve(real),
+      backupPath,
+      timestamp: new Date().toISOString(),
+      type: 'fill-referencia',
+      value: String(value),
+      replaced: count,
+      undone: false,
+    };
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignore */ }
+
+    try { await processOne(real, cfg); } catch (e) { /* ignore */ }
+
+    return { ok: true, replaced: count, backupPath };
+  } catch (e) {
+    send('error', { where: 'fillReferencia', message: String((e && e.message) || e) });
+    return { ok: false, message: String((e && e.message) || e) };
+  }
+});
+
+/** --- fill REFERENCIA only for specific ITEM IDs --- **/
+ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
+  try {
+    const { filePath, replacements } = obj || {};
+    // replacements: [{ id: string, value: string }, ...]
+    if (!filePath || !Array.isArray(replacements) || replacements.length === 0) return { ok: false, message: 'invalid-params' };
+
+    const cfg = currentCfg || (await loadCfg());
+    const real = await resolveFilePathMaybeBase(filePath, cfg);
+    if (!real) return { ok: false, message: 'not-found' };
+
+    let raw = await fsp.readFile(real, 'utf8');
+    const counts = {};
+
+    for (const rep of replacements) {
+      const id = rep?.id;
+      const value = rep?.value;
+      if (!id || typeof value === 'undefined') { counts[id] = 0; continue; }
+
+      const re = new RegExp(`(<ITEM\\b[^>]*\\bID\\s*=\\s*"${escapeRegExp(String(id))}"[^>]*?)\\bREFERENCIA\\s*=\\s*""([^>]*>)`, 'gi');
+      let c = 0;
+      raw = raw.replace(re, (m, p1, p2) => { c++; return `${p1}REFERENCIA="${String(value)}"${p2}`; });
+      counts[id] = c;
+    }
+
+    const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
+    if (total === 0) return { ok: false, message: 'no-match' };
+
+    // backup
+    await fse.ensureDir(REPLACE_BACKUP_DIR);
+    const base = path.basename(real);
+    const backupName = `${base.replace(/\.xml$/i,'')}_backup_refids_${Date.now()}.xml`;
+    const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
+
+    // write
+    await fsp.writeFile(real, raw, 'utf8');
+
+    // history
+    const entry = {
+      id: Date.now(),
+      file: path.resolve(real),
+      backupPath,
+      timestamp: new Date().toISOString(),
+      type: 'fill-referencia-ids',
+      replacements,
+      counts,
+      undone: false,
+    };
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignore */ }
+
+    try { await processOne(real, cfg); } catch (e) { /* ignore */ }
+
+    return { ok: true, counts, backupPath };
+  } catch (e) {
+    send('error', { where: 'fillReferenciaByIds', message: String((e && e.message) || e) });
     return { ok: false, message: String((e && e.message) || e) };
   }
 });

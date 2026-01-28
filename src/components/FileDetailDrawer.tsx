@@ -77,6 +77,19 @@ export default function FileDetailDrawer({
   }, [data]);
   const [cg1Replace, setCg1Replace] = React.useState('');
   const [cg2Replace, setCg2Replace] = React.useState('');
+  const [refFillValue, setRefFillValue] = React.useState('');
+  const [selectedRefSingle, setSelectedRefSingle] = React.useState<string | null>(null);
+
+  // whether meta has referencia entries collected by validateXml
+  const hasReferenciaArray = React.useMemo(() => {
+    return Array.isArray((data?.meta as any)?.referenciaEmpty) && ((data?.meta as any)?.referenciaEmpty.length > 0);
+  }, [data]);
+
+  // show the panel when we have collected referenciaEmpty OR when the file contains the error "ITEM SEM CÓDIGO"
+  const showReferenciaPanel = React.useMemo(() => {
+    const errs = data?.errors || [];
+    return hasReferenciaArray || errs.includes("ITEM SEM CÓDIGO");
+  }, [data, hasReferenciaArray]);
 
   // if file revalidated and the replaced token no longer exists, clear lastReplace
   React.useEffect(() => {
@@ -383,6 +396,88 @@ export default function FileDetailDrawer({
                         </button>
                       </div>
                     </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* REFERENCIA empty fill UI - INDEPENDENT SECTION */}
+            {showReferenciaPanel && (
+              <section className="rounded-lg border border-rose-500/20 bg-rose-500/10">
+                <div className="px-4 py-2 text-rose-300 text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Itens com REFERENCIA vazia {hasReferenciaArray ? `(${(data!.meta!.referenciaEmpty!.length)})` : ""}
+                </div>
+                <div className="px-4 pb-3 space-y-3">
+                  {!hasReferenciaArray && (
+                    <div className="text-xs text-zinc-300 mb-2">
+                      Foi detectado o erro <span className="font-mono">ITEM SEM CÓDIGO</span>, mas os IDs ainda não foram coletados na metadados.
+                      Clique em "Reprocessar" (ícone de refresh na lista) ou no botão abaixo para revalidar o arquivo e preencher a lista de IDs.
+                      <div className="mt-2">
+                        <button
+                          onClick={async () => {
+                            if (!data) return;
+                            const id = toast.loading('Reprocessando arquivo para coletar IDs...');
+                            try {
+                              const ok = await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                              if (ok) toast.success('Arquivo reprocessado. Aguarde a atualização do painel.');
+                              else toast.warning('Reprocessamento não retornou dados novos.');
+                            } catch (e:any) { toast.error(String(e?.message || e)); }
+                            finally { toast.dismiss(id); }
+                          }}
+                          className="px-3 py-2 rounded bg-rose-500 text-black font-medium"
+                        >
+                          Reprocessar agora
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {hasReferenciaArray && (
+                    <>
+                      <div className="text-xs text-zinc-300 mb-2">Selecione o ID e digite o código para preencher REFERENCIA:</div>
+                      {/* single-select + input */}
+                      <div className="mb-3">
+                        <label className="text-xs text-zinc-300 mb-1 block">Selecionar ID</label>
+                        <select
+                          value={selectedRefSingle ?? ''}
+                          onChange={(e) => setSelectedRefSingle(e.target.value || null)}
+                          className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2"
+                        >
+                          <option value="">-- selecionar --</option>
+                          {((data!.meta!.referenciaEmpty! ) as any[]).filter((r:any)=>!!r.id).map((r:any,i:number)=> (
+                            <option key={i} value={r.id}>{r.id}</option>
+                          ))}
+                        </select>
+                        <label className="text-xs text-zinc-300 mb-1 block">Código REFERENCIA</label>
+                        <input value={refFillValue} onChange={(e)=>setRefFillValue(e.target.value)} placeholder="Ex: ABC123" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          disabled={!selectedRefSingle || !refFillValue}
+                          onClick={async () => {
+                            if (!data || !selectedRefSingle) return;
+                            const id = toast.loading('Trocando REFERENCIA...');
+                            try {
+                              const replacements = [{ id: selectedRefSingle, value: refFillValue }];
+                              const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
+                              if (res?.ok) {
+                                toast.success(`Preenchidas ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)} ocorrência(s)`);
+                                setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
+                                setRefFillValue('');
+                                setSelectedRefSingle(null);
+                              } else {
+                                toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                              }
+                            } catch (e:any) { toast.error(String(e?.message || e)); }
+                            finally { toast.dismiss(id); }
+                          }}
+                          className="px-3 py-2 rounded bg-rose-500 text-black font-medium disabled:opacity-50 flex-1"
+                        >
+                          Preencher REFERENCIA
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               </section>
