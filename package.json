@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "main": "cjs-main.js",
-"type": "commonjs",
+  "type": "commonjs",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --port 5174 --strictPort",
@@ -29,6 +29,7 @@
     "wait-on": "^8.0.4"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-hover-card": "^1.1.15",

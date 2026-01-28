@@ -8,6 +8,14 @@ import {
   SheetDescription,
   SheetClose,
 } from "./ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
@@ -42,6 +50,11 @@ export default function FileDetailDrawer({
   const [isReplacing, setIsReplacing] = React.useState(false);
   const [lastReplace, setLastReplace] = React.useState<any | null>(null);
   const [showFull, setShowFull] = React.useState(false);
+  
+  // Estados para diálogos de confirmação
+  const [confirmCoringaOpen, setConfirmCoringaOpen] = React.useState(false);
+  const [confirmCgOpen, setConfirmCgOpen] = React.useState(false);
+  const [confirmRefOpen, setConfirmRefOpen] = React.useState(false);
 
   // --- helpers locais ---
   const truncateText = (s: string, max = 4000) =>
@@ -291,27 +304,7 @@ export default function FileDetailDrawer({
                   <div className="flex gap-2">
                     <button
                       disabled={!coringaFrom || !coringaTo || isReplacing}
-                      onClick={async () => {
-                        if (!data || !coringaFrom) return;
-                        setIsReplacing(true);
-                        const id = toast.loading('Substituindo cor...');
-                        try {
-                          const res = await (window as any).electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, coringaTo);
-                          if (res?.ok) {
-                            toast.success(`Substituídos ${res.replaced || 0} ocorrência(s)`);
-                            // store last replace so user can undo (backup created by main)
-                            setLastReplace({ backupPath: res.backupPath, from: coringaFrom, to: coringaTo, replaced: res.replaced });
-                            // the file will be reprocessed and dashboard updated via analyzer:event
-                          } else {
-                            toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
-                          }
-                        } catch (e: any) {
-                          toast.error(String(e?.message || e));
-                        } finally {
-                          toast.dismiss(id);
-                          setIsReplacing(false);
-                        }
-                      }}
+                      onClick={() => setConfirmCoringaOpen(true)}
                       className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50"
                     >
                       Trocar
@@ -373,23 +366,7 @@ export default function FileDetailDrawer({
                       <div className="flex gap-2 mt-2">
                         <button
                           disabled={!(cg1Replace || cg2Replace)}
-                          onClick={async () => {
-                            if (!data) return;
-                            const map: any = {};
-                            if (cg1Replace) map['CG1'] = cg1Replace;
-                            if (cg2Replace) map['CG2'] = cg2Replace;
-                            const id = toast.loading('Aplicando trocas CG1/CG2...');
-                            try {
-                              const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
-                              if (res?.ok) {
-                                toast.success(`Substituições aplicadas (total: ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)})`);
-                                setLastReplace({ backupPath: res.backupPath, map: map, counts: res.counts });
-                              } else {
-                                toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
-                              }
-                            } catch (e:any) { toast.error(String(e?.message || e)); }
-                            finally { toast.dismiss(id); }
-                          }}
+                          onClick={() => setConfirmCgOpen(true)}
                           className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50"
                         >
                           Trocar CG1/CG2
@@ -455,23 +432,7 @@ export default function FileDetailDrawer({
                       <div className="flex gap-2">
                         <button
                           disabled={!selectedRefSingle || !refFillValue}
-                          onClick={async () => {
-                            if (!data || !selectedRefSingle) return;
-                            const id = toast.loading('Trocando REFERENCIA...');
-                            try {
-                              const replacements = [{ id: selectedRefSingle, value: refFillValue }];
-                              const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
-                              if (res?.ok) {
-                                toast.success(`Preenchidas ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)} ocorrência(s)`);
-                                setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
-                                setRefFillValue('');
-                                setSelectedRefSingle(null);
-                              } else {
-                                toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
-                              }
-                            } catch (e:any) { toast.error(String(e?.message || e)); }
-                            finally { toast.dismiss(id); }
-                          }}
+                          onClick={() => setConfirmRefOpen(true)}
                           className="px-3 py-2 rounded bg-rose-500 text-black font-medium disabled:opacity-50 flex-1"
                         >
                           Preencher REFERENCIA
@@ -504,6 +465,129 @@ export default function FileDetailDrawer({
           </div>
         </div>
       </SheetContent>
+
+      {/* CONFIRMAÇÃO - Trocar Cor Coringa */}
+      <AlertDialog open={confirmCoringaOpen} onOpenChange={setConfirmCoringaOpen}>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
+          <AlertDialogTitle className="text-white">Confirmar troca de cor coringa?</AlertDialogTitle>
+          <AlertDialogDescription className="text-zinc-300">
+            Você está prestes a substituir <span className="font-mono font-bold text-amber-300">{coringaFrom}</span> por <span className="font-mono font-bold text-amber-300">{coringaTo}</span>.
+            <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end">
+            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!data || !coringaFrom) return;
+                setConfirmCoringaOpen(false);
+                setIsReplacing(true);
+                const id = toast.loading('Substituindo cor...');
+                try {
+                  const res = await (window as any).electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, coringaTo);
+                  if (res?.ok) {
+                    toast.success(`Substituídos ${res.replaced || 0} ocorrência(s)`);
+                    setLastReplace({ backupPath: res.backupPath, from: coringaFrom, to: coringaTo, replaced: res.replaced });
+                  } else {
+                    toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                  }
+                } catch (e: any) {
+                  toast.error(String(e?.message || e));
+                } finally {
+                  toast.dismiss(id);
+                  setIsReplacing(false);
+                }
+              }}
+              className="bg-amber-500 text-black hover:bg-amber-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CONFIRMAÇÃO - Trocar CG1/CG2 */}
+      <AlertDialog open={confirmCgOpen} onOpenChange={setConfirmCgOpen}>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
+          <AlertDialogTitle className="text-white">Confirmar troca em lote (CG1/CG2)?</AlertDialogTitle>
+          <AlertDialogDescription className="text-zinc-300">
+            Você está prestes a substituir:
+            <ul className="mt-2 ml-4 space-y-1 text-xs">
+              {cg1Replace && <li>• <span className="font-mono">CG1</span> → <span className="font-mono font-bold text-amber-300">{cg1Replace}</span></li>}
+              {cg2Replace && <li>• <span className="font-mono">CG2</span> → <span className="font-mono font-bold text-amber-300">{cg2Replace}</span></li>}
+            </ul>
+            <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end">
+            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!data) return;
+                setConfirmCgOpen(false);
+                const map: any = {};
+                if (cg1Replace) map['CG1'] = cg1Replace;
+                if (cg2Replace) map['CG2'] = cg2Replace;
+                const id = toast.loading('Aplicando trocas CG1/CG2...');
+                try {
+                  const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
+                  if (res?.ok) {
+                    toast.success(`Substituições aplicadas (total: ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)})`);
+                    setLastReplace({ backupPath: res.backupPath, map: map, counts: res.counts });
+                  } else {
+                    toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                  }
+                } catch (e:any) { 
+                  toast.error(String(e?.message || e)); 
+                } finally { 
+                  toast.dismiss(id); 
+                }
+              }}
+              className="bg-amber-500 text-black hover:bg-amber-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CONFIRMAÇÃO - Preencher REFERENCIA */}
+      <AlertDialog open={confirmRefOpen} onOpenChange={setConfirmRefOpen}>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
+          <AlertDialogTitle className="text-white">Confirmar preenchimento de REFERENCIA?</AlertDialogTitle>
+          <AlertDialogDescription className="text-zinc-300">
+            Você está prestes a preencher REFERENCIA do item <span className="font-mono font-bold text-rose-300">{selectedRefSingle}</span> com <span className="font-mono font-bold text-rose-300">{refFillValue}</span>.
+            <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end">
+            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!data || !selectedRefSingle) return;
+                setConfirmRefOpen(false);
+                const id = toast.loading('Trocando REFERENCIA...');
+                try {
+                  const replacements = [{ id: selectedRefSingle, value: refFillValue }];
+                  const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
+                  if (res?.ok) {
+                    toast.success(`Preenchidas ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)} ocorrência(s)`);
+                    setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
+                    setRefFillValue('');
+                    setSelectedRefSingle(null);
+                  } else {
+                    toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                  }
+                } catch (e:any) { 
+                  toast.error(String(e?.message || e)); 
+                } finally { 
+                  toast.dismiss(id); 
+                }
+              }}
+              className="bg-rose-500 text-black hover:bg-rose-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
