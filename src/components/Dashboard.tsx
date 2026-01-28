@@ -76,6 +76,7 @@ function formatTag(tag: string) {
   if (t === "qtd-zero" || t === "qtd zero") return "QTD ZERO";
   if (t === "preco-zero" || t === "preço zero") return "PREÇO ZERO";
   if (t === "curvo") return "CURVO";
+  if (t === "duplado37mm" || t === "duplado 37mm") return "DUPLADO 37MM";
   return t.toUpperCase();
 }
 // helper para “Curvo” (fora do toRow!)
@@ -88,7 +89,7 @@ export default function Dashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] =
-    useState<"all" | "ok" | "erro" | "ferragens" | "muxarabi" | "coringa" | "curvo" | "autofix">("all");
+    useState<"all" | "ok" | "erro" | "ferragens" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "autofix">("all");
 
   // controle do watcher
   const [monitoring, setMonitoring] = useState(false);
@@ -199,7 +200,8 @@ export default function Dashboard() {
     const auto = rows.filter((r) => (r.autoFixes || []).length > 0).length;
     const cor = rows.filter((r) => (r.tags || []).includes("coringa")).length;
     const curvo = rows.filter(hasCurvo).length;
-    return { ok, erro, onlyFerr, mux, auto, cor, curvo };
+    const dup37 = rows.filter((r) => (r.tags || []).includes("duplado37mm")).length;
+    return { ok, erro, onlyFerr, mux, auto, cor, curvo, dup37 };
   }, [rows]);
 
   const kpis = [
@@ -209,6 +211,7 @@ export default function Dashboard() {
     { key: "ferragens", title: "Ferragens-only", value: resumo.onlyFerr, icon: <Package className="h-5 w-5" />, color: "#F39C12" },
     { key: "muxarabi", title: "Muxarabi", value: resumo.mux, icon: <Grid3X3 className="h-5 w-5" />, color: "#9B59B6" },
     { key: "coringa", title: "Cor Coringa", value: resumo.cor, icon: <Grid3X3 className="h-5 w-5" />, color: "#E67E22" },
+    { key: "duplado37mm", title: "Duplado 37MM", value: resumo.dup37, icon: <AlertTriangle className="h-5 w-5" />, color: "#C0392B" },
     { key: "autofix", title: "Auto-fixed", value: resumo.auto, icon: <Zap className="h-5 w-5" />, color: "#1ABC9C" },
     { key: "curvo", title: "Curvo", value: resumo.curvo, icon: <Grid3X3 className="h-5 w-5" />, color: "#ee5700ff" },
   ] as const;
@@ -222,6 +225,7 @@ export default function Dashboard() {
       if (filter === "ferragens") return r.status === "FERRAGENS-ONLY" || (r.tags || []).includes("ferragens");
       if (filter === "muxarabi") return (r.tags || []).includes("muxarabi");
       if (filter === "coringa") return (r.tags || []).includes("coringa");
+      if (filter === "duplado37mm") return (r.tags || []).includes("duplado37mm");
       if (filter === "autofix") return (r.autoFixes || []).length > 0;
       if (filter === "curvo") return hasCurvo(r);
       return true;

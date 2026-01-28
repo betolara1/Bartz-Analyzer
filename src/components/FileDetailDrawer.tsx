@@ -517,5 +517,6 @@ function formatTag(tag: string) {
   if (t === "qtd-zero" || t === "qtd zero") return "QTD ZERO";
   if (t === "preco-zero" || t === "preço zero") return "PREÇO ZERO";
   if (t === "curvo") return "CURVO";
+  if (t === "duplado37mm" || t === "duplado 37mm") return "DUPLADO 37MM";
   return t.toUpperCase();
 }

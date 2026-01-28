@@ -113,6 +113,29 @@ async function validateXml(fileFullPath, cfg = {}) {
     }
   } catch (e) { /* ignore */ }
 
+  // ===== ITEM_BASE="ES08" (DUPLADO 37MM) =====
+  try {
+    const es08Matches = [];
+    for (const m of txt.matchAll(/<ITEM\b[^>]*\bITEM_BASE\s*=\s*"ES08"[^>]*>/gi)) {
+      const snippet = ((m[0] || '').trim()).slice(0, 400);
+      const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
+      const id = idMatch ? idMatch[1] : null;
+      es08Matches.push({ id, snippet });
+    }
+    if (es08Matches.length) {
+      payload.erros.push({ descricao: "ITEM DUPLADO 37MM" });
+      payload.tags.push("duplado37mm");
+      payload.meta = payload.meta || {};
+      // dedupe by id or snippet
+      const map = new Map();
+      for (const r of es08Matches) {
+        const key = r.id ? `id:${r.id}` : `sn:${r.snippet}`;
+        if (!map.has(key)) map.set(key, r);
+      }
+      payload.meta.es08Matches = Array.from(map.values());
+    }
+  } catch (e) { /* ignore */ }
+
   // Cor coringa
   const COR_CORINGA_LIST = [
     "PAINEL_CG1_06","PAINEL_CG1_18","PAINEL_CG1_37","PAINEL_CG1_15","PAINEL_CG1_25",
