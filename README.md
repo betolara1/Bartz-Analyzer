@@ -10,8 +10,10 @@ O design original está disponível em Figma: https://www.figma.com/design/cyPiS
 - **Monitoramento em tempo real** de arquivos XML em pasta configurada
 - **Validação automática** com detecção de erros e avisos
 - **Correção automática** de quantidade zero e preço zero
+- **Detecção de Duplado 37MM** - alertas para itens com ITEM_BASE="ES08"
 - **Gerenciamento de Cor Coringa** (detecção e substituição manual)
 - **Preenchimento automático de REFERENCIA** por IDs específicas
+- **Diálogos de confirmação** para operações críticas (evita erros por clique acidental)
 - **Sistema de backup e histórico** para operações de substituição
 - **Desfazer (Undo)** para reverter alterações
 - **Organização automática** de arquivos em pastas OK/ERRO com limpeza de duplicatas
@@ -55,6 +57,17 @@ npm run dist
 - **❌ ERRO** - Arquivo com erros detectados, movido automaticamente para a pasta ERRO
 - **⚠️ AVISO** - Arquivo processado com avisos (pode ser OK ou ERRO conforme o tipo de aviso)
 
+### Tags e Filtros
+
+O sistema categoriza arquivos com as seguintes tags para fácil filtro:
+
+- **FERRAGENS** — arquivo contém apenas máquinas de ferragens (BUILDER="N")
+- **MUXARABI** — arquivo contém referência a MX008001 ou MX008002
+- **COR CORINGA** — arquivo contém itens de cor coringa que precisam substituição
+- **CURVO** — arquivo contém módulos curvos (LR00xx)
+- **DUPLADO 37MM** — arquivo contém itens com ITEM_BASE="ES08"
+- Auto-fixed — arquivo teve correções automáticas aplicadas
+
 ### Validação e Correção Automática
 
 O sistema valida automaticamente:
@@ -63,6 +76,20 @@ O sistema valida automaticamente:
 - **PRECO_TOTAL = 0** — corrigida automaticamente para 0.10
 - **Máquina faltante** — detectada conforme configuração de tipo
 - **Código de cor inválido** — detectado durante validação
+- **Duplado 37MM** — detectado quando ITEM_BASE="ES08" está presente no arquivo
+
+### Detecção de Duplado 37MM
+
+- O validador procura automaticamente por itens com atributo `ITEM_BASE="ES08"`
+- Quando encontrado, o arquivo recebe a tag `DUPLADO 37MM` e é classificado como erro
+- Um card de KPI exibe a quantidade de arquivos com esta condição
+- É possível filtrar arquivos por esta categoria na tabela principal
+- O drawer de detalhes mostra claramente quais itens contêm o duplado 37MM
+
+**Como verificar:**
+- Abra o drawer de um arquivo com esta tag
+- Na seção de "Erros", verá "ITEM DUPLADO 37MM"
+- Os IDs dos itens afetados estão disponíveis nos metadados do arquivo
 
 ### Cor Coringa (detecção e ajuste manual)
 
@@ -71,8 +98,9 @@ O sistema valida automaticamente:
 - Para trocar:
   1. Selecione a cor coringa no select (apenas itens detectados aparecem).
   2. Informe o valor desejado em "Substituir por".
-  3. Clique em "Trocar" — o app faz um backup automático do arquivo, aplica a substituição no arquivo físico e reprocessa o arquivo.
-  4. Depois da troca, clique em "Atualizar arquivo" se necessário para forçar reprocessamento; o painel será atualizado com os novos dados (o select deixará de listar as cores que já foram substituídas).
+  3. Clique em "Trocar" — um **diálogo de confirmação** aparecerá mostrando a substituição que será feita
+  4. Confirme a operação — o app faz um backup automático do arquivo, aplica a substituição no arquivo físico e reprocessa o arquivo.
+  5. Depois da troca, clique em "Atualizar arquivo" se necessário para forçar reprocessamento; o painel será atualizado com os novos dados (o select deixará de listar as cores que já foram substituídas).
 
 ### Preenchimento de REFERENCIA por IDs
 
@@ -81,11 +109,15 @@ Nova funcionalidade para preencher automaticamente REFERENCIA vazia em itens esp
 1. Abra o drawer de detalhes do arquivo
 2. Navegue até a seção "Preencher REFERENCIA"
 3. Para cada ID que deseja preencher:
-   - Informe o ID (ex.: "12345")
+   - Selecione o ID no dropdown (apenas IDs vazios aparecem)
    - Informe o valor de REFERENCIA a atribuir (ex.: "REF001")
-   - Clique em "Adicionar" para incluir na lista
-4. Clique em "Preencher" para aplicar todas as substituições
-5. O sistema cria um backup automático, aplica as alterações e reprocessa o arquivo
+   - Clique em "Preencher REFERENCIA"
+4. Um **diálogo de confirmação** aparecerá mostrando:
+   - O ID que será preenchido
+   - O valor que será atribuído
+   - Aviso de que um backup será criado
+5. Confirme a operação
+6. O sistema cria um backup automático, aplica as alterações e reprocessa o arquivo
 
 **Importante**: Após preencher, o arquivo é reprocessado automaticamente. Se estava na pasta ERRO, será movido para OK se não houver mais erros.
 
@@ -93,6 +125,20 @@ Nova funcionalidade para preencher automaticamente REFERENCIA vazia em itens esp
 
 - Após uma substituição bem-sucedida (Cor Coringa ou REFERENCIA) o app cria um backup em uma pasta de backups dentro do diretório de dados do usuário do app (valor retornado por `app.getPath('userData')`).
 - É possível desfazer a última operação (por arquivo) clicando em "Desfazer última troca" no drawer — isso restaura o backup e reprocessa o arquivo.
+
+### Diálogos de Confirmação
+
+Para evitar erros por cliques acidentais, todas as operações críticas requerem confirmação:
+
+- **Trocar Cor Coringa** — mostra claramente qual cor será substituída e por qual valor
+- **Trocar CG1/CG2** — lista as substituições em lote que serão aplicadas
+- **Preencher REFERENCIA** — confirma o ID e o valor que será preenchido
+
+Cada diálogo de confirmação:
+- Mostra os valores em **negrito e colorido** para fácil identificação
+- Informa que um backup automático será criado
+- Oferece botões "Cancelar" e "Confirmar"
+- Impede execução acidental da operação
 
 ### Local dos backups e histórico
 
