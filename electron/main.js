@@ -218,6 +218,64 @@ ipcMain.handle('analyzer:scanOnce', async () => {
   }
 });
 
+ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
+  try {
+    console.log('[DXF Search] ========== INICIANDO BUSCA ==========');
+    console.log('[DXF Search] Código de desenho procurado:', drawingCode);
+    
+    // Buscar na pasta "desenho_dxf" no Desktop
+    const desktopPath = path.join(app.getPath('home'), 'Desktop');
+    const dxfFolderPath = path.join(desktopPath, 'desenho_dxf');
+    
+    console.log('[DXF Search] Desktop path:', desktopPath);
+    console.log('[DXF Search] DXF folder path:', dxfFolderPath);
+    
+    // Verificar se a pasta existe
+    const folderExists = await fse.pathExists(dxfFolderPath);
+    console.log('[DXF Search] Pasta "desenho_dxf" existe?', folderExists);
+    
+    if (!folderExists) {
+      console.log('[DXF Search] ❌ FALHA: Pasta não encontrada');
+      return { found: false, path: null, message: `Pasta não encontrada: ${dxfFolderPath}` };
+    }
+    
+    // Buscar o arquivo na pasta
+    const files = await fsp.readdir(dxfFolderPath);
+    console.log('[DXF Search] Total de arquivos na pasta:', files.length);
+    console.log('[DXF Search] Arquivos encontrados:');
+    files.forEach((f, i) => {
+      console.log(`  [${i + 1}] ${f}`);
+    });
+    
+    // Procurar arquivo que comece com o código de desenho (case-insensitive)
+    const searchPattern = drawingCode.toLowerCase();
+    console.log('[DXF Search] Padrão de busca (lowercase):', searchPattern);
+    console.log('[DXF Search] Procurando arquivo que comece com:', searchPattern);
+    
+    const foundFile = files.find(f => {
+      const lowerF = f.toLowerCase();
+      const matches = lowerF.startsWith(searchPattern);
+      console.log(`  Comparando "${f}" (${lowerF}) -> começa com "${searchPattern}"? ${matches}`);
+      return matches;
+    });
+    
+    if (foundFile) {
+      const fullPath = path.join(dxfFolderPath, foundFile);
+      console.log('[DXF Search] ✅ SUCESSO: Arquivo encontrado');
+      console.log('[DXF Search] Nome:', foundFile);
+      console.log('[DXF Search] Caminho completo:', fullPath);
+      return { found: true, path: fullPath, name: foundFile };
+    }
+    
+    console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão');
+    return { found: false, path: null, message: `Arquivo "${drawingCode}" não encontrado em desenho_dxf` };
+  } catch (e) {
+    console.log('[DXF Search] ❌ ERRO DURANTE BUSCA:', e.message || e);
+    console.error('[DXF Search] Stack:', e.stack);
+    return { found: false, path: null, message: `Erro ao buscar: ${String(e && e.message || e)}` };
+  }
+});
+
 /* --------------- lifecycle --------------- */
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

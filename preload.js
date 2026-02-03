@@ -12,12 +12,12 @@ contextBridge.exposeInMainWorld('electron', {
     },
     openInFolder: (p) => ipcRenderer.invoke('analyzer:openInFolder', p),
     reprocessOne: (p) => ipcRenderer.invoke('analyzer:reprocessOne', p),
-      replaceCoringa: (filePath, from, to) => ipcRenderer.invoke('analyzer:replaceCoringa', { filePath, from, to }),
-      undoReplace: (filePath) => ipcRenderer.invoke('analyzer:undoReplace', { filePath }),
-  replaceCgGroups: (filePath, map) => ipcRenderer.invoke('analyzer:replaceCgGroups', { filePath, map }),
-  fillReferencia: (filePath, value) => ipcRenderer.invoke('analyzer:fillReferencia', { filePath, value }),
-  fillReferenciaByIds: (filePath, replacements) => ipcRenderer.invoke('analyzer:fillReferenciaByIds', { filePath, replacements }),
-
+    replaceCoringa: (filePath, from, to) => ipcRenderer.invoke('analyzer:replaceCoringa', { filePath, from, to }),
+    undoReplace: (filePath) => ipcRenderer.invoke('analyzer:undoReplace', { filePath }),
+    replaceCgGroups: (filePath, map) => ipcRenderer.invoke('analyzer:replaceCgGroups', { filePath, map }),
+    fillReferencia: (filePath, value) => ipcRenderer.invoke('analyzer:fillReferencia', { filePath, value }),
+    fillReferenciaByIds: (filePath, replacements) => ipcRenderer.invoke('analyzer:fillReferenciaByIds', { filePath, replacements }),
+    findDrawingFile: (drawingCode) => ipcRenderer.invoke('analyzer:findDrawingFile', drawingCode),
   },
 
   settings: {

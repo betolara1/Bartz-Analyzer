@@ -92,6 +92,49 @@ export default function FileDetailDrawer({
   const [cg2Replace, setCg2Replace] = React.useState('');
   const [refFillValue, setRefFillValue] = React.useState('');
   const [selectedRefSingle, setSelectedRefSingle] = React.useState<string | null>(null);
+  
+  // Estado para busca de arquivo DXF
+  const [dxfSearching, setDxfSearching] = React.useState(false);
+  const [dxfFound, setDxfFound] = React.useState<{ path: string; name: string } | false | null>(null);
+
+  // Resetar DXF encontrado quando dados mudam
+  React.useEffect(() => {
+    setDxfFound(null);
+  }, [data?.fullpath]);
+
+  // Função para buscar arquivo DXF pelo código de desenho
+  async function searchDrawingDXF() {
+    if (!data?.meta?.es08Matches || data.meta.es08Matches.length === 0) {
+      toast.warning("Nenhum código de desenho encontrado neste arquivo.");
+      return;
+    }
+
+    const firstDrawing = (data.meta.es08Matches as any[])[0]?.desenho;
+    if (!firstDrawing) {
+      toast.warning("Código de desenho não identificado.");
+      return;
+    }
+
+    setDxfSearching(true);
+    const id = toast.loading(`Buscando desenho: ${firstDrawing}...`);
+
+    try {
+      const result = await (window as any).electron?.analyzer?.findDrawingFile?.(firstDrawing);
+      if (result?.found && result?.path) {
+        setDxfFound({ path: result.path, name: result.name || firstDrawing });
+        toast.success(`✓ Desenho encontrado: ${result.name}`);
+      } else {
+        setDxfFound(false);
+        toast.error(`Desenho "${firstDrawing}" não encontrado em desenho_dxf.`);
+      }
+    } catch (e: any) {
+      setDxfFound(false);
+      toast.error(`Erro na busca: ${String(e?.message || e)}`);
+    } finally {
+      setDxfSearching(false);
+      toast.dismiss(id);
+    }
+  }
 
   // whether meta has referencia entries collected by validateXml
   const hasReferenciaArray = React.useMemo(() => {
@@ -291,6 +334,62 @@ export default function FileDetailDrawer({
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Buscar arquivo DXF */}
+                <div className="mt-3 pt-3 border-t border-rose-500/20">
+                  <div className="bg-[#1a1a1a] border border-[#2C2C2C] rounded-md p-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm font-medium text-rose-300">Busca de Desenho DXF</div>
+                      <button
+                        onClick={searchDrawingDXF}
+                        disabled={dxfSearching}
+                        className="px-2 py-1 rounded bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 disabled:opacity-50"
+                      >
+                        {dxfSearching ? "Buscando..." : "Buscar"}
+                      </button>
+                    </div>
+
+                    {/* Tabela de resultado */}
+                    <table className="w-full text-xs">
+                      <tbody>
+                        <tr className="border-b border-[#2C2C2C]">
+                          <td className="px-2 py-2 text-zinc-400">Código:</td>
+                          <td className="px-2 py-2 text-white font-mono">
+                            {((data?.meta?.es08Matches as any[])?.[0]?.desenho || "—")}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-[#2C2C2C]">
+                          <td className="px-2 py-2 text-zinc-400">Status:</td>
+                          <td className="px-2 py-2">
+                            {dxfFound === null ? (
+                              <span className="text-zinc-400">Aguardando busca...</span>
+                            ) : dxfFound === false ? (
+                              <span className="text-rose-400 font-medium">✗ Não encontrado</span>
+                            ) : (
+                              <span className="text-green-400 font-medium">✓ Encontrado</span>
+                            )}
+                          </td>
+                        </tr>
+                        {dxfFound && typeof dxfFound === 'object' && (
+                          <>
+                            <tr className="border-b border-[#2C2C2C]">
+                              <td className="px-2 py-2 text-zinc-400">Nome:</td>
+                              <td className="px-2 py-2 text-white font-mono break-all">
+                                {dxfFound.name}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-2 py-2 text-zinc-400">Caminho:</td>
+                              <td className="px-2 py-2 text-white font-mono text-[10px] break-all">
+                                {dxfFound.path}
+                              </td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
