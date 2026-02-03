@@ -106,6 +106,7 @@ export default function Dashboard() {
     drawings: "",
     enableAutoFix: false,
   });
+  const pickFolderOptions = ["entrada", "working", "ok", "erro", "logsErrors", "logsProcessed", "drawings"] as const;
   const [probe, setProbe] = useState<any>({});
 
   // resultado de teste (todos)
@@ -237,7 +238,7 @@ export default function Dashboard() {
 
   // abrir seletor de pasta e preencher o campo
   async function pickFolder(
-    key: "entrada" | "ok" | "erro" | "logsErrors" | "logsProcessed" | "drawings"
+    key: "entrada" | "working" | "ok" | "erro" | "logsErrors" | "logsProcessed" | "drawings"
   ) {
     try {
       const current = (cfg as any)[key] || "";
@@ -249,12 +250,13 @@ export default function Dashboard() {
   // testar acesso de TODOS os paths
   async function testAllAccess() {
     try {
-      setTestResults({ entrada: null, ok: null, erro: null, logsErrors: null, logsProcessed: null, drawings: null });
+      setTestResults({ entrada: null, working: null, ok: null, erro: null, logsErrors: null, logsProcessed: null, drawings: null });
 
       const res = await (window as any).electron?.settings?.testPaths?.(cfg);
       setProbe(res || {});
       setTestResults({
         entrada: !!res?.entrada?.write,
+        working: !!res?.working?.write,
         ok: !!res?.ok?.write,
         erro: !!res?.erro?.write,
         logsErrors: !!res?.logsErrors?.write,
@@ -262,7 +264,7 @@ export default function Dashboard() {
         drawings: !!res?.drawings?.write,
       });
     } catch {
-      setTestResults({ entrada: false, ok: false, erro: false, logsErrors: false, logsProcessed: false, drawings: false });
+      setTestResults({ entrada: false, working: false, ok: false, erro: false, logsErrors: false, logsProcessed: false, drawings: false });
     }
   }
 
@@ -363,6 +365,33 @@ export default function Dashboard() {
                   <p className="text-[#27AE60] text-xs">acesso confirmado</p>
                 )}
                 {testResults["entrada"]===false && (
+                  <p className="text-[#E74C3C] text-xs">erro / sem acesso</p>
+                )}
+              </div>
+
+              {/* WORKING */}
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="working" className="text-white text-sm">Pasta de Trabalho (Working)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="working"
+                    value={cfg.working}
+                    onChange={(e)=>setPaths({ working: e.target.value })}
+                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                    placeholder="\\\\servidor\\share\\pasta"
+                  />
+                  <Button
+                    variant="outline" size="sm" title="Escolher pasta"
+                    onClick={()=>pickFolder("working")}
+                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                  </Button>
+                </div>
+                {testResults["working"]===true && (
+                  <p className="text-[#27AE60] text-xs">acesso confirmado</p>
+                )}
+                {testResults["working"]===false && (
                   <p className="text-[#E74C3C] text-xs">erro / sem acesso</p>
                 )}
               </div>
