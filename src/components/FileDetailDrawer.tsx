@@ -266,6 +266,35 @@ export default function FileDetailDrawer({
               </div>
             )}
 
+            {/* ES08 (DUPLADO 37MM) - Dados complementares */}
+            {Array.isArray(data?.meta?.es08Matches) && (data!.meta!.es08Matches!.length > 0) && (
+              <div className="mt-1">
+                <div className="text-sm font-medium mb-2 opacity-80 text-rose-300">
+                  Itens ES08 - Duplado 37MM
+                </div>
+                <div className="space-y-3 overflow-x-auto pb-2">
+                  {(data?.meta?.es08Matches as any[]).map((item, i) => (
+                    <div key={i} className="bg-[#1a1a1a] border border-rose-500/30 rounded-md p-3 min-w-full">
+                      <div className="grid grid-cols-1 gap-2 text-sm">
+                        <div className="flex items-start gap-2 overflow-x-auto">
+                          <span className="text-zinc-400 whitespace-nowrap">ID:</span>
+                          <span className="text-white font-mono break-all">{item.id || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-400 whitespace-nowrap">Referencia:</span>
+                          <span className="text-white break-all">{item.referencia || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-400 whitespace-nowrap">Desenho:</span>
+                          <span className="text-white break-all">{item.desenho || "—"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* COR CORINGA - quick replace UI */}
             {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
               <section className="rounded-lg border border-amber-500/20 bg-amber-500/10">

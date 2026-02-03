@@ -62,7 +62,7 @@ async function checkWrite(dir) {
   }
 }
 async function testPaths(cfg) {
-  const keys = ['entrada','working','ok','erro','logsErrors','logsProcessed'];
+  const keys = ['entrada','working','ok','erro','logsErrors','logsProcessed','drawings'];
   const out = {};
   for (const k of keys) out[k] = await checkWrite(cfg[k]);
   return out;
@@ -117,6 +117,7 @@ ipcMain.handle('settings:save', async (_e, obj) => {
     erro:    normalizeWin(obj?.erro || ''),
     logsErrors:    normalizeWin(obj?.logsErrors || ''),
     logsProcessed: normalizeWin(obj?.logsProcessed || ''),
+    drawings:      normalizeWin(obj?.drawings || ''),
   };
   await saveCfg(next);
   currentCfg = next;
@@ -130,6 +131,7 @@ ipcMain.handle('settings:testPaths', async (_e, obj) => {
     erro:    normalizeWin(obj?.erro || ''),
     logsErrors:    normalizeWin(obj?.logsErrors || ''),
     logsProcessed: normalizeWin(obj?.logsProcessed || ''),
+    drawings:      normalizeWin(obj?.drawings || ''),
   };
   return await testPaths(cfg);
 });
@@ -155,6 +157,7 @@ ipcMain.handle('analyzer:start', async (_e, overrideCfg) => {
       erro:    normalizeWin(raw.erro),
       logsErrors:    normalizeWin(raw.logsErrors),
       logsProcessed: normalizeWin(raw.logsProcessed),
+      drawings:      normalizeWin(raw.drawings),
     };
 
     for (const k of ['entrada','working','ok','erro']) {

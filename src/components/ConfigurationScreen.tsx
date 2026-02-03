@@ -3,6 +3,20 @@ import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
+declare global {
+  interface Window {
+    api?: {
+      testAccess: (form: Paths) => Promise<Record<string, { ok: boolean; exists: boolean; write: boolean }>>;
+    };
+    electron?: {
+      settings?: {
+        load: () => Promise<Paths>;
+        save: (form: Paths) => Promise<void>;
+      };
+    };
+  }
+}
+
 type Paths = {
   entrada?: string;
   working?: string;
@@ -10,6 +24,7 @@ type Paths = {
   finalErro?: string;
   logsErrors?: string;
   logsProcessed?: string;
+  drawings?: string;
 };
 
 export default function ConfigurationScreen({ onBack }: { onBack: () => void }) {
@@ -20,13 +35,14 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     finalErro: "",
     logsErrors: "",
     logsProcessed: "",
+    drawings: "",
   });
 
   const [test, setTest] = useState<Record<string, { ok: boolean; exists: boolean; write: boolean }>>({});
 
   useEffect(() => {
     (async () => {
-      const cur = await window.api.getCfg();
+      const cur = await window.electron?.settings?.load();
       if (cur) setForm((prev) => ({ ...prev, ...cur }));
     })();
   }, []);
@@ -36,12 +52,12 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
   }
 
   async function handleSalvar() {
-    await window.api.saveCfg(form);
+    await window.electron?.settings?.save(form);
     alert("Configurações salvas!");
   }
 
   async function handleTestar() {
-    const r = await window.api.testAccess(form);
+    const r = await window.api?.testAccess(form);
     setTest(r || {});
   }
 
@@ -83,6 +99,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
         <Row label="Pasta Working" field="working" placeholder="\\servidor\orcamentos\working" />
         <Row label="Pasta Final - OK" field="finalOk" placeholder="\\servidor\orcamentos\XML_FINAL\ok" />
         <Row label="Pasta Final - Erro" field="finalErro" placeholder="\\servidor\orcamentos\XML_FINAL\erro" />
+        <Row label="Pasta de Desenhos" field="drawings" placeholder="\\servidor\desenhos" />
         <Row label="Logs - Errors" field="logsErrors" placeholder="\\servidor\orcamentos\LOGS\errors" />
         <Row label="Logs - Processed" field="logsProcessed" placeholder="\\servidor\orcamentos\LOGS\processed" />
 

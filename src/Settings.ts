@@ -10,6 +10,7 @@ export type AppSettings = {
   erro: string;
   logsErrors: string;
   logsProcessed: string;
+  drawings: string;
 };
 
 const store = new Store<AppSettings>({
@@ -21,6 +22,7 @@ const store = new Store<AppSettings>({
     erro: "",
     logsErrors: "",
     logsProcessed: "",
+    drawings: "",
   },
 });
 
@@ -33,10 +35,13 @@ export const Settings = {
       erro: store.get("erro") ?? "",
       logsErrors: store.get("logsErrors") ?? "",
       logsProcessed: store.get("logsProcessed") ?? "",
+      drawings: store.get("drawings") ?? "",
     };
   },
   save(data: Partial<AppSettings>) {
-    Object.entries(data).forEach(([k, v]) => {
+    const current = Settings.load();
+    const merged = { ...current, ...data };
+    Object.entries(merged).forEach(([k, v]) => {
       // @ts-ignore
       store.set(k, v ?? "");
     });
@@ -45,7 +50,7 @@ export const Settings = {
   async testPaths(data: Partial<AppSettings>) {
     const payload = { ...(Settings.load()), ...(data || {}) };
     const chk = {
-      entrada: false, working: false, ok: false, erro: false, logsErrors: false, logsProcessed: false,
+      entrada: false, working: false, ok: false, erro: false, logsErrors: false, logsProcessed: false, drawings: false,
     };
     async function canWrite(p?: string) {
       if (!p) return false;
@@ -64,6 +69,7 @@ export const Settings = {
     chk.erro = await canWrite(payload.erro);
     chk.logsErrors = await canWrite(payload.logsErrors);
     chk.logsProcessed = await canWrite(payload.logsProcessed);
+    chk.drawings = await canWrite(payload.drawings);
     return chk;
   },
   async pickFolder(initial = "") {

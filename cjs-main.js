@@ -35,7 +35,7 @@ async function checkWrite(dir) {
 }
 
 async function testPathsAll(cfg) {
-  const keys = ["entrada", "working", "ok", "erro", "logsErrors", "logsProcessed"];
+  const keys = ["entrada", "working", "ok", "erro", "logsErrors", "logsProcessed", "drawings"];
   const out = {};
   for (const k of keys) out[k] = await checkWrite(cfg[k]);
   return out;
@@ -120,7 +120,11 @@ async function validateXml(fileFullPath, cfg = {}) {
       const snippet = ((m[0] || '').trim()).slice(0, 400);
       const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
       const id = idMatch ? idMatch[1] : null;
-      es08Matches.push({ id, snippet });
+      const refMatch = snippet.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+      const referencia = refMatch ? refMatch[1] : null;
+      const desenhoMatch = snippet.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+      const desenho = desenhoMatch ? desenhoMatch[1] : null;
+      es08Matches.push({ id, referencia, desenho, snippet });
     }
     if (es08Matches.length) {
       payload.erros.push({ descricao: "ITEM DUPLADO 37MM" });
@@ -347,6 +351,7 @@ ipcMain.handle("settings:load", async () => {
     erro: normalizeWin(saved.erro || ""),
     logsErrors: normalizeWin(saved.logsErrors || ""),
     logsProcessed: normalizeWin(saved.logsProcessed || ""),
+    drawings: normalizeWin(saved.drawings || ""),
     enableAutoFix: !!saved.enableAutoFix,
   };
 });
@@ -359,6 +364,7 @@ ipcMain.handle("settings:save", async (_e, obj) => {
     erro: normalizeWin(obj?.erro || ""),
     logsErrors: normalizeWin(obj?.logsErrors || ""),
     logsProcessed: normalizeWin(obj?.logsProcessed || ""),
+    drawings: normalizeWin(obj?.drawings || ""),
     enableAutoFix: !!obj?.enableAutoFix,
   };
   await saveCfg(next);
