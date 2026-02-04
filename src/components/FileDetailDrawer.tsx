@@ -461,7 +461,10 @@ export default function FileDetailDrawer({
                                         </div>
                                       </div>
                                     )}
-                                    {dxfFound.fresaInfo.count37 > 0 && (dxfFound.fresaInfo.firstFresa37?.hasNegative37 || dxfFound.fresaInfo.firstFresa37?.hasPositive37) && (
+                                    {(
+                                      (dxfFound.fresaInfo.count37 > 0 && (dxfFound.fresaInfo.firstFresa37?.hasNegative37 || dxfFound.fresaInfo.firstFresa37?.hasPositive37)) ||
+                                      (dxfFound.panelInfo?.dimension === '-37' || dxfFound.panelInfo?.dimension === '37')
+                                    ) && (
                                       <div className="mt-3 pt-2 border-t border-purple-500/30">
                                         <button
                                           onClick={fixFresa37to18}

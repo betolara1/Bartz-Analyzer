@@ -88,18 +88,55 @@ async function validateXml(fileFullPath, cfg = {}) {
   }
 
   // ===== Regras fixas =====
-  if (/\bREFERENCIA\s*=\s*""/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
+  // ITEM SEM CÓDIGO: REFERENCIA="" E ITEM_BASE="" (ambas vazias)
+  let hasMissingCode = false;
+  // Procurar por tags ITEM, considerando que podem estar em múltiplas linhas
+  const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
+  for (const m of itemMatches) {
+    const itemTag = m[0];
+    const hasEmptyRef = /\bREFERENCIA\s*=\s*""/i.test(itemTag);
+    const hasEmptyBase = /\bITEM_BASE\s*=\s*""/i.test(itemTag);
+    const hasNoRef = !/\bREFERENCIA\s*=\s*"/i.test(itemTag);
+    const hasNoBase = !/\bITEM_BASE\s*=\s*"/i.test(itemTag);
+    
+    // Apenas marca erro se:
+    // 1. REFERENCIA="" E ITEM_BASE="" (ambas explicitamente vazias)
+    // 2. Ou REFERENCIA está vazia E ITEM_BASE não existe
+    // 3. Ou REFERENCIA não existe E ITEM_BASE está vazio
+    const refIsMissing = hasEmptyRef || hasNoRef;
+    const baseIsMissing = hasEmptyBase || hasNoBase;
+    
+    if (refIsMissing && baseIsMissing) {
+      hasMissingCode = true;
+      break;
+    }
+  }
+  if (hasMissingCode) payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
+  
   if (/\bQUANTIDADE\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM QUANTIDADE" });
   if (/\bPRECO_TOTAL\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM PREÇO" });
 
-  // coletar ocorrências de REFERENCIA="" para permitir preenchimento manual
+  // coletar ocorrências de REFERENCIA="" E ITEM_BASE="" (ambas vazias/ausentes) para permitir preenchimento manual
   try {
     const refEmptyMatches = [];
-    for (const m of txt.matchAll(/<ITEM\b[^>]*\bREFERENCIA\s*=\s*""[^>]*>/gi)) {
-      const snippet = ((m[0] || '').trim()).slice(0, 400);
-      const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
-      const id = idMatch ? idMatch[1] : null;
-      refEmptyMatches.push({ id, snippet });
+    const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
+    for (const m of itemMatches) {
+      const itemTag = m[0];
+      const hasEmptyRef = /\bREFERENCIA\s*=\s*""/i.test(itemTag);
+      const hasEmptyBase = /\bITEM_BASE\s*=\s*""/i.test(itemTag);
+      const hasNoRef = !/\bREFERENCIA\s*=\s*"/i.test(itemTag);
+      const hasNoBase = !/\bITEM_BASE\s*=\s*"/i.test(itemTag);
+      
+      // Coleta apenas se ambas forem vazias ou ausentes
+      const refIsMissing = hasEmptyRef || hasNoRef;
+      const baseIsMissing = hasEmptyBase || hasNoBase;
+      
+      if (refIsMissing && baseIsMissing) {
+        const snippet = ((itemTag || '').trim()).slice(0, 400);
+        const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
+        const id = idMatch ? idMatch[1] : null;
+        refEmptyMatches.push({ id, snippet });
+      }
     }
     if (refEmptyMatches.length) {
       payload.meta = payload.meta || {};
