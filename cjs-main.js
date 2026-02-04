@@ -876,10 +876,13 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
 });
 
 /** ================== IPC: FIND DRAWING FILE ================== **/
-ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
+ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
   try {
+    const { drawingCode, xmlFilePath } = obj || {};
+    
     console.log('[DXF Search] ========== INICIANDO BUSCA ==========');
     console.log('[DXF Search] Código de desenho procurado:', drawingCode);
+    console.log('[DXF Search] Arquivo XML:', xmlFilePath);
     
     const cfg = (await loadCfg()) || {};
     const drawingsFolder = cfg?.drawings;
@@ -925,20 +928,313 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
       return matches;
     });
     
-    if (foundFile) {
-      const fullPath = path.join(dxfFolderPath, foundFile);
-      console.log('[DXF Search] ✅ SUCESSO: Arquivo encontrado');
-      console.log('[DXF Search] Nome do arquivo:', foundFile);
-      console.log('[DXF Search] Caminho completo:', fullPath);
-      return { found: true, path: fullPath, name: foundFile };
+    if (!foundFile) {
+      console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão');
+      return { found: false, path: null, message: `Arquivo "${drawingCode}" não encontrado em ${dxfFolderPath}` };
     }
     
-    console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão');
-    return { found: false, path: null, message: `Arquivo "${drawingCode}" não encontrado em ${dxfFolderPath}` };
+    const fullPath = path.join(dxfFolderPath, foundFile);
+    console.log('[DXF Search] ✅ ARQUIVO DXF ENCONTRADO');
+    console.log('[DXF Search] Nome do arquivo:', foundFile);
+    console.log('[DXF Search] Caminho completo:', fullPath);
+    
+    // ===== ANALISAR ARQUIVO DXF =====
+    let panelInfo = null;
+    let fresaInfo = null;
+    
+    try {
+      console.log('[DXF Analysis] Lendo arquivo DXF:', fullPath);
+      const dxfContent = await fsp.readFile(fullPath, 'utf8');
+      const lines = dxfContent.split(/\r?\n/);
+      
+      console.log('[DXF Analysis] Total de linhas no DXF:', lines.length);
+      
+      // 1. PROCURAR PRIMEIRO PANEL e extrair o valor de 39 (dimensão)
+      let panelFound = false;
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line.toUpperCase() === 'PANEL' && !panelFound) {
+          console.log('[DXF Analysis] ✓ PANEL encontrado na linha', i);
+          panelFound = true;
+          
+          // Procurar o próximo "39" para pegar a dimensão
+          for (let j = i + 1; j < lines.length; j++) {
+            const codeLine = lines[j].trim();
+            if (codeLine === '39') {
+              const dimensionLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
+              if (dimensionLine) {
+                const dimension = dimensionLine.startsWith('-') ? dimensionLine : '-' + dimensionLine;
+                panelInfo = {
+                  panelCode: 'PANEL',
+                  dimension: dimension
+                };
+                console.log('[DXF Analysis] ✓ Dimensão do PANEL encontrada:', dimension);
+                break;
+              }
+            }
+          }
+          break;
+        }
+      }
+      
+      if (!panelFound) {
+        console.log('[DXF Analysis] ✗ Nenhum PANEL encontrado no DXF');
+      }
+      
+      // 2. PROCURAR FRESA_12_37 ou FRESA_12_18
+      let fresa37Found = false;
+      let fresa18Found = false;
+      let fresa37Count = 0;
+      let fresa18Count = 0;
+      let firstFresa37Info = null;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim().toUpperCase();
+        if (line === 'FRESA_12_37') {
+          fresa37Found = true;
+          fresa37Count++;
+          
+          // Se for a primeira FRESA_12_37, extrair detalhes
+          if (fresa37Count === 1) {
+            console.log('[DXF Analysis] ✓ PRIMEIRA FRESA_12_37 encontrada na linha', i);
+            
+            // Procurar pelos códigos 30 (-37) e 39 (37 ou -37) após essa linha
+            let hasNegative37 = false;
+            let hasPositive37 = false;
+            
+            for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
+              const codeLine = lines[j].trim();
+              
+              if (codeLine === '30') {
+                const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
+                if (valueLine === '-37') {
+                  hasNegative37 = true;
+                  console.log('[DXF Analysis]   ✓ Código 30 = -37 encontrado na linha', j);
+                }
+              }
+              
+              if (codeLine === '39') {
+                const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
+                if (valueLine === '37' || valueLine === '-37') {
+                  hasPositive37 = true;
+                  console.log('[DXF Analysis]   ✓ Código 39 =', valueLine, 'encontrado na linha', j);
+                }
+              }
+            }
+            
+            firstFresa37Info = {
+              hasNegative37,
+              hasPositive37
+            };
+            
+            console.log('[DXF Analysis]   Resumo FRESA_12_37: -37?', hasNegative37, '| 37?', hasPositive37);
+          }
+          
+          console.log('[DXF Analysis] ✓ FRESA_12_37 encontrada na linha', i);
+        } else if (line === 'FRESA_12_18') {
+          fresa18Found = true;
+          fresa18Count++;
+          console.log('[DXF Analysis] ✓ FRESA_12_18 encontrada na linha', i);
+        }
+      }
+      
+      if (fresa37Found && fresa18Found) {
+        fresaInfo = {
+          fresaCode: `FRESA_12_37 (${fresa37Count}x) e FRESA_12_18 (${fresa18Count}x)`,
+          status: 'Estado misto (contém ambas as versões)',
+          count37: fresa37Count,
+          count18: fresa18Count,
+          firstFresa37: firstFresa37Info
+        };
+        console.log('[DXF Analysis] ✓ FRESA: Ambas as versões presentes');
+      } else if (fresa37Found) {
+        fresaInfo = {
+          fresaCode: `FRESA_12_37 (${fresa37Count}x)`,
+          status: 'Status: ⚠️ Ainda está DUPLICADO em 37MM',
+          count37: fresa37Count,
+          count18: 0,
+          firstFresa37: firstFresa37Info
+        };
+        console.log('[DXF Analysis] ✓ FRESA: 37MM (DUPLICADO)');
+      } else if (fresa18Found) {
+        fresaInfo = {
+          fresaCode: `FRESA_12_18 (${fresa18Count}x)`,
+          status: 'Status: ✅ Corrigido para 18MM',
+          count37: 0,
+          count18: fresa18Count,
+          firstFresa37: null
+        };
+        console.log('[DXF Analysis] ✓ FRESA: 18MM (CORRIGIDO)');
+      } else {
+        console.log('[DXF Analysis] ✗ Nenhuma FRESA_12_?? encontrada');
+      }
+      
+    } catch (dxfErr) {
+      console.log('[DXF Analysis] ✗ Erro ao ler DXF:', dxfErr.message);
+    }
+    
+    return { 
+      found: true, 
+      path: fullPath, 
+      name: foundFile,
+      panelInfo,
+      fresaInfo
+    };
   } catch (e) {
     console.log('[DXF Search] ❌ ERRO DURANTE BUSCA:', e.message || e);
     console.error('[DXF Search] Stack completo:', e.stack);
     return { found: false, path: null, message: `Erro ao buscar: ${String(e && e.message || e)}` };
+  }
+});
+
+/** ================== IPC: FIX FRESA 37 TO 18 ================== **/
+ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
+  try {
+    console.log('[DXF Fix] ========== INICIANDO CORREÇÃO ==========');
+    console.log('[DXF Fix] Arquivo DXF:', dxfFilePath);
+    
+    if (!dxfFilePath || !(await fse.pathExists(dxfFilePath))) {
+      console.log('[DXF Fix] ❌ Arquivo não encontrado');
+      return { ok: false, message: 'Arquivo não encontrado' };
+    }
+    
+    // Ler arquivo
+    const content = await fsp.readFile(dxfFilePath, 'utf8');
+    const lines = content.split(/\r?\n/);
+    
+    console.log('[DXF Fix] Total de linhas:', lines.length);
+    
+    let modified = false;
+    let panelModified = false;
+    let fresaModified = false;
+    let firstPanelFound = false;
+    let firstFresa37Found = false;
+    
+    // Processar linhas
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // 1. Alterar primeiro PANEL: valor 39 de 37 ou -37 para 18 ou -18
+      if (!firstPanelFound && line.toUpperCase() === 'PANEL') {
+        console.log('[DXF Fix] ✓ PANEL encontrado na linha', i);
+        firstPanelFound = true;
+        
+        // Procurar o código 39 após essa linha
+        for (let j = i + 1; j < lines.length && j < i + 20; j++) {
+          if (lines[j].trim() === '39') {
+            const nextIdx = j + 1;
+            if (nextIdx < lines.length) {
+              const value = lines[nextIdx].trim();
+              // Alterar 37 → 18 ou -37 → -18
+              if (value === '37') {
+                lines[nextIdx] = '18';
+                console.log('[DXF Fix]   ✓ Código 39: 37 → 18 na linha', nextIdx);
+                panelModified = true;
+                modified = true;
+              } else if (value === '-37') {
+                lines[nextIdx] = '-18';
+                console.log('[DXF Fix]   ✓ Código 39: -37 → -18 na linha', nextIdx);
+                panelModified = true;
+                modified = true;
+              }
+            }
+            break;
+          }
+        }
+      }
+      
+      // 2. Alterar primeira FRESA_12_37: valores 30 (-37→-18 ou 37→18) e 39 (37→18 ou -37→-18)
+      if (!firstFresa37Found && line.toUpperCase() === 'FRESA_12_37') {
+        console.log('[DXF Fix] ✓ PRIMEIRA FRESA_12_37 encontrada na linha', i);
+        firstFresa37Found = true;
+        
+        // Procurar códigos 30 e 39 após essa linha
+        for (let j = i + 1; j < lines.length && j < i + 20; j++) {
+          const codeLine = lines[j].trim();
+          
+          // Alterar código 30: -37 → -18 ou 37 → 18
+          if (codeLine === '30') {
+            const nextIdx = j + 1;
+            if (nextIdx < lines.length) {
+              const value = lines[nextIdx].trim();
+              if (value === '-37') {
+                lines[nextIdx] = '-18';
+                console.log('[DXF Fix]   ✓ Código 30: -37 → -18 na linha', nextIdx);
+                fresaModified = true;
+                modified = true;
+              } else if (value === '37') {
+                lines[nextIdx] = '18';
+                console.log('[DXF Fix]   ✓ Código 30: 37 → 18 na linha', nextIdx);
+                fresaModified = true;
+                modified = true;
+              }
+            }
+          }
+          
+          // Alterar código 39: 37 → 18 ou -37 → -18
+          if (codeLine === '39') {
+            const nextIdx = j + 1;
+            if (nextIdx < lines.length) {
+              const value = lines[nextIdx].trim();
+              if (value === '37') {
+                lines[nextIdx] = '18';
+                console.log('[DXF Fix]   ✓ Código 39: 37 → 18 na linha', nextIdx);
+                fresaModified = true;
+                modified = true;
+              } else if (value === '-37') {
+                lines[nextIdx] = '-18';
+                console.log('[DXF Fix]   ✓ Código 39: -37 → -18 na linha', nextIdx);
+                fresaModified = true;
+                modified = true;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // 3. Substituir todas as ocorrências de FRESA_12_37 por FRESA_12_18
+    let fresa37Replacements = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().toUpperCase() === 'FRESA_12_37') {
+        lines[i] = lines[i].replace(/FRESA_12_37/i, 'FRESA_12_18');
+        fresa37Replacements++;
+        console.log('[DXF Fix] ✓ FRESA_12_37 → FRESA_12_18 na linha', i);
+      }
+    }
+    
+    if (fresa37Replacements > 0) {
+      modified = true;
+    }
+    
+    if (!modified) {
+      console.log('[DXF Fix] ⚠️ Nenhuma alteração foi feita');
+      return { ok: false, message: 'Nenhuma alteração foi necessária' };
+    }
+    
+    // Escrever arquivo de volta
+    const newContent = lines.join('\n');
+    await fsp.writeFile(dxfFilePath, newContent, 'utf8');
+    
+    console.log('[DXF Fix] ✅ ARQUIVO CORRIGIDO COM SUCESSO');
+    console.log('[DXF Fix] Alterações:');
+    console.log('[DXF Fix]   - PANEL modificado:', panelModified);
+    console.log('[DXF Fix]   - Primeira FRESA_12_37 modificada:', fresaModified);
+    console.log('[DXF Fix]   - FRESA_12_37 → FRESA_12_18:', fresa37Replacements, 'ocorrências');
+    
+    return { 
+      ok: true, 
+      message: 'Arquivo corrigido com sucesso',
+      changes: {
+        panelModified,
+        fresaModified,
+        fresa37Replacements
+      }
+    };
+  } catch (e) {
+    console.log('[DXF Fix] ❌ ERRO NA CORREÇÃO:', e.message || e);
+    console.error('[DXF Fix] Stack:', e.stack);
+    return { ok: false, message: `Erro ao corrigir: ${String(e && e.message || e)}` };
   }
 });
 

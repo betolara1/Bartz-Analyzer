@@ -95,7 +95,8 @@ export default function FileDetailDrawer({
   
   // Estado para busca de arquivo DXF
   const [dxfSearching, setDxfSearching] = React.useState(false);
-  const [dxfFound, setDxfFound] = React.useState<{ path: string; name: string } | false | null>(null);
+  const [dxfFound, setDxfFound] = React.useState<{ path: string; name: string; panelInfo?: any; fresaInfo?: any } | false | null>(null);
+  const [dxfFixing, setDxfFixing] = React.useState(false);
 
   // Resetar DXF encontrado quando dados mudam
   React.useEffect(() => {
@@ -119,10 +120,26 @@ export default function FileDetailDrawer({
     const id = toast.loading(`Buscando desenho: ${firstDrawing}...`);
 
     try {
-      const result = await (window as any).electron?.analyzer?.findDrawingFile?.(firstDrawing);
+      const result = await (window as any).electron?.analyzer?.findDrawingFile?.(firstDrawing, data?.fullpath);
       if (result?.found && result?.path) {
-        setDxfFound({ path: result.path, name: result.name || firstDrawing });
-        toast.success(`✓ Desenho encontrado: ${result.name}`);
+        setDxfFound({ 
+          path: result.path, 
+          name: result.name || firstDrawing,
+          panelInfo: result.panelInfo,
+          fresaInfo: result.fresaInfo
+        });
+        
+        // Mostrar informações adicionais do XML
+        let successMsg = `✓ Desenho encontrado: ${result.name}`;
+        if (result.panelInfo) {
+          successMsg += `\n📋 Primeiro PAINEL: ${result.panelInfo.panelCode} (${result.panelInfo.dimension})`;
+        }
+        if (result.fresaInfo) {
+          successMsg += `\n🔧 FRESA encontrada: ${result.fresaInfo.fresaCode}`;
+          successMsg += `\n   Status: ${result.fresaInfo.status}`;
+        }
+        
+        toast.success(successMsg);
       } else {
         setDxfFound(false);
         toast.error(`Desenho "${firstDrawing}" não encontrado em desenho_dxf.`);
@@ -133,6 +150,34 @@ export default function FileDetailDrawer({
     } finally {
       setDxfSearching(false);
       toast.dismiss(id);
+    }
+  }
+
+  // Função para corrigir FRESA_12_37 para FRESA_12_18
+  async function fixFresa37to18() {
+    if (!dxfFound || typeof dxfFound !== 'object' || !dxfFound.path) {
+      toast.error("Nenhum arquivo DXF selecionado.");
+      return;
+    }
+
+    setDxfFixing(true);
+    const id = toast.loading("Corrigindo arquivo DXF...");
+
+    try {
+      const result = await (window as any).electron?.analyzer?.fixFresa37to18?.(dxfFound.path);
+      
+      if (result?.ok) {
+        toast.dismiss(id);
+        toast.success(`✅ Arquivo corrigido com sucesso!\n📝 Alterações:\n- PANEL: ${result.changes?.panelModified ? '✓' : '—'}\n- Primeira FRESA_12_37: ${result.changes?.fresaModified ? '✓' : '—'}\n- Total FRESA_12_37→18: ${result.changes?.fresa37Replacements}`);
+      } else {
+        toast.dismiss(id);
+        toast.error(`Erro: ${result?.message || 'Falha ao corrigir'}`);
+      }
+    } catch (e: any) {
+      toast.dismiss(id);
+      toast.error(`Erro na correção: ${String(e?.message || e)}`);
+    } finally {
+      setDxfFixing(false);
     }
   }
 
@@ -379,12 +424,58 @@ export default function FileDetailDrawer({
                                 {dxfFound.name}
                               </td>
                             </tr>
-                            <tr>
+                            <tr className="border-b border-[#2C2C2C]">
                               <td className="px-2 py-2 text-zinc-400">Caminho:</td>
                               <td className="px-2 py-2 text-white font-mono text-[10px] break-all">
                                 {dxfFound.path}
                               </td>
                             </tr>
+                            {dxfFound.panelInfo && (
+                              <tr className="border-b border-[#2C2C2C] bg-blue-500/5">
+                                <td className="px-2 py-2 text-blue-400 font-medium">📋 Primeiro PAINEL:</td>
+                                <td className="px-2 py-2 text-blue-300">
+                                  {dxfFound.panelInfo.panelCode} <span className="font-mono text-blue-400">({dxfFound.panelInfo.dimension})</span>
+                                </td>
+                              </tr>
+                            )}
+                            {dxfFound.fresaInfo && (
+                              <tr className="border-b border-[#2C2C2C] bg-purple-500/5">
+                                <td className="px-2 py-2 text-purple-400 font-medium">🔧 FRESA:</td>
+                                <td className="px-2 py-2">
+                                  <div className="space-y-1">
+                                    <div className="text-purple-300 font-mono">{dxfFound.fresaInfo.fresaCode}</div>
+                                    <div className="text-purple-200 text-sm">{dxfFound.fresaInfo.status}</div>
+                                    {dxfFound.fresaInfo.firstFresa37 && (
+                                      <div className="mt-2 pt-2 border-t border-purple-500/30 text-xs">
+                                        <div className="text-purple-300 font-semibold">Primeira FRESA_12_37:</div>
+                                        <div className="ml-2 space-y-1 mt-1">
+                                          {dxfFound.fresaInfo.firstFresa37.hasNegative37 && (
+                                            <div className="text-purple-200">✓ Código 30 = -37</div>
+                                          )}
+                                          {dxfFound.fresaInfo.firstFresa37.hasPositive37 && (
+                                            <div className="text-purple-200">✓ Código 39 = 37</div>
+                                          )}
+                                          {!dxfFound.fresaInfo.firstFresa37.hasNegative37 && !dxfFound.fresaInfo.firstFresa37.hasPositive37 && (
+                                            <div className="text-purple-300">• Nenhum dos valores encontrado</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {dxfFound.fresaInfo.count37 > 0 && (dxfFound.fresaInfo.firstFresa37?.hasNegative37 || dxfFound.fresaInfo.firstFresa37?.hasPositive37) && (
+                                      <div className="mt-3 pt-2 border-t border-purple-500/30">
+                                        <button
+                                          onClick={fixFresa37to18}
+                                          disabled={dxfFixing}
+                                          className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:opacity-50 text-white font-semibold rounded text-sm transition"
+                                        >
+                                          {dxfFixing ? "⏳ Trocando..." : "🔧 Trocar Valores"}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                           </>
                         )}
                       </tbody>
