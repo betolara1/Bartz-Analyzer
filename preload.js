@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('electron', {
     fillReferenciaByIds: (filePath, replacements) => ipcRenderer.invoke('analyzer:fillReferenciaByIds', { filePath, replacements }),
     findDrawingFile: (drawingCode, xmlFilePath) => ipcRenderer.invoke('analyzer:findDrawingFile', { drawingCode, xmlFilePath }),
     fixFresa37to18: (dxfFilePath) => ipcRenderer.invoke('analyzer:fixFresa37to18', dxfFilePath),
+    exportReport: (reportData) => ipcRenderer.invoke('analyzer:exportReport', reportData),
   },
 
   settings: {

@@ -10,7 +10,7 @@ import { ErrorBadge } from "./ErrorBadge";
 import {
   CheckCircle, XCircle, Package, Grid3X3, Zap, Filter,
   Play, Pause, RefreshCw, Calendar, Save,
-  AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle,
+  AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import FileDetailDrawer from "./FileDetailDrawer";
@@ -276,6 +276,76 @@ export default function Dashboard() {
   async function stop() { await (window as any).electron?.analyzer?.stop?.(); }
   async function scan() { await (window as any).electron?.analyzer?.scanOnce?.(); }
 
+  async function clearReport() {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      const id = toast.custom((t) => (
+        <div className="bg-amber-900/90 border border-amber-700 rounded-lg p-4 text-white">
+          <div className="font-semibold mb-3">Tem certeza que deseja limpar o Relatório de Atividade?</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+                resolve(true);
+              }}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
+            >
+              Sim, limpar
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+                resolve(false);
+              }}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm font-medium"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity });
+    });
+
+    if (confirmed) {
+      setRows([]);
+      setSearch("");
+      setFilter("all");
+      setDetailOpen(false);
+      setDetailData(null);
+      toast.success("Relatório de Atividade limpo com sucesso!");
+    }
+  }
+
+  async function exportReport() {
+    const toastId = toast.loading("Exportando relatório...");
+    try {
+      const okFiles = rows.filter(r => r.status === "OK").length;
+      const errorFiles = rows.filter(r => r.status === "ERRO").length;
+      
+      const reportData = {
+        rows,
+        totalFiles: rows.length,
+        okFiles,
+        errorFiles
+      };
+      
+      const result = await (window as any).electron?.analyzer?.exportReport?.(reportData);
+      
+      if (result?.ok) {
+        toast.dismiss(toastId);
+        toast.success(`Relatório exportado com sucesso!\n${result.filesCount} arquivo(s) processado(s)`, {
+          duration: 5000,
+          description: `Arquivo: Relatorio_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}`
+        });
+      } else {
+        toast.dismiss(toastId);
+        toast.error(result?.message || "Erro ao exportar relatório");
+      }
+    } catch (e: any) {
+      toast.dismiss(toastId);
+      toast.error(`Erro ao exportar: ${String(e?.message || e)}`);
+    }
+  }
+
   async function handleOpenFolder(fullPath: string) {
     try {
       const ok = await (window as any).electron?.analyzer?.openInFolder?.(fullPath);
@@ -331,6 +401,8 @@ export default function Dashboard() {
             <Button onClick={stop} className="gap-2 bg-[#E74C3C] hover:bg-[#E74C3C]/90"><Pause className="h-4 w-4" /> Parar</Button>
           )}
           <Button variant="outline" onClick={scan} className="gap-2 border-[#2C2C2C] hover:bg-[#2C2C2C]"><RefreshCw className="h-4 w-4" /> Reanalisar tudo</Button>
+          <Button variant="outline" onClick={exportReport} className="gap-2 border-blue-700 hover:bg-blue-900/20 text-blue-400"><Download className="h-4 w-4" /> Exportar</Button>
+          <Button variant="outline" onClick={clearReport} className="gap-2 border-amber-700 hover:bg-amber-900/20 text-amber-400"><AlertCircle className="h-4 w-4" /> Limpar</Button>
         </div>
       </div>
 

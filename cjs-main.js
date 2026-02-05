@@ -1275,6 +1275,115 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
   }
 });
 
+/** ================== IPC: EXPORT REPORT ================== **/
+ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
+  try {
+    console.log('[Export Report] ========== INICIANDO EXPORTAÇÃO ==========');
+    
+    // Preparar data/hora
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+    const timestamp = `${dateStr}_${timeStr}`;
+    
+    // Obter pasta de logs da config
+    let logsFolder = currentCfg?.logsErrors || '';
+    if (!logsFolder || !await fse.pathExists(logsFolder)) {
+      logsFolder = path.join(app.getPath('desktop'), 'Bartz-Analyzer_Reports');
+      await fse.ensureDir(logsFolder);
+    }
+    
+    // ========== CSV ==========
+    const csvPath = path.join(logsFolder, `Relatorio_${timestamp}.csv`);
+    const csvLines = [];
+    
+    // Cabeçalho
+    csvLines.push([
+      'DATA/HORA',
+      'ARQUIVO',
+      'STATUS',
+      'ERROS',
+      'AVISOS',
+      'AUTO-FIX',
+      'TAGS'
+    ].map(v => `"${v}"`).join(';'));
+    
+    // Linhas de dados
+    if (Array.isArray(reportData.rows)) {
+      for (const row of reportData.rows) {
+        const errors = (row.errors || []).join(' | ');
+        const warnings = (row.warnings || []).join(' | ');
+        const autoFixes = (row.autoFixes || []).join(' | ');
+        const tags = (row.tags || []).join(', ');
+        
+        csvLines.push([
+          row.timestamp || '',
+          row.filename || '',
+          row.status || '',
+          errors,
+          warnings,
+          autoFixes,
+          tags
+        ].map(v => `"${v}"`).join(';'));
+      }
+    }
+    
+    // Resumo estatístico
+    const totalFiles = reportData.totalFiles || 0;
+    const okFiles = reportData.okFiles || 0;
+    const errorFiles = reportData.errorFiles || 0;
+    
+    csvLines.push('');
+    csvLines.push(['RESUMO DO RELATÓRIO'].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Data da Exportação', now.toLocaleString('pt-BR')].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Total de Arquivos Processados', totalFiles].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Arquivos OK', okFiles].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Arquivos com ERRO', errorFiles].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Taxa de Sucesso', totalFiles > 0 ? `${((okFiles / totalFiles) * 100).toFixed(2)}%` : 'N/A'].map(v => `"${v}"`).join(';'));
+    
+    const csvContent = csvLines.join('\n');
+    await fsp.writeFile(csvPath, csvContent, 'utf8');
+    console.log('[Export Report] ✓ CSV criado:', csvPath);
+    
+    // ========== JSON (mais detalhado) ==========
+    const jsonPath = path.join(logsFolder, `Relatorio_${timestamp}.json`);
+    const jsonData = {
+      exportDate: now.toLocaleString('pt-BR'),
+      exportTimestamp: now.getTime(),
+      summary: {
+        totalFiles,
+        okFiles,
+        errorFiles,
+        successRate: totalFiles > 0 ? ((okFiles / totalFiles) * 100).toFixed(2) + '%' : 'N/A'
+      },
+      files: reportData.rows || [],
+      config: {
+        entrada: currentCfg?.entrada || '',
+        ok: currentCfg?.ok || '',
+        erro: currentCfg?.erro || ''
+      }
+    };
+    
+    await fsp.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
+    console.log('[Export Report] ✓ JSON criado:', jsonPath);
+    
+    return {
+      ok: true,
+      csvPath,
+      jsonPath,
+      message: `Relatório exportado com sucesso (${timestamp})`,
+      filesCount: totalFiles
+    };
+  } catch (e) {
+    console.log('[Export Report] ❌ ERRO NA EXPORTAÇÃO:', e.message || e);
+    console.error('[Export Report] Stack:', e.stack);
+    return {
+      ok: false,
+      message: `Erro ao exportar relatório: ${String(e && e.message || e)}`
+    };
+  }
+});
+
 /** ----------------- lifecycle ----------------- **/
 app.whenReady().then(createWindow);
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
