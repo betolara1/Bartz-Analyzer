@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
-import { X, FileJson, AlertTriangle } from "lucide-react";
+import { X, FileJson, AlertTriangle, Search } from "lucide-react";
 
 type Row = {
   filename: string;
@@ -50,7 +50,7 @@ export default function FileDetailDrawer({
   const [isReplacing, setIsReplacing] = React.useState(false);
   const [lastReplace, setLastReplace] = React.useState<any | null>(null);
   const [showFull, setShowFull] = React.useState(false);
-  
+
   // Estados para diálogos de confirmação
   const [confirmCoringaOpen, setConfirmCoringaOpen] = React.useState(false);
   const [confirmCgOpen, setConfirmCgOpen] = React.useState(false);
@@ -92,11 +92,18 @@ export default function FileDetailDrawer({
   const [cg2Replace, setCg2Replace] = React.useState('');
   const [refFillValue, setRefFillValue] = React.useState('');
   const [selectedRefSingle, setSelectedRefSingle] = React.useState<string | null>(null);
-  
+
   // Estado para busca de arquivo DXF
   const [dxfSearching, setDxfSearching] = React.useState(false);
   const [dxfFound, setDxfFound] = React.useState<{ path: string; name: string; panelInfo?: any; fresaInfo?: any } | false | null>(null);
   const [dxfFixing, setDxfFixing] = React.useState(false);
+
+  // Estados para busca de produto CSV
+  const [csvSearchColor, setCsvSearchColor] = React.useState('');
+  const [csvProductType, setCsvProductType] = React.useState('CHAPAS');
+  const [csvSearchResults, setCsvSearchResults] = React.useState<Array<{ code: string; description: string; group: string }>>([]);
+  const [csvSelectedProduct, setCsvSelectedProduct] = React.useState('');
+  const [csvSearching, setCsvSearching] = React.useState(false);
 
   // Resetar DXF encontrado quando dados mudam
   React.useEffect(() => {
@@ -122,13 +129,13 @@ export default function FileDetailDrawer({
     try {
       const result = await (window as any).electron?.analyzer?.findDrawingFile?.(firstDrawing, data?.fullpath);
       if (result?.found && result?.path) {
-        setDxfFound({ 
-          path: result.path, 
+        setDxfFound({
+          path: result.path,
           name: result.name || firstDrawing,
           panelInfo: result.panelInfo,
           fresaInfo: result.fresaInfo
         });
-        
+
         // Mostrar informações adicionais do XML
         let successMsg = `✓ Desenho encontrado: ${result.name}`;
         if (result.panelInfo) {
@@ -138,7 +145,7 @@ export default function FileDetailDrawer({
           successMsg += `\n🔧 FRESA encontrada: ${result.fresaInfo.fresaCode}`;
           successMsg += `\n   Status: ${result.fresaInfo.status}`;
         }
-        
+
         toast.success(successMsg);
       } else {
         setDxfFound(false);
@@ -165,7 +172,7 @@ export default function FileDetailDrawer({
 
     try {
       const result = await (window as any).electron?.analyzer?.fixFresa37to18?.(dxfFound.path);
-      
+
       if (result?.ok) {
         toast.dismiss(id);
         toast.success(`✅ Arquivo corrigido com sucesso!\n📝 Alterações:\n- PANEL: ${result.changes?.panelModified ? '✓' : '—'}\n- Primeira FRESA_12_37: ${result.changes?.fresaModified ? '✓' : '—'}\n- Total FRESA_12_37→18: ${result.changes?.fresa37Replacements}`);
@@ -178,6 +185,40 @@ export default function FileDetailDrawer({
       toast.error(`Erro na correção: ${String(e?.message || e)}`);
     } finally {
       setDxfFixing(false);
+    }
+  }
+
+  // Função para buscar produto no CSV
+  async function handleCsvSearch() {
+    if (!csvSearchColor || !csvProductType) {
+      toast.warning('Por favor, preencha o nome da cor e selecione o tipo de produto.');
+      return;
+    }
+
+    setCsvSearching(true);
+    setCsvSearchResults([]);
+    setCsvSelectedProduct('');
+    const id = toast.loading(`Buscando "${csvSearchColor}" em ${csvProductType}...`);
+
+    try {
+      const result = await (window as any).electron?.analyzer?.searchCsvProduct?.(csvSearchColor, csvProductType);
+
+      if (result?.ok && result?.results && result.results.length > 0) {
+        setCsvSearchResults(result.results);
+        toast.dismiss(id);
+        toast.success(`✓ Encontrados ${result.results.length} produto(s) com "${csvSearchColor}"`);
+      } else {
+        setCsvSearchResults([]);
+        toast.dismiss(id);
+        toast.warning(`Nenhum produto encontrado com a cor "${csvSearchColor}" em ${csvProductType}.`);
+      }
+    } catch (e: any) {
+      setCsvSearchResults([]);
+      toast.dismiss(id);
+      toast.error(`Erro ao buscar produto: ${String(e?.message || e)}`);
+    } finally {
+      setCsvSearching(false);
+      toast.dismiss(id);
     }
   }
 
@@ -465,16 +506,16 @@ export default function FileDetailDrawer({
                                       (dxfFound.fresaInfo.count37 > 0 && (dxfFound.fresaInfo.firstFresa37?.hasNegative37 || dxfFound.fresaInfo.firstFresa37?.hasPositive37)) ||
                                       (dxfFound.panelInfo?.dimension === '-37' || dxfFound.panelInfo?.dimension === '37')
                                     ) && (
-                                      <div className="mt-3 pt-2 border-t border-purple-500/30">
-                                        <button
-                                          onClick={fixFresa37to18}
-                                          disabled={dxfFixing}
-                                          className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:opacity-50 text-white font-semibold rounded text-sm transition"
-                                        >
-                                          {dxfFixing ? "⏳ Trocando..." : "🔧 Trocar Valores"}
-                                        </button>
-                                      </div>
-                                    )}
+                                        <div className="mt-3 pt-2 border-t border-purple-500/30">
+                                          <button
+                                            onClick={fixFresa37to18}
+                                            disabled={dxfFixing}
+                                            className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:opacity-50 text-white font-semibold rounded text-sm transition"
+                                          >
+                                            {dxfFixing ? "⏳ Trocando..." : "🔧 Trocar Valores"}
+                                          </button>
+                                        </div>
+                                      )}
                                   </div>
                                 </td>
                               </tr>
@@ -486,6 +527,92 @@ export default function FileDetailDrawer({
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* BUSCA DE PRODUTO CSV - Acima da seção Cor Coringa */}
+            {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
+              <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
+                <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  Busca de Produto por Cor
+                </div>
+                <div className="px-4 pb-3 space-y-3">
+                  <div className="text-sm text-zinc-200">Digite o nome da cor e selecione o tipo de produto para buscar:</div>
+
+                  {/* Input para nome da cor */}
+                  <div>
+                    <label className="text-xs text-zinc-300 mb-1 block">Nome da Cor</label>
+                    <input
+                      placeholder="Ex: BRANCO, MOCCA, SANTIAGO..."
+                      value={csvSearchColor}
+                      onChange={(e) => setCsvSearchColor(e.target.value)}
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
+                    />
+                  </div>
+
+                  {/* Select para tipo de produto */}
+                  <div>
+                    <label className="text-xs text-zinc-300 mb-1 block">Tipo de Produto</label>
+                    <select
+                      value={csvProductType}
+                      onChange={(e) => setCsvProductType(e.target.value)}
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
+                    >
+                      <option value="CHAPAS">CHAPAS</option>
+                      <option value="FITAS">FITAS</option>
+                      <option value="PAINEL">PAINEL</option>
+                      <option value="PUXADORES">PUXADORES</option>
+                      <option value="TAPAFURO">TAPAFURO</option>
+                    </select>
+                  </div>
+
+                  {/* Botão de buscar */}
+                  <div>
+                    <button
+                      disabled={!csvSearchColor || csvSearching}
+                      onClick={handleCsvSearch}
+                      className="w-full px-3 py-2 rounded bg-blue-500 text-white font-medium disabled:opacity-50 hover:bg-blue-600"
+                    >
+                      {csvSearching ? 'Buscando...' : 'Buscar'}
+                    </button>
+                  </div>
+
+                  {/* Select de resultados (aparece apenas quando há resultados) */}
+                  {csvSearchResults.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-300 mb-1 block">
+                        Resultados ({csvSearchResults.length} produto(s) encontrado(s))
+                      </label>
+                      <select
+                        value={csvSelectedProduct}
+                        onChange={(e) => setCsvSelectedProduct(e.target.value)}
+                        className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
+                      >
+                        <option value="">-- Selecione um produto --</option>
+                        {csvSearchResults.map((product, idx) => (
+                          <option key={idx} value={product.code}>
+                            {product.code} - {product.description}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Botão Preencher */}
+                      <button
+                        disabled={!csvSelectedProduct}
+                        onClick={() => {
+                          if (csvSelectedProduct) {
+                            setCoringaTo(csvSelectedProduct);
+                            toast.success(`Código "${csvSelectedProduct}" preenchido no campo "Substituir por"`);
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded bg-green-600 text-white font-medium disabled:opacity-50 hover:bg-green-700"
+                      >
+                        Preencher
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
             )}
 
             {/* COR CORINGA - quick replace UI */}
@@ -578,11 +705,11 @@ export default function FileDetailDrawer({
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="text-xs text-zinc-300 mb-1 block">CG1 →</label>
-                          <input value={cg1Replace} onChange={(e)=>setCg1Replace(e.target.value)} placeholder="Ex: LA" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
+                          <input value={cg1Replace} onChange={(e) => setCg1Replace(e.target.value)} placeholder="Ex: LA" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
                         </div>
                         <div>
                           <label className="text-xs text-zinc-300 mb-1 block">CG2 →</label>
-                          <input value={cg2Replace} onChange={(e)=>setCg2Replace(e.target.value)} placeholder="Ex: MO" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
+                          <input value={cg2Replace} onChange={(e) => setCg2Replace(e.target.value)} placeholder="Ex: MO" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
                         </div>
                       </div>
                       <div className="flex gap-2 mt-2">
@@ -621,7 +748,7 @@ export default function FileDetailDrawer({
                               const ok = await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
                               if (ok) toast.success('Arquivo reprocessado. Aguarde a atualização do painel.');
                               else toast.warning('Reprocessamento não retornou dados novos.');
-                            } catch (e:any) { toast.error(String(e?.message || e)); }
+                            } catch (e: any) { toast.error(String(e?.message || e)); }
                             finally { toast.dismiss(id); }
                           }}
                           className="px-3 py-2 rounded bg-rose-500 text-black font-medium"
@@ -644,12 +771,12 @@ export default function FileDetailDrawer({
                           className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2"
                         >
                           <option value="">-- selecionar --</option>
-                          {((data!.meta!.referenciaEmpty! ) as any[]).filter((r:any)=>!!r.id).map((r:any,i:number)=> (
+                          {((data!.meta!.referenciaEmpty!) as any[]).filter((r: any) => !!r.id).map((r: any, i: number) => (
                             <option key={i} value={r.id}>{r.id}</option>
                           ))}
                         </select>
                         <label className="text-xs text-zinc-300 mb-1 block">Código REFERENCIA</label>
-                        <input value={refFillValue} onChange={(e)=>setRefFillValue(e.target.value)} placeholder="Ex: ABC123" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2" />
+                        <input value={refFillValue} onChange={(e) => setRefFillValue(e.target.value)} placeholder="Ex: ABC123" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2" />
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -681,7 +808,7 @@ export default function FileDetailDrawer({
                 </button>
               </div>
               <pre className="px-4 py-3 max-h-[50vh] overflow-auto text-xs leading-relaxed text-zinc-200 font-mono whitespace-pre">
-{jsonToShow}
+                {jsonToShow}
               </pre>
             </section>
           </div>
@@ -752,15 +879,15 @@ export default function FileDetailDrawer({
                 try {
                   const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
                   if (res?.ok) {
-                    toast.success(`Substituições aplicadas (total: ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)})`);
+                    toast.success(`Substituições aplicadas (total: ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)})`);
                     setLastReplace({ backupPath: res.backupPath, map: map, counts: res.counts });
                   } else {
                     toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
                   }
-                } catch (e:any) { 
-                  toast.error(String(e?.message || e)); 
-                } finally { 
-                  toast.dismiss(id); 
+                } catch (e: any) {
+                  toast.error(String(e?.message || e));
+                } finally {
+                  toast.dismiss(id);
                 }
               }}
               className="bg-amber-500 text-black hover:bg-amber-600"
@@ -790,17 +917,17 @@ export default function FileDetailDrawer({
                   const replacements = [{ id: selectedRefSingle, value: refFillValue }];
                   const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
                   if (res?.ok) {
-                    toast.success(`Preenchidas ${Object.values(res.counts||{}).reduce((s:any,n:any)=>s+(n||0),0)} ocorrência(s)`);
+                    toast.success(`Preenchidas ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)} ocorrência(s)`);
                     setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
                     setRefFillValue('');
                     setSelectedRefSingle(null);
                   } else {
                     toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
                   }
-                } catch (e:any) { 
-                  toast.error(String(e?.message || e)); 
-                } finally { 
-                  toast.dismiss(id); 
+                } catch (e: any) {
+                  toast.error(String(e?.message || e));
+                } finally {
+                  toast.dismiss(id);
                 }
               }}
               className="bg-rose-500 text-black hover:bg-rose-600"

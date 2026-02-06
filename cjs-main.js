@@ -42,7 +42,7 @@ async function testPathsAll(cfg) {
 }
 
 function send(evt, payload) {
-  try { win && win.webContents.send("analyzer:event", { evt, payload }); } catch {}
+  try { win && win.webContents.send("analyzer:event", { evt, payload }); } catch { }
 }
 
 function createWindow() {
@@ -98,21 +98,21 @@ async function validateXml(fileFullPath, cfg = {}) {
     const hasEmptyBase = /\bITEM_BASE\s*=\s*""/i.test(itemTag);
     const hasNoRef = !/\bREFERENCIA\s*=\s*"/i.test(itemTag);
     const hasNoBase = !/\bITEM_BASE\s*=\s*"/i.test(itemTag);
-    
+
     // Apenas marca erro se:
     // 1. REFERENCIA="" E ITEM_BASE="" (ambas explicitamente vazias)
     // 2. Ou REFERENCIA está vazia E ITEM_BASE não existe
     // 3. Ou REFERENCIA não existe E ITEM_BASE está vazio
     const refIsMissing = hasEmptyRef || hasNoRef;
     const baseIsMissing = hasEmptyBase || hasNoBase;
-    
+
     if (refIsMissing && baseIsMissing) {
       hasMissingCode = true;
       break;
     }
   }
   if (hasMissingCode) payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
-  
+
   if (/\bQUANTIDADE\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM QUANTIDADE" });
   if (/\bPRECO_TOTAL\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM PREÇO" });
 
@@ -126,11 +126,11 @@ async function validateXml(fileFullPath, cfg = {}) {
       const hasEmptyBase = /\bITEM_BASE\s*=\s*""/i.test(itemTag);
       const hasNoRef = !/\bREFERENCIA\s*=\s*"/i.test(itemTag);
       const hasNoBase = !/\bITEM_BASE\s*=\s*"/i.test(itemTag);
-      
+
       // Coleta apenas se ambas forem vazias ou ausentes
       const refIsMissing = hasEmptyRef || hasNoRef;
       const baseIsMissing = hasEmptyBase || hasNoBase;
-      
+
       if (refIsMissing && baseIsMissing) {
         const snippet = ((itemTag || '').trim()).slice(0, 400);
         const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
@@ -179,15 +179,15 @@ async function validateXml(fileFullPath, cfg = {}) {
 
   // Cor coringa
   const COR_CORINGA_LIST = [
-    "PAINEL_CG1_06","PAINEL_CG1_18","PAINEL_CG1_37","PAINEL_CG1_15","PAINEL_CG1_25",
-    "PAINEL_CG2_06","PAINEL_CG2_18","PAINEL_CG2_37","PAINEL_CG2_15","PAINEL_CG2_25",
-    "FITA_CG1_22","FITA_CG1_35","FITA_CG1_42","FITA_CG1_50",
-    "FITA_CG2_22","FITA_CG2_35","FITA_CG2_42","FITA_CG2_50",
-    "CHAPA_CG1_06","CHAPA_CG1_18","CHAPA_CG1_37","CHAPA_CG1_15","CHAPA_CG1_25",
-    "CHAPA_CG2_06","CHAPA_CG2_18","CHAPA_CG2_37","CHAPA_CG2_15","CHAPA_CG2_25",
-    "TAPAFURO_CG1_06","TAPAFURO_CG1_18","TAPAFURO_CG1_37","TAPAFURO_CG1_15","TAPAFURO_CG1_25",
-    "TAPAFURO_CG2_06","TAPAFURO_CG2_18","TAPAFURO_CG2_37","TAPAFURO_CG2_15","TAPAFURO_CG2_25",
-    "CAPA_CG1","CAPA_CG1", "FITA_CG1_19", "FITA_CG2_19", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG1", "CAPA_CG2",
+    "PAINEL_CG1_06", "PAINEL_CG1_18", "PAINEL_CG1_37", "PAINEL_CG1_15", "PAINEL_CG1_25",
+    "PAINEL_CG2_06", "PAINEL_CG2_18", "PAINEL_CG2_37", "PAINEL_CG2_15", "PAINEL_CG2_25",
+    "FITA_CG1_22", "FITA_CG1_35", "FITA_CG1_42", "FITA_CG1_50",
+    "FITA_CG2_22", "FITA_CG2_35", "FITA_CG2_42", "FITA_CG2_50",
+    "CHAPA_CG1_06", "CHAPA_CG1_18", "CHAPA_CG1_37", "CHAPA_CG1_15", "CHAPA_CG1_25",
+    "CHAPA_CG2_06", "CHAPA_CG2_18", "CHAPA_CG2_37", "CHAPA_CG2_15", "CHAPA_CG2_25",
+    "TAPAFURO_CG1_06", "TAPAFURO_CG1_18", "TAPAFURO_CG1_37", "TAPAFURO_CG1_15", "TAPAFURO_CG1_25",
+    "TAPAFURO_CG2_06", "TAPAFURO_CG2_18", "TAPAFURO_CG2_37", "TAPAFURO_CG2_15", "TAPAFURO_CG2_25",
+    "CAPA_CG1", "CAPA_CG1", "FITA_CG1_19", "FITA_CG2_19", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG1", "CAPA_CG2",
   ];
   // detectar e registrar todos os tokens "cor coringa" correspondidos (únicos, maiúsculos)
   try {
@@ -224,97 +224,97 @@ async function validateXml(fileFullPath, cfg = {}) {
   payload.meta.machines = machines;
 
   // Máquinas obrigatórias quando NÃO for só ferragens
-if (!isFerragensOnly) {
-  const REQUIRED_PLUGINS = ["2530","2534","2341","2525"]; // Aspan, NCB612, Cyflex 900, MSZ600
+  if (!isFerragensOnly) {
+    const REQUIRED_PLUGINS = ["2530", "2534", "2341", "2525"]; // Aspan, NCB612, Cyflex 900, MSZ600
 
-  // coleta todos IDs de plugin presentes no XML
-  const seen = new Set();
-  for (const m of txt.matchAll(/<MAQUINA\b[^>]*\bID_PLUGIN\s*=\s*"([^"]+)"/gi)) {
-    seen.add((m[1] || "").trim());
+    // coleta todos IDs de plugin presentes no XML
+    const seen = new Set();
+    for (const m of txt.matchAll(/<MAQUINA\b[^>]*\bID_PLUGIN\s*=\s*"([^"]+)"/gi)) {
+      seen.add((m[1] || "").trim());
+    }
+
+    // erro apenas se faltar alguma obrigatória (quando aplicável)
+    const allPresent = REQUIRED_PLUGINS.every(id => seen.has(id));
+    if (!allPresent) payload.erros.push({ descricao: "PROBLEMA NA GERAÇÃO DE MÁQUINAS" });
+
+    // mapeia nomes e já envia UMA de cada no payload.meta.machines
+    const PLUGIN_NAMES = {
+      "2341": "Cyflex 900",
+      "2530": "Aspan",
+      "2534": "NCB612",
+      "2525": "MSZ600",
+    };
+    payload.meta.machines = Array.from(seen).map(id => ({
+      id,
+      name: PLUGIN_NAMES[id] || undefined,
+    }));
   }
-
-  // erro apenas se faltar alguma obrigatória (quando aplicável)
-  const allPresent = REQUIRED_PLUGINS.every(id => seen.has(id));
-  if (!allPresent) payload.erros.push({ descricao: "PROBLEMA NA GERAÇÃO DE MÁQUINAS" });
-
-  // mapeia nomes e já envia UMA de cada no payload.meta.machines
-  const PLUGIN_NAMES = {
-    "2341": "Cyflex 900",
-    "2530": "Aspan",
-    "2534": "NCB612",
-    "2525": "MSZ600",
-  };
-  payload.meta.machines = Array.from(seen).map(id => ({
-    id,
-    name: PLUGIN_NAMES[id] || undefined,
-  }));
-}
 
   // ===== AUTO-FIX =====
-if (cfg.enableAutoFix) {
-  let changed = false;
-  let priceFixCount = 0;
-  let qtyFixCount = 0;
+  if (cfg.enableAutoFix) {
+    let changed = false;
+    let priceFixCount = 0;
+    let qtyFixCount = 0;
 
-  // Passo por cada TAG <ITEM ...> e ajusto atributos dentro dela
-  txt = txt.replace(/<ITEM\b([^>]*)>/gi, (full, attrs) => {
-    let updated = attrs; // string só com os atributos
-    const refMatch = updated.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
-    const ref = (refMatch?.[1] || "").trim();
+    // Passo por cada TAG <ITEM ...> e ajusto atributos dentro dela
+    txt = txt.replace(/<ITEM\b([^>]*)>/gi, (full, attrs) => {
+      let updated = attrs; // string só com os atributos
+      const refMatch = updated.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+      const ref = (refMatch?.[1] || "").trim();
 
-    // 1) QUANTIDADE = 0 -> 1 (se tiver REFERENCIA preenchida no mesmo ITEM)
-    const qtyMatch = updated.match(/\bQUANTIDADE\s*=\s*"([^"]*)"/i);
-    if (qtyMatch) {
-      const qtyVal = (qtyMatch[1] || "").trim();
-      if (ref && /^0(?:\.0+)?$/.test(qtyVal)) {
-        updated = updated.replace(
-          /(\bQUANTIDADE\s*=\s*")0(?:\.0+)?(")/i,
-          `$11$2`
-        );
-        qtyFixCount++;
-        changed = true;
+      // 1) QUANTIDADE = 0 -> 1 (se tiver REFERENCIA preenchida no mesmo ITEM)
+      const qtyMatch = updated.match(/\bQUANTIDADE\s*=\s*"([^"]*)"/i);
+      if (qtyMatch) {
+        const qtyVal = (qtyMatch[1] || "").trim();
+        if (ref && /^0(?:\.0+)?$/.test(qtyVal)) {
+          updated = updated.replace(
+            /(\bQUANTIDADE\s*=\s*")0(?:\.0+)?(")/i,
+            `$11$2`
+          );
+          qtyFixCount++;
+          changed = true;
+        }
       }
+
+      // 2) PRECO_TOTAL 0 / 0.00 -> 0.10 (sempre que for zero)
+      const priceMatch = updated.match(/\bPRECO_TOTAL\s*=\s*"([^"]*)"/i);
+      if (priceMatch) {
+        const pVal = (priceMatch[1] || "").trim();
+        if (/^0(?:\.0+)?$/.test(pVal)) {
+          updated = updated.replace(
+            /(\bPRECO_TOTAL\s*=\s*")0(?:\.0+)?(")/i,
+            `$10.10$2`
+          );
+          priceFixCount++;
+          changed = true;
+        }
+      }
+
+      // remonta a tag <ITEM ...>
+      // (attrs capturado NÃO inclui o ">" final, então devolvemos igual ao original)
+      return `<ITEM${updated}>`;
+    });
+
+    // se houve qualquer ajuste, limpamos os erros correspondentes e gravamos de volta
+    if (qtyFixCount > 0) {
+      payload.autoFixes.push(`Ajustes de QUANTIDADE aplicados em ${qtyFixCount} item(ns)`);
+      // remove o erro de quantidade se existir
+      payload.erros = (payload.erros || []).filter(
+        (e) => (e.descricao || e).toUpperCase() !== "ITEM SEM QUANTIDADE"
+      );
+    }
+    if (priceFixCount > 0) {
+      payload.autoFixes.push(`Ajustes de PREÇO aplicados em ${priceFixCount} item(ns)`);
+      // remove o erro de preço se existir
+      payload.erros = (payload.erros || []).filter(
+        (e) => (e.descricao || e).toUpperCase() !== "ITEM SEM PREÇO"
+      );
     }
 
-    // 2) PRECO_TOTAL 0 / 0.00 -> 0.10 (sempre que for zero)
-    const priceMatch = updated.match(/\bPRECO_TOTAL\s*=\s*"([^"]*)"/i);
-    if (priceMatch) {
-      const pVal = (priceMatch[1] || "").trim();
-      if (/^0(?:\.0+)?$/.test(pVal)) {
-        updated = updated.replace(
-          /(\bPRECO_TOTAL\s*=\s*")0(?:\.0+)?(")/i,
-          `$10.10$2`
-        );
-        priceFixCount++;
-        changed = true;
-      }
+    if (changed) {
+      await fsp.writeFile(fileFullPath, txt, "utf8");
     }
-
-    // remonta a tag <ITEM ...>
-    // (attrs capturado NÃO inclui o ">" final, então devolvemos igual ao original)
-    return `<ITEM${updated}>`;
-  });
-
-  // se houve qualquer ajuste, limpamos os erros correspondentes e gravamos de volta
-  if (qtyFixCount > 0) {
-    payload.autoFixes.push(`Ajustes de QUANTIDADE aplicados em ${qtyFixCount} item(ns)`);
-    // remove o erro de quantidade se existir
-    payload.erros = (payload.erros || []).filter(
-      (e) => (e.descricao || e).toUpperCase() !== "ITEM SEM QUANTIDADE"
-    );
   }
-  if (priceFixCount > 0) {
-    payload.autoFixes.push(`Ajustes de PREÇO aplicados em ${priceFixCount} item(ns)`);
-    // remove o erro de preço se existir
-    payload.erros = (payload.erros || []).filter(
-      (e) => (e.descricao || e).toUpperCase() !== "ITEM SEM PREÇO"
-    );
-  }
-
-  if (changed) {
-    await fsp.writeFile(fileFullPath, txt, "utf8");
-  }
-}
 
   // Dedup
   payload.tags = Array.from(new Set(payload.tags));
@@ -337,7 +337,7 @@ async function processOne(fileFullPath, cfg) {
     const isOK = (analysis.erros || []).length === 0;
 
     const baseName = path.basename(fileFullPath);
-    const destDir  = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
+    const destDir = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
 
     let finalPath = path.resolve(fileFullPath);
     const originalPath = path.resolve(fileFullPath); // Guardar caminho original
@@ -347,11 +347,11 @@ async function processOne(fileFullPath, cfg) {
       await fse.ensureDir(destDir);
       const target = path.join(destDir, baseName);
       if (path.resolve(target).toLowerCase() !== finalPath.toLowerCase()) {
-        try { 
-          await fse.move(finalPath, target, { overwrite: true }); 
-          finalPath = path.resolve(target); 
+        try {
+          await fse.move(finalPath, target, { overwrite: true });
+          finalPath = path.resolve(target);
           movedTo = path.resolve(destDir);
-          
+
           // ✅ DELETAR arquivo antigo de ERRO se foi movido para OK
           if (isOK && originalPath.toLowerCase() !== finalPath.toLowerCase()) {
             try {
@@ -360,7 +360,7 @@ async function processOne(fileFullPath, cfg) {
               // Falha ao deletar é aceitável
             }
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -463,9 +463,9 @@ ipcMain.handle("analyzer:start", async (_e, overrideCfg) => {
       interval: isUncEntrada ? 800 : 100,
     });
 
-    watcher.on("add",    (p) => p.toLowerCase().endsWith(".xml") && processOne(p, cfg));
+    watcher.on("add", (p) => p.toLowerCase().endsWith(".xml") && processOne(p, cfg));
     watcher.on("change", (p) => p.toLowerCase().endsWith(".xml") && processOne(p, cfg));
-    watcher.on("error",  (err) => send("error", { where: "watch", message: String(err) }));
+    watcher.on("error", (err) => send("error", { where: "watch", message: String(err) }));
 
     send("started", { watching: cfg.entrada });
     return true;
@@ -517,7 +517,7 @@ async function resolveFilePathMaybeBase(input, cfg) {
 /** --- abrir na pasta --- */
 ipcMain.handle("analyzer:openInFolder", async (_e, fileFullPath) => {
   try {
-    const cfg  = currentCfg || (await loadCfg());
+    const cfg = currentCfg || (await loadCfg());
     const real = await resolveFilePathMaybeBase(fileFullPath, cfg);
     if (!real) {
       send("error", { where: "openInFolder", message: "Arquivo não encontrado." });
@@ -532,7 +532,7 @@ ipcMain.handle("analyzer:openInFolder", async (_e, fileFullPath) => {
       exec(`open -R "${p}"`);
     } else {
       const dir = path.dirname(p);
-      try { await shell.openPath(dir); } catch {}
+      try { await shell.openPath(dir); } catch { }
     }
 
     return true;
@@ -576,7 +576,7 @@ async function readReplaceHistory() {
   try { return JSON.parse(await fsp.readFile(REPLACE_HISTORY_FILE, 'utf8')); } catch { return []; }
 }
 async function writeReplaceHistory(arr) {
-  try { await fse.ensureFile(REPLACE_HISTORY_FILE); await fsp.writeFile(REPLACE_HISTORY_FILE, JSON.stringify(arr || [], null, 2), 'utf8'); } catch {}
+  try { await fse.ensureFile(REPLACE_HISTORY_FILE); await fsp.writeFile(REPLACE_HISTORY_FILE, JSON.stringify(arr || [], null, 2), 'utf8'); } catch { }
 }
 async function appendReplaceHistory(entry) {
   const h = await readReplaceHistory();
@@ -605,7 +605,7 @@ ipcMain.handle("analyzer:replaceCoringa", async (_e, obj) => {
     // garantir diretório de backup e escrever cópia de backup
     await fse.ensureDir(REPLACE_BACKUP_DIR);
     const base = path.basename(real);
-    const backupName = `${base.replace(/\.xml$/i,'')}_backup_${Date.now()}.xml`;
+    const backupName = `${base.replace(/\.xml$/i, '')}_backup_${Date.now()}.xml`;
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
     try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continuar mesmo se backup falhar */ }
 
@@ -696,7 +696,7 @@ ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
     // backup
     await fse.ensureDir(REPLACE_BACKUP_DIR);
     const base = path.basename(real);
-    const backupName = `${base.replace(/\.xml$/i,'')}_backup_cg_${Date.now()}.xml`;
+    const backupName = `${base.replace(/\.xml$/i, '')}_backup_cg_${Date.now()}.xml`;
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
     try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continuar */ }
 
@@ -745,7 +745,7 @@ ipcMain.handle('analyzer:fillReferencia', async (_e, obj) => {
     // backup
     await fse.ensureDir(REPLACE_BACKUP_DIR);
     const base = path.basename(real);
-    const backupName = `${base.replace(/\.xml$/i,'')}_backup_ref_${Date.now()}.xml`;
+    const backupName = `${base.replace(/\.xml$/i, '')}_backup_ref_${Date.now()}.xml`;
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
     try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
 
@@ -790,12 +790,12 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       const id = rep?.id;
       const value = rep?.value;
       if (!id || typeof value === 'undefined') { counts[id] = 0; continue; }
-      
+
       // Encontrar a tag ITEM com ID correspondente e substituir REFERENCIA dentro dela
       // FIX CRÍTICO: Não usar [\s\S]*? sem terminação apropriada
       // Em vez disso, corresponder apenas até /> ou fechamento > 
       const escapedId = escapeRegExp(String(id));
-      
+
       // Este regex lida adequadamente com tags multi-linha ao:
       // 1. Começar com <ITEM
       // 2. Usar [^<]* para corresponder atributos (qualquer coisa exceto outra tag)
@@ -803,7 +803,7 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       // 4. Corresponder atributo ID
       // 5. Corresponder resto dos atributos até > ou />
       const itemRegex = new RegExp(`<ITEM(?:[^<]|\\n)*?ID\\s*=\\s*"${escapedId}"(?:[^<]|\\n)*?(?:>|/>)`, 'gi');
-      
+
       let c = 0;
       const originalRaw = raw; // Guardar para debug
       raw = raw.replace(itemRegex, (itemMatch) => {
@@ -826,9 +826,9 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
         c++;
         return updated;
       });
-      
+
       counts[id] = c;
-      
+
       if (c === 0) {
         // Nenhuma correspondência encontrada
       }
@@ -840,13 +840,13 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
     // backup
     await fse.ensureDir(REPLACE_BACKUP_DIR);
     const base = path.basename(real);
-    const backupName = `${base.replace(/\.xml$/i,'')}_backup_refids_${Date.now()}.xml`;
+    const backupName = `${base.replace(/\.xml$/i, '')}_backup_refids_${Date.now()}.xml`;
     const backupPath = path.join(REPLACE_BACKUP_DIR, backupName);
     try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
 
     // escrever arquivo
     await fsp.writeFile(real, raw, 'utf8');
-    
+
     // Verificar se foi escrito
     const writtenContent = await fsp.readFile(real, 'utf8');
 
@@ -867,20 +867,20 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
     // Mas precisamos rastrear o novo caminho se ele se mover
     let finalPath = path.resolve(real);
     const originalPath = finalPath; // Guardar caminho original para limpeza
-    try { 
+    try {
       const analysis = await validateXml(real, cfg);
       const isOK = (analysis.erros || []).length === 0;
       const baseName = path.basename(real);
-      const destDir  = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
+      const destDir = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
 
       if (destDir) {
         await fse.ensureDir(destDir);
         const target = path.join(destDir, baseName);
         if (path.resolve(target).toLowerCase() !== finalPath.toLowerCase()) {
-          try { 
-            await fse.move(finalPath, target, { overwrite: true }); 
+          try {
+            await fse.move(finalPath, target, { overwrite: true });
             finalPath = path.resolve(target);
-            
+
             // DELETAR arquivo antigo de ERRO se foi movido para OK
             if (isOK && originalPath.toLowerCase() !== finalPath.toLowerCase()) {
               try {
@@ -889,7 +889,7 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
                 // Falha ao deletar é aceitável
               }
             }
-          } catch {}
+          } catch { }
         }
       }
 
@@ -901,7 +901,7 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       }
 
       send('file-validated', { ...analysis, arquivo: finalPath });
-    } catch (e) { 
+    } catch (e) {
       send('error', { where: 'fillReferenciaByIds-processOne', message: String(e?.message || e) });
     }
 
@@ -912,20 +912,93 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
   }
 });
 
+/** ================== IPC: SEARCH CSV PRODUCT ================== **/
+ipcMain.handle('analyzer:searchCsvProduct', async (_e, obj) => {
+  try {
+    const { colorName, productType } = obj || {};
+
+    if (!colorName || !productType) {
+      return { ok: false, message: 'invalid-params', results: [] };
+    }
+
+    // Validar tipo de produto
+    const validTypes = ['CHAPAS', 'FITAS', 'PAINEL', 'PUXADORES', 'TAPAFURO'];
+    if (!validTypes.includes(productType.toUpperCase())) {
+      return { ok: false, message: 'invalid-product-type', results: [] };
+    }
+
+    // Construir caminho do arquivo CSV
+    const csvFileName = `${productType.toUpperCase()}.csv`;
+    const csvPath = path.join(__dirname, 'csv', csvFileName);
+
+    // Verificar se arquivo existe
+    const exists = await fse.pathExists(csvPath);
+    if (!exists) {
+      send('error', { where: 'searchCsvProduct', message: `Arquivo CSV não encontrado: ${csvFileName}` });
+      return { ok: false, message: 'csv-not-found', results: [] };
+    }
+
+    // Ler arquivo CSV
+    const csvContent = await fsp.readFile(csvPath, 'utf8');
+    const lines = csvContent.split(/\r?\n/).filter(line => line.trim());
+
+    if (lines.length < 2) {
+      return { ok: false, message: 'empty-csv', results: [] };
+    }
+
+    // Primeira linha é o cabeçalho, usar para detectar delimitador
+    const header = lines[0];
+    const dataLines = lines.slice(1);
+
+    // Auto-detectar delimitador: TAB ou ponto e vírgula
+    // PAINEL usa ";" enquanto outros usam "\t"
+    const delimiter = header.includes(';') ? ';' : '\t';
+
+    // Buscar linhas que contenham o nome da cor (case-insensitive)
+    const searchTerm = colorName.toLowerCase();
+    const results = [];
+
+    for (const line of dataLines) {
+      // CSV separado por delimitador detectado
+      const columns = line.split(delimiter);
+      if (columns.length < 2) continue;
+
+      const code = (columns[0] || '').trim();
+      const description = (columns[1] || '').trim();
+      const group = columns.length > 2 ? (columns[2] || '').trim() : '';
+
+      // Verificar se a descrição contém o nome da cor
+      if (description.toLowerCase().includes(searchTerm)) {
+        results.push({
+          code,
+          description,
+          group
+        });
+      }
+    }
+
+    return { ok: true, results, count: results.length };
+  } catch (e) {
+    send('error', { where: 'searchCsvProduct', message: String((e && e.message) || e) });
+    return { ok: false, message: String((e && e.message) || e), results: [] };
+  }
+});
+
 /** ================== IPC: FIND DRAWING FILE ================== **/
+
 ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
   try {
     const { drawingCode, xmlFilePath } = obj || {};
-    
+
     console.log('[DXF Search] ========== INICIANDO BUSCA ==========');
     console.log('[DXF Search] Código de desenho procurado:', drawingCode);
     console.log('[DXF Search] Arquivo XML:', xmlFilePath);
-    
+
     const cfg = (await loadCfg()) || {};
     const drawingsFolder = cfg?.drawings;
-    
+
     console.log('[DXF Search] Pasta de desenhos configurada:', drawingsFolder);
-    
+
     // Se a pasta não foi configurada, usar Desktop/desenho_dxf como fallback
     let dxfFolderPath = drawingsFolder;
     if (!dxfFolderPath) {
@@ -933,18 +1006,18 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
       dxfFolderPath = path.join(desktopPath, 'desenho_dxf');
       console.log('[DXF Search] Pasta não configurada, usando fallback:', dxfFolderPath);
     }
-    
+
     console.log('[DXF Search] Caminho final a buscar:', dxfFolderPath);
-    
+
     // Verificar se a pasta existe
     const folderExists = await fse.pathExists(dxfFolderPath);
     console.log('[DXF Search] Pasta existe?', folderExists);
-    
+
     if (!folderExists) {
       console.log('[DXF Search] ❌ FALHA: Pasta não encontrada');
       return { found: false, path: null, message: `Pasta não encontrada: ${dxfFolderPath}` };
     }
-    
+
     // Ler arquivos da pasta
     const files = await fsp.readdir(dxfFolderPath);
     console.log('[DXF Search] Total de arquivos na pasta:', files.length);
@@ -952,40 +1025,40 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
     files.forEach((f, i) => {
       console.log(`  [${i + 1}] ${f}`);
     });
-    
+
     // Procurar arquivo que comece com o código de desenho (case-insensitive)
     const searchPattern = drawingCode.toLowerCase();
     console.log('[DXF Search] Padrão de busca (lowercase):', searchPattern);
     console.log('[DXF Search] Procurando arquivo que comece com:', searchPattern);
-    
+
     const foundFile = files.find(f => {
       const lowerF = f.toLowerCase();
       const matches = lowerF.startsWith(searchPattern);
       console.log(`  [Comparação] "${f}" (${lowerF}) -> começa com "${searchPattern}"? ${matches}`);
       return matches;
     });
-    
+
     if (!foundFile) {
       console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão');
       return { found: false, path: null, message: `Arquivo "${drawingCode}" não encontrado em ${dxfFolderPath}` };
     }
-    
+
     const fullPath = path.join(dxfFolderPath, foundFile);
     console.log('[DXF Search] ✅ ARQUIVO DXF ENCONTRADO');
     console.log('[DXF Search] Nome do arquivo:', foundFile);
     console.log('[DXF Search] Caminho completo:', fullPath);
-    
+
     // ===== ANALISAR ARQUIVO DXF =====
     let panelInfo = null;
     let fresaInfo = null;
-    
+
     try {
       console.log('[DXF Analysis] Lendo arquivo DXF:', fullPath);
       const dxfContent = await fsp.readFile(fullPath, 'utf8');
       const lines = dxfContent.split(/\r?\n/);
-      
+
       console.log('[DXF Analysis] Total de linhas no DXF:', lines.length);
-      
+
       // 1. PROCURAR PRIMEIRO PANEL e extrair o valor de 39 (dimensão)
       let panelFound = false;
       for (let i = 0; i < lines.length - 1; i++) {
@@ -993,7 +1066,7 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
         if (line.toUpperCase() === 'PANEL' && !panelFound) {
           console.log('[DXF Analysis] ✓ PANEL encontrado na linha', i);
           panelFound = true;
-          
+
           // Procurar o próximo "39" para pegar a dimensão
           for (let j = i + 1; j < lines.length; j++) {
             const codeLine = lines[j].trim();
@@ -1013,35 +1086,35 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
           break;
         }
       }
-      
+
       if (!panelFound) {
         console.log('[DXF Analysis] ✗ Nenhum PANEL encontrado no DXF');
       }
-      
+
       // 2. PROCURAR FRESA_12_37 ou FRESA_12_18
       let fresa37Found = false;
       let fresa18Found = false;
       let fresa37Count = 0;
       let fresa18Count = 0;
       let firstFresa37Info = null;
-      
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim().toUpperCase();
         if (line === 'FRESA_12_37') {
           fresa37Found = true;
           fresa37Count++;
-          
+
           // Se for a primeira FRESA_12_37, extrair detalhes
           if (fresa37Count === 1) {
             console.log('[DXF Analysis] ✓ PRIMEIRA FRESA_12_37 encontrada na linha', i);
-            
+
             // Procurar pelos códigos 30 (-37) e 39 (37 ou -37) após essa linha
             let hasNegative37 = false;
             let hasPositive37 = false;
-            
+
             for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
               const codeLine = lines[j].trim();
-              
+
               if (codeLine === '30') {
                 const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
                 if (valueLine === '-37') {
@@ -1049,7 +1122,7 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
                   console.log('[DXF Analysis]   ✓ Código 30 = -37 encontrado na linha', j);
                 }
               }
-              
+
               if (codeLine === '39') {
                 const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
                 if (valueLine === '37' || valueLine === '-37') {
@@ -1058,15 +1131,15 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
                 }
               }
             }
-            
+
             firstFresa37Info = {
               hasNegative37,
               hasPositive37
             };
-            
+
             console.log('[DXF Analysis]   Resumo FRESA_12_37: -37?', hasNegative37, '| 37?', hasPositive37);
           }
-          
+
           console.log('[DXF Analysis] ✓ FRESA_12_37 encontrada na linha', i);
         } else if (line === 'FRESA_12_18') {
           fresa18Found = true;
@@ -1074,7 +1147,7 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
           console.log('[DXF Analysis] ✓ FRESA_12_18 encontrada na linha', i);
         }
       }
-      
+
       if (fresa37Found && fresa18Found) {
         fresaInfo = {
           fresaCode: `FRESA_12_37 (${fresa37Count}x) e FRESA_12_18 (${fresa18Count}x)`,
@@ -1105,14 +1178,14 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
       } else {
         console.log('[DXF Analysis] ✗ Nenhuma FRESA_12_?? encontrada');
       }
-      
+
     } catch (dxfErr) {
       console.log('[DXF Analysis] ✗ Erro ao ler DXF:', dxfErr.message);
     }
-    
-    return { 
-      found: true, 
-      path: fullPath, 
+
+    return {
+      found: true,
+      path: fullPath,
       name: foundFile,
       panelInfo,
       fresaInfo
@@ -1129,33 +1202,33 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
   try {
     console.log('[DXF Fix] ========== INICIANDO CORREÇÃO ==========');
     console.log('[DXF Fix] Arquivo DXF:', dxfFilePath);
-    
+
     if (!dxfFilePath || !(await fse.pathExists(dxfFilePath))) {
       console.log('[DXF Fix] ❌ Arquivo não encontrado');
       return { ok: false, message: 'Arquivo não encontrado' };
     }
-    
+
     // Ler arquivo
     const content = await fsp.readFile(dxfFilePath, 'utf8');
     const lines = content.split(/\r?\n/);
-    
+
     console.log('[DXF Fix] Total de linhas:', lines.length);
-    
+
     let modified = false;
     let panelModified = false;
     let fresaModified = false;
     let firstPanelFound = false;
     let firstFresa37Found = false;
-    
+
     // Processar linhas
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       // 1. Alterar primeiro PANEL: valor 39 de 37 ou -37 para 18 ou -18
       if (!firstPanelFound && line.toUpperCase() === 'PANEL') {
         console.log('[DXF Fix] ✓ PANEL encontrado na linha', i);
         firstPanelFound = true;
-        
+
         // Procurar o código 39 após essa linha
         for (let j = i + 1; j < lines.length && j < i + 20; j++) {
           if (lines[j].trim() === '39') {
@@ -1179,16 +1252,16 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
           }
         }
       }
-      
+
       // 2. Alterar primeira FRESA_12_37: valores 30 (-37→-18 ou 37→18) e 39 (37→18 ou -37→-18)
       if (!firstFresa37Found && line.toUpperCase() === 'FRESA_12_37') {
         console.log('[DXF Fix] ✓ PRIMEIRA FRESA_12_37 encontrada na linha', i);
         firstFresa37Found = true;
-        
+
         // Procurar códigos 30 e 39 após essa linha
         for (let j = i + 1; j < lines.length && j < i + 20; j++) {
           const codeLine = lines[j].trim();
-          
+
           // Alterar código 30: -37 → -18 ou 37 → 18
           if (codeLine === '30') {
             const nextIdx = j + 1;
@@ -1207,7 +1280,7 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
               }
             }
           }
-          
+
           // Alterar código 39: 37 → 18 ou -37 → -18
           if (codeLine === '39') {
             const nextIdx = j + 1;
@@ -1229,7 +1302,7 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
         }
       }
     }
-    
+
     // 3. Substituir todas as ocorrências de FRESA_12_37 por FRESA_12_18
     let fresa37Replacements = 0;
     for (let i = 0; i < lines.length; i++) {
@@ -1239,28 +1312,28 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
         console.log('[DXF Fix] ✓ FRESA_12_37 → FRESA_12_18 na linha', i);
       }
     }
-    
+
     if (fresa37Replacements > 0) {
       modified = true;
     }
-    
+
     if (!modified) {
       console.log('[DXF Fix] ⚠️ Nenhuma alteração foi feita');
       return { ok: false, message: 'Nenhuma alteração foi necessária' };
     }
-    
+
     // Escrever arquivo de volta
     const newContent = lines.join('\n');
     await fsp.writeFile(dxfFilePath, newContent, 'utf8');
-    
+
     console.log('[DXF Fix] ✅ ARQUIVO CORRIGIDO COM SUCESSO');
     console.log('[DXF Fix] Alterações:');
     console.log('[DXF Fix]   - PANEL modificado:', panelModified);
     console.log('[DXF Fix]   - Primeira FRESA_12_37 modificada:', fresaModified);
     console.log('[DXF Fix]   - FRESA_12_37 → FRESA_12_18:', fresa37Replacements, 'ocorrências');
-    
-    return { 
-      ok: true, 
+
+    return {
+      ok: true,
       message: 'Arquivo corrigido com sucesso',
       changes: {
         panelModified,
@@ -1279,24 +1352,24 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
 ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
   try {
     console.log('[Export Report] ========== INICIANDO EXPORTAÇÃO ==========');
-    
+
     // Preparar data/hora
     const now = new Date();
     const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
     const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
     const timestamp = `${dateStr}_${timeStr}`;
-    
+
     // Obter pasta de logs da config
     let logsFolder = currentCfg?.logsErrors || '';
     if (!logsFolder || !await fse.pathExists(logsFolder)) {
       logsFolder = path.join(app.getPath('desktop'), 'Bartz-Analyzer_Reports');
       await fse.ensureDir(logsFolder);
     }
-    
+
     // ========== CSV ==========
     const csvPath = path.join(logsFolder, `Relatorio_${timestamp}.csv`);
     const csvLines = [];
-    
+
     // Cabeçalho
     csvLines.push([
       'DATA/HORA',
@@ -1307,7 +1380,7 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
       'AUTO-FIX',
       'TAGS'
     ].map(v => `"${v}"`).join(';'));
-    
+
     // Linhas de dados
     if (Array.isArray(reportData.rows)) {
       for (const row of reportData.rows) {
@@ -1315,7 +1388,7 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
         const warnings = (row.warnings || []).join(' | ');
         const autoFixes = (row.autoFixes || []).join(' | ');
         const tags = (row.tags || []).join(', ');
-        
+
         csvLines.push([
           row.timestamp || '',
           row.filename || '',
@@ -1327,12 +1400,12 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
         ].map(v => `"${v}"`).join(';'));
       }
     }
-    
+
     // Resumo estatístico
     const totalFiles = reportData.totalFiles || 0;
     const okFiles = reportData.okFiles || 0;
     const errorFiles = reportData.errorFiles || 0;
-    
+
     csvLines.push('');
     csvLines.push(['RESUMO DO RELATÓRIO'].map(v => `"${v}"`).join(';'));
     csvLines.push(['Data da Exportação', now.toLocaleString('pt-BR')].map(v => `"${v}"`).join(';'));
@@ -1340,11 +1413,11 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
     csvLines.push(['Arquivos OK', okFiles].map(v => `"${v}"`).join(';'));
     csvLines.push(['Arquivos com ERRO', errorFiles].map(v => `"${v}"`).join(';'));
     csvLines.push(['Taxa de Sucesso', totalFiles > 0 ? `${((okFiles / totalFiles) * 100).toFixed(2)}%` : 'N/A'].map(v => `"${v}"`).join(';'));
-    
+
     const csvContent = csvLines.join('\n');
     await fsp.writeFile(csvPath, csvContent, 'utf8');
     console.log('[Export Report] ✓ CSV criado:', csvPath);
-    
+
     // ========== JSON (mais detalhado) ==========
     const jsonPath = path.join(logsFolder, `Relatorio_${timestamp}.json`);
     const jsonData = {
@@ -1363,10 +1436,10 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
         erro: currentCfg?.erro || ''
       }
     };
-    
+
     await fsp.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
     console.log('[Export Report] ✓ JSON criado:', jsonPath);
-    
+
     return {
       ok: true,
       csvPath,
