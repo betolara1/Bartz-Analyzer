@@ -98,12 +98,12 @@ export default function FileDetailDrawer({
   const [dxfFound, setDxfFound] = React.useState<{ path: string; name: string; panelInfo?: any; fresaInfo?: any } | false | null>(null);
   const [dxfFixing, setDxfFixing] = React.useState(false);
 
-  // Estados para busca de produto CSV
-  const [csvSearchColor, setCsvSearchColor] = React.useState('');
-  const [csvProductType, setCsvProductType] = React.useState('CHAPAS');
-  const [csvSearchResults, setCsvSearchResults] = React.useState<Array<{ code: string; description: string; group: string }>>([]);
-  const [csvSelectedProduct, setCsvSelectedProduct] = React.useState('');
-  const [csvSearching, setCsvSearching] = React.useState(false);
+  // Estados para busca de produto ERP
+  const [erpSearchCode, setErpSearchCode] = React.useState('');
+  const [erpSearchDesc, setErpSearchDesc] = React.useState('');
+  const [erpSearchType, setErpSearchType] = React.useState('');
+  const [erpSearchResults, setErpSearchResults] = React.useState<Array<{ code: string; description: string }>>([]);
+  const [erpSearching, setErpSearching] = React.useState(false);
 
   // Resetar DXF encontrado quando dados mudam
   React.useEffect(() => {
@@ -188,36 +188,39 @@ export default function FileDetailDrawer({
     }
   }
 
-  // Função para buscar produto no CSV
-  async function handleCsvSearch() {
-    if (!csvSearchColor || !csvProductType) {
-      toast.warning('Por favor, preencha o nome da cor e selecione o tipo de produto.');
+  // Função para buscar produto no ERP
+  async function handleErpSearch() {
+    if (!erpSearchCode && !erpSearchDesc && !erpSearchType) {
+      toast.warning('Por favor, preencha um dos campos para buscar.');
       return;
     }
 
-    setCsvSearching(true);
-    setCsvSearchResults([]);
-    setCsvSelectedProduct('');
-    const id = toast.loading(`Buscando "${csvSearchColor}" em ${csvProductType}...`);
+    setErpSearching(true);
+    setErpSearchResults([]);
+    const id = toast.loading(`Buscando no ERP...`);
 
     try {
-      const result = await (window as any).electron?.analyzer?.searchCsvProduct?.(csvSearchColor, csvProductType);
+      const result = await (window as any).electron?.analyzer?.searchErpProduct?.({
+        code: erpSearchCode,
+        desc: erpSearchDesc,
+        type: erpSearchType
+      });
 
       if (result?.ok && result?.results && result.results.length > 0) {
-        setCsvSearchResults(result.results);
+        setErpSearchResults(result.results);
         toast.dismiss(id);
-        toast.success(`✓ Encontrados ${result.results.length} produto(s) com "${csvSearchColor}"`);
+        toast.success(`✓ Encontrados ${result.results.length} produto(s)`);
       } else {
-        setCsvSearchResults([]);
+        setErpSearchResults([]);
         toast.dismiss(id);
-        toast.warning(`Nenhum produto encontrado com a cor "${csvSearchColor}" em ${csvProductType}.`);
+        toast.warning(result?.message || 'Nenhum produto encontrado.');
       }
     } catch (e: any) {
-      setCsvSearchResults([]);
+      setErpSearchResults([]);
       toast.dismiss(id);
       toast.error(`Erro ao buscar produto: ${String(e?.message || e)}`);
     } finally {
-      setCsvSearching(false);
+      setErpSearching(false);
       toast.dismiss(id);
     }
   }
@@ -289,7 +292,7 @@ export default function FileDetailDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[420px] sm:w-[460px] p-0 bg-[#161616] text-white border-l border-zinc-800"
+        className="w-[50%] sm:w-[50%] sm:max-w-none p-0 bg-[#161616] text-white border-l border-zinc-800"
       >
         <div className="h-full flex flex-col">
           {/* HEADER */}
@@ -529,86 +532,116 @@ export default function FileDetailDrawer({
               </div>
             )}
 
-            {/* BUSCA DE PRODUTO CSV - Acima da seção Cor Coringa */}
+            {/* BUSCA DE PRODUTO ERP - Acima da seção Cor Coringa */}
             {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
               <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
                 <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
                   <Search className="h-4 w-4" />
-                  Busca de Produto por Cor
+                  Busca de Produto (ERP)
                 </div>
                 <div className="px-4 pb-3 space-y-3">
-                  <div className="text-sm text-zinc-200">Digite o nome da cor e selecione o tipo de produto para buscar:</div>
+                  <div className="text-[11px] text-zinc-400">
+                    Use um dos campos abaixo para buscar diretamente no banco de dados do servidor.
+                  </div>
 
-                  {/* Input para nome da cor */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Input para Código */}
+                    <div>
+                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Código</label>
+                      <input
+                        placeholder="Ex: 10.01.0001"
+                        value={erpSearchCode}
+                        onChange={(e) => {
+                          setErpSearchCode(e.target.value);
+                          if (e.target.value) {
+                            setErpSearchDesc('');
+                            setErpSearchType('');
+                          }
+                        }}
+                        disabled={!!erpSearchDesc || !!erpSearchType}
+                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
+                      />
+                    </div>
+
+                    {/* Select para tipo de produto */}
+                    <div>
+                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Tipo</label>
+                      <select
+                        value={erpSearchType}
+                        onChange={(e) => {
+                          setErpSearchType(e.target.value);
+                          if (e.target.value) setErpSearchCode('');
+                        }}
+                        disabled={!!erpSearchCode}
+                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
+                      >
+                        <option value="">TODOS</option>
+                        <option value="CHAPAS">CHAPAS</option>
+                        <option value="FITAS">FITAS</option>
+                        <option value="PUXADORES">PUXADORES</option>
+                        <option value="TAPAFURO">TAPAFURO</option>
+                        <option value="PAINEL">PAINEL</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Input para Descrição */}
                   <div>
-                    <label className="text-xs text-zinc-300 mb-1 block">Nome da Cor</label>
+                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Descrição (Cor, MM, etc)</label>
                     <input
-                      placeholder="Ex: BRANCO, MOCCA, SANTIAGO..."
-                      value={csvSearchColor}
-                      onChange={(e) => setCsvSearchColor(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
+                      placeholder="Ex: BRANCO SUPREMO"
+                      value={erpSearchDesc}
+                      onChange={(e) => {
+                        setErpSearchDesc(e.target.value);
+                        if (e.target.value) setErpSearchCode('');
+                      }}
+                      disabled={!!erpSearchCode}
+                      className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
                     />
                   </div>
 
-                  {/* Select para tipo de produto */}
-                  <div>
-                    <label className="text-xs text-zinc-300 mb-1 block">Tipo de Produto</label>
-                    <select
-                      value={csvProductType}
-                      onChange={(e) => setCsvProductType(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
-                    >
-                      <option value="CHAPAS">CHAPAS</option>
-                      <option value="FITAS">FITAS</option>
-                      <option value="PAINEL">PAINEL</option>
-                      <option value="PUXADORES">PUXADORES</option>
-                      <option value="TAPAFURO">TAPAFURO</option>
-                    </select>
-                  </div>
-
                   {/* Botão de buscar */}
-                  <div>
-                    <button
-                      disabled={!csvSearchColor || csvSearching}
-                      onClick={handleCsvSearch}
-                      className="w-full px-3 py-2 rounded bg-blue-500 text-white font-medium disabled:opacity-50 hover:bg-blue-600"
-                    >
-                      {csvSearching ? 'Buscando...' : 'Buscar'}
-                    </button>
-                  </div>
+                  <button
+                    disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
+                    onClick={handleErpSearch}
+                    className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg"
+                  >
+                    {erpSearching ? 'Buscando...' : 'Buscar no Servidor'}
+                  </button>
 
-                  {/* Select de resultados (aparece apenas quando há resultados) */}
-                  {csvSearchResults.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-xs text-zinc-300 mb-1 block">
-                        Resultados ({csvSearchResults.length} produto(s) encontrado(s))
-                      </label>
-                      <select
-                        value={csvSelectedProduct}
-                        onChange={(e) => setCsvSelectedProduct(e.target.value)}
-                        className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
-                      >
-                        <option value="">-- Selecione um produto --</option>
-                        {csvSearchResults.map((product, idx) => (
-                          <option key={idx} value={product.code}>
-                            {product.code} - {product.description}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Botão Preencher */}
-                      <button
-                        disabled={!csvSelectedProduct}
-                        onClick={() => {
-                          if (csvSelectedProduct) {
-                            setCoringaTo(csvSelectedProduct);
-                            toast.success(`Código "${csvSelectedProduct}" preenchido no campo "Substituir por"`);
-                          }
-                        }}
-                        className="w-full px-3 py-2 rounded bg-green-600 text-white font-medium disabled:opacity-50 hover:bg-green-700"
-                      >
-                        Preencher
-                      </button>
+                  {/* Resultados em Tabela */}
+                  {erpSearchResults.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      <div className="max-h-[300px] overflow-y-auto rounded border border-zinc-800 bg-[#0a0a0a]">
+                        <table className="w-full text-[11px]">
+                          <thead className="sticky top-0 bg-[#1a1a1a] text-zinc-400 border-b border-zinc-800">
+                            <tr>
+                              <th className="text-left px-2 py-1.5 font-bold uppercase">Código</th>
+                              <th className="text-left px-2 py-1.5 font-bold uppercase">Descrição</th>
+                              <th className="w-10">Preencher</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-900">
+                            {erpSearchResults.map((prod, idx) => (
+                              <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
+                                <td className="px-2 py-2 font-mono text-blue-300">{prod.code}</td>
+                                <td className="px-2 py-2 text-zinc-300">{prod.description}</td>
+                                <td className="px-2 py-2">
+                                  <button
+                                    onClick={() => {
+                                      setCoringaTo(prod.code);
+                                      toast.success(`Código "${prod.code}" selecionado`);
+                                    }}
+                                    className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                    title="Preencher"
+                                  >Preencher Campo
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>

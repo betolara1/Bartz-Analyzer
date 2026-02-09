@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electron', {
     fixFresa37to18: (dxfFilePath) => ipcRenderer.invoke('analyzer:fixFresa37to18', dxfFilePath),
     exportReport: (reportData) => ipcRenderer.invoke('analyzer:exportReport', reportData),
     searchCsvProduct: (colorName, productType) => ipcRenderer.invoke('analyzer:searchCsvProduct', { colorName, productType }),
+    searchErpProduct: (params) => ipcRenderer.invoke('analyzer:searchErpProduct', params),
   },
 
   settings: {

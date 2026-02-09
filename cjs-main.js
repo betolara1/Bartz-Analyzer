@@ -913,6 +913,138 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
 });
 
 /** ================== IPC: SEARCH CSV PRODUCT ================== **/
+ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
+  try {
+    const { code, desc, type } = params || {};
+
+    // ==========================================================
+    // SE FOR TIPO "PAINEL", BUSCAR NO ARQUIVO CSV LOCAL
+    // ==========================================================
+    if (type === 'PAINEL') {
+      console.log('[Analyzer] Buscando PAINEL no CSV local...');
+      const csvPath = path.join(__dirname, 'csv', 'PAINEL.csv');
+
+      if (!await fse.pathExists(csvPath)) {
+        return { ok: false, message: 'Arquivo PAINEL.csv não encontrado.' };
+      }
+
+      const content = await fsp.readFile(csvPath, 'utf8');
+      const lines = content.split(/\r?\n/).filter(x => x.trim());
+
+      // Detecção simples de delimitador (se header tem ;, usa ;)
+      const header = lines[0] || '';
+      const delimiter = header.includes(';') ? ';' : '\t';
+
+      const searchCode = (code || '').trim().toUpperCase();
+      const searchDesc = (desc || '').trim().toUpperCase();
+
+      const results = [];
+
+      // Pular header (começar do índice 1)
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(delimiter);
+        if (cols.length < 2) continue;
+
+        const rowCode = (cols[0] || '').trim().toUpperCase();
+        const rowDesc = (cols[1] || '').trim().toUpperCase();
+
+        // Critério de filtro
+        let match = false;
+
+        if (searchCode) {
+          // Se tiver código, tem que bater exato ou começar com
+          if (rowCode === searchCode || rowCode.startsWith(searchCode)) match = true;
+        } else if (searchDesc) {
+          // Se tiver descrição, contém
+          if (rowDesc.includes(searchDesc)) match = true;
+        } else {
+          // Se não tiver nada, traz tudo (cuidado com volume) ou nada? 
+          // Normalmente o front bloqueia busca vazia. Vamos trazer tudo se o user pedir.
+          match = true;
+        }
+
+        if (match) {
+          results.push({
+            code: cols[0].trim(),           // Manter original case
+            description: cols[1].trim()     // Manter original case
+          });
+        }
+      }
+
+      console.log(`[Analyzer] Busca PAINEL CSV retornou ${results.length} itens.`);
+      return { ok: true, results, count: results.length };
+    }
+
+    // ==========================================================
+    // DEMAIS TIPOS -> BUSCAR NA API DO ERP
+    // ==========================================================
+
+    // Configurações de prefixo por tipo
+    const typePrefixes = {
+      'CHAPAS': '10.01.',
+      'FITAS': '10.02.',
+      'PUXADORES': '10.14.',
+      'TAPAFURO': '10.15.'
+    };
+
+    let url = '';
+    const searchTerm = (desc || '').trim().toUpperCase();
+    const codeTerm = (code || '').trim().toUpperCase();
+
+    if (codeTerm) {
+      url = `http://192.168.1.10:8081/api/erp/search-code?q=${encodeURIComponent(codeTerm)}`;
+    } else if (searchTerm) {
+      url = `http://192.168.1.10:8081/api/erp/search-desc?q=${encodeURIComponent(searchTerm)}`;
+    } else if (type && typePrefixes[type]) {
+      // Se apenas tipo, tentamos buscar pelo prefixo no find-by-code
+      url = `http://192.168.1.10:8081/api/erp/find-by-code?code=${encodeURIComponent(typePrefixes[type])}`;
+    }
+
+    if (!url) {
+      return { ok: false, message: 'Parâmetros de busca insuficientes.' };
+    }
+
+    console.log(`[ERP API] Solicitando: ${url}`);
+    const response = await fetch(url);
+
+    console.log(`[ERP API] Status: ${response.status} ${response.statusText}`);
+
+    if (response.status === 404) {
+      return { ok: true, results: [], count: 0, message: 'Nenhum produto encontrado (404).' };
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.error(`[ERP API] Erro: ${text}`);
+      throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log(`[ERP API] Dados recebidos:`, JSON.stringify(data).slice(0, 200));
+    let results = Array.isArray(data) ? data : (data ? [data] : []);
+
+    // Filtragem por tipo (prefixo do código) no lado do cliente caso a API retorne resultados amplos
+    if (type && typePrefixes[type]) {
+      const prefix = typePrefixes[type];
+      results = results.filter(item => {
+        const itemCode = (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString();
+        return itemCode.startsWith(prefix);
+      });
+    }
+
+    // Normalizar resultados para o frontend (esperamos code e description)
+    const normalizedResults = results.map(item => ({
+      code: item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '?',
+      description: item.description || item.DESCRICAO || item.item_description || 'Sem descrição'
+    }));
+
+    return { ok: true, results: normalizedResults, count: normalizedResults.length };
+  } catch (e) {
+    console.error(`[ERP API Error] ${e.message}`);
+    return { ok: false, message: `Erro ao buscar no ERP: ${e.message}`, results: [] };
+  }
+});
+
 ipcMain.handle('analyzer:searchCsvProduct', async (_e, obj) => {
   try {
     const { colorName, productType } = obj || {};
