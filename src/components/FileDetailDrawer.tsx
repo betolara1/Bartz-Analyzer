@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
-import { X, FileJson, AlertTriangle, Search } from "lucide-react";
+import { X, FileJson, AlertTriangle, Search, CheckCircle } from "lucide-react";
 
 type Row = {
   filename: string;
@@ -95,8 +95,18 @@ export default function FileDetailDrawer({
 
   // Estado para busca de arquivo DXF
   const [dxfSearching, setDxfSearching] = React.useState(false);
-  const [dxfFound, setDxfFound] = React.useState<{ path: string; name: string; panelInfo?: any; fresaInfo?: any } | false | null>(null);
-  const [dxfFixing, setDxfFixing] = React.useState(false);
+  // dxfResults key = drawingCode, val = result object or status
+  const [dxfResults, setDxfResults] = React.useState<Record<string, {
+    status: 'idle' | 'searching' | 'found' | 'error' | 'not_found';
+    data?: {
+      path: string;
+      name: string;
+      panelInfo?: any;
+      fresaInfo?: any;
+    };
+    message?: string;
+  }>>({});
+  const [dxfFixing, setDxfFixing] = React.useState<Record<string, boolean>>({});
 
   // Estados para busca de produto ERP
   const [erpSearchCode, setErpSearchCode] = React.useState('');
@@ -107,84 +117,110 @@ export default function FileDetailDrawer({
 
   // Resetar DXF encontrado quando dados mudam
   React.useEffect(() => {
-    setDxfFound(null);
+    setDxfResults({});
+    setDxfFixing({});
   }, [data?.fullpath]);
 
-  // Função para buscar arquivo DXF pelo código de desenho
-  async function searchDrawingDXF() {
-    if (!data?.meta?.es08Matches || data.meta.es08Matches.length === 0) {
-      toast.warning("Nenhum código de desenho encontrado neste arquivo.");
-      return;
-    }
+  // Identificar desenhos únicos
+  const uniqueDrawings = React.useMemo(() => {
+    if (!data?.meta?.es08Matches) return [];
+    const set = new Set<string>();
+    (data.meta.es08Matches as any[]).forEach(m => {
+      if (m.desenho) set.add(m.desenho);
+    });
+    return Array.from(set);
+  }, [data]);
 
-    const firstDrawing = (data.meta.es08Matches as any[])[0]?.desenho;
-    if (!firstDrawing) {
-      toast.warning("Código de desenho não identificado.");
+  // Função para buscar arquivo DXF pelo código de desenho (busca todos únicos)
+  async function searchAllDrawings() {
+    if (uniqueDrawings.length === 0) {
+      toast.warning("Nenhum código de desenho encontrado.");
       return;
     }
 
     setDxfSearching(true);
-    const id = toast.loading(`Buscando desenho: ${firstDrawing}...`);
+    const id = toast.loading(`Buscando ${uniqueDrawings.length} desenho(s)...`);
+
+    // Inicializar status 'searching' para todos
+    setDxfResults(prev => {
+      const next = { ...prev };
+      uniqueDrawings.forEach(d => next[d] = { status: 'searching' });
+      return next;
+    });
 
     try {
-      const result = await (window as any).electron?.analyzer?.findDrawingFile?.(firstDrawing, data?.fullpath);
-      if (result?.found && result?.path) {
-        setDxfFound({
-          path: result.path,
-          name: result.name || firstDrawing,
-          panelInfo: result.panelInfo,
-          fresaInfo: result.fresaInfo
+      const promises = uniqueDrawings.map(async (drawing) => {
+        try {
+          const result = await (window as any).electron?.analyzer?.findDrawingFile?.(drawing, data?.fullpath);
+          return { drawing, result };
+        } catch (e) {
+          return { drawing, error: e };
+        }
+      });
+
+      const results = await Promise.all(promises);
+
+      setDxfResults(prev => {
+        const next = { ...prev };
+        results.forEach(({ drawing, result, error }) => {
+          if (error) {
+            next[drawing] = { status: 'error', message: String(error) };
+          } else if (result?.found && result?.path) {
+            next[drawing] = {
+              status: 'found',
+              data: {
+                path: result.path,
+                name: result.name || drawing,
+                panelInfo: result.panelInfo,
+                fresaInfo: result.fresaInfo
+              }
+            };
+          } else {
+            next[drawing] = { status: 'not_found', message: result?.message };
+          }
         });
+        return next;
+      });
 
-        // Mostrar informações adicionais do XML
-        let successMsg = `✓ Desenho encontrado: ${result.name}`;
-        if (result.panelInfo) {
-          successMsg += `\n📋 Primeiro PAINEL: ${result.panelInfo.panelCode} (${result.panelInfo.dimension})`;
-        }
-        if (result.fresaInfo) {
-          successMsg += `\n🔧 FRESA encontrada: ${result.fresaInfo.fresaCode}`;
-          successMsg += `\n   Status: ${result.fresaInfo.status}`;
-        }
+      const foundCount = results.filter(r => r.result?.found).length;
+      if (foundCount > 0) toast.success(`Busca concluída: ${foundCount}/${uniqueDrawings.length} encontrados.`);
+      else toast.warning('Nenhum desenho encontrado.');
 
-        toast.success(successMsg);
-      } else {
-        setDxfFound(false);
-        toast.error(`Desenho "${firstDrawing}" não encontrado em desenho_dxf.`);
-      }
     } catch (e: any) {
-      setDxfFound(false);
-      toast.error(`Erro na busca: ${String(e?.message || e)}`);
+      toast.error(`Erro na busca geral: ${String(e?.message || e)}`);
     } finally {
       setDxfSearching(false);
       toast.dismiss(id);
     }
   }
 
-  // Função para corrigir FRESA_12_37 para FRESA_12_18
-  async function fixFresa37to18() {
-    if (!dxfFound || typeof dxfFound !== 'object' || !dxfFound.path) {
-      toast.error("Nenhum arquivo DXF selecionado.");
+  // Função para corrigir FRESA_12_37 para FRESA_12_18 (específica por desenho)
+  async function fixFresa37to18(drawingCode: string) {
+    const res = dxfResults[drawingCode];
+    if (res?.status !== 'found' || !res.data?.path) {
+      toast.error("Arquivo DXF não disponível para correção.");
       return;
     }
 
-    setDxfFixing(true);
-    const id = toast.loading("Corrigindo arquivo DXF...");
+    setDxfFixing(prev => ({ ...prev, [drawingCode]: true }));
+    const id = toast.loading(`Corrigindo ${drawingCode}...`);
 
     try {
-      const result = await (window as any).electron?.analyzer?.fixFresa37to18?.(dxfFound.path);
+      const result = await (window as any).electron?.analyzer?.fixFresa37to18?.(res.data.path);
 
       if (result?.ok) {
-        toast.dismiss(id);
-        toast.success(`✅ Arquivo corrigido com sucesso!\n📝 Alterações:\n- PANEL: ${result.changes?.panelModified ? '✓' : '—'}\n- Primeira FRESA_12_37: ${result.changes?.fresaModified ? '✓' : '—'}\n- Total FRESA_12_37→18: ${result.changes?.fresa37Replacements}`);
+        toast.success(`✅ ${drawingCode} corrigido! substituições: ${result.changes?.fresa37Replacements}`);
+        // Re-buscar este desenho para atualizar status na tela?
+        // Simplesmente deixamos assim ou atualizamos o estado local se quisermos refletir na hora.
+        // O ideal seria atualizar fresaInfo no estado local.
       } else {
-        toast.dismiss(id);
-        toast.error(`Erro: ${result?.message || 'Falha ao corrigir'}`);
+        toast.error(`Erro em ${drawingCode}: ${result?.message || 'Falha ao corrigir'}`);
       }
     } catch (e: any) {
-      toast.dismiss(id);
       toast.error(`Erro na correção: ${String(e?.message || e)}`);
     } finally {
-      setDxfFixing(false);
+      setDxfFixing(prev => ({ ...prev, [drawingCode]: false }));
+      toast.dismiss(id);
     }
   }
 
@@ -425,108 +461,174 @@ export default function FileDetailDrawer({
                   ))}
                 </div>
 
-                {/* Buscar arquivo DXF */}
+                {/* Buscar arquivo DXF (Múltiplos desenhos) */}
                 <div className="mt-3 pt-3 border-t border-rose-500/20">
                   <div className="bg-[#1a1a1a] border border-[#2C2C2C] rounded-md p-3">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm font-medium text-rose-300">Busca de Desenho DXF</div>
+                      <div className="text-sm font-medium text-rose-300">
+                        Busca de Desenho DXF
+                        {uniqueDrawings.length > 1 && <span className="ml-1 text-xs text-zinc-500">({uniqueDrawings.length} encontrados)</span>}
+                      </div>
                       <button
-                        onClick={searchDrawingDXF}
+                        onClick={searchAllDrawings}
                         disabled={dxfSearching}
                         className="px-2 py-1 rounded bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 disabled:opacity-50"
                       >
-                        {dxfSearching ? "Buscando..." : "Buscar"}
+                        {dxfSearching ? "Buscando Todos..." : "Buscar Todos"}
                       </button>
                     </div>
 
-                    {/* Tabela de resultado */}
-                    <table className="w-full text-xs">
-                      <tbody>
-                        <tr className="border-b border-[#2C2C2C]">
-                          <td className="px-2 py-2 text-zinc-400">Código:</td>
-                          <td className="px-2 py-2 text-white font-mono">
-                            {((data?.meta?.es08Matches as any[])?.[0]?.desenho || "—")}
-                          </td>
-                        </tr>
-                        <tr className="border-b border-[#2C2C2C]">
-                          <td className="px-2 py-2 text-zinc-400">Status:</td>
-                          <td className="px-2 py-2">
-                            {dxfFound === null ? (
-                              <span className="text-zinc-400">Aguardando busca...</span>
-                            ) : dxfFound === false ? (
-                              <span className="text-rose-400 font-medium">✗ Não encontrado</span>
-                            ) : (
-                              <span className="text-green-400 font-medium">✓ Encontrado</span>
-                            )}
-                          </td>
-                        </tr>
-                        {dxfFound && typeof dxfFound === 'object' && (
-                          <>
-                            <tr className="border-b border-[#2C2C2C]">
-                              <td className="px-2 py-2 text-zinc-400">Nome:</td>
-                              <td className="px-2 py-2 text-white font-mono break-all">
-                                {dxfFound.name}
-                              </td>
-                            </tr>
-                            <tr className="border-b border-[#2C2C2C]">
-                              <td className="px-2 py-2 text-zinc-400">Caminho:</td>
-                              <td className="px-2 py-2 text-white font-mono text-[10px] break-all">
-                                {dxfFound.path}
-                              </td>
-                            </tr>
-                            {dxfFound.panelInfo && (
-                              <tr className="border-b border-[#2C2C2C] bg-blue-500/5">
-                                <td className="px-2 py-2 text-blue-400 font-medium">📋 Primeiro PAINEL:</td>
-                                <td className="px-2 py-2 text-blue-300">
-                                  {dxfFound.panelInfo.panelCode} <span className="font-mono text-blue-400">({dxfFound.panelInfo.dimension})</span>
-                                </td>
-                              </tr>
-                            )}
-                            {dxfFound.fresaInfo && (
-                              <tr className="border-b border-[#2C2C2C] bg-purple-500/5">
-                                <td className="px-2 py-2 text-purple-400 font-medium">🔧 FRESA:</td>
-                                <td className="px-2 py-2">
-                                  <div className="space-y-1">
-                                    <div className="text-purple-300 font-mono">{dxfFound.fresaInfo.fresaCode}</div>
-                                    <div className="text-purple-200 text-sm">{dxfFound.fresaInfo.status}</div>
-                                    {dxfFound.fresaInfo.firstFresa37 && (
-                                      <div className="mt-2 pt-2 border-t border-purple-500/30 text-xs">
-                                        <div className="text-purple-300 font-semibold">Primeira FRESA_12_37:</div>
-                                        <div className="ml-2 space-y-1 mt-1">
-                                          {dxfFound.fresaInfo.firstFresa37.hasNegative37 && (
-                                            <div className="text-purple-200">✓ Código 30 = -37</div>
-                                          )}
-                                          {dxfFound.fresaInfo.firstFresa37.hasPositive37 && (
-                                            <div className="text-purple-200">✓ Código 39 = 37</div>
-                                          )}
-                                          {!dxfFound.fresaInfo.firstFresa37.hasNegative37 && !dxfFound.fresaInfo.firstFresa37.hasPositive37 && (
-                                            <div className="text-purple-300">• Nenhum dos valores encontrado</div>
-                                          )}
+                    {/* Lista de Resultados por Desenho */}
+                    <div className="space-y-4">
+                      {uniqueDrawings.map((drawing) => {
+                        const result = dxfResults[drawing];
+                        const isFixing = dxfFixing[drawing];
+                        const dxfData = result?.data;
+
+                        return (
+                          <div key={drawing} className="border border-[#2C2C2C] rounded bg-[#1F1F1F] overflow-hidden">
+                            {/* Cabeçalho do Card */}
+                            <div className="px-3 py-2 bg-[#252525] border-b border-[#2C2C2C] flex items-center justify-between">
+                              <div className="font-mono text-xs text-zinc-300">{drawing}</div>
+                              <div className="text-xs">
+                                {!result ? (
+                                  <span className="text-zinc-500">Aguardando busca...</span>
+                                ) : result.status === 'searching' ? (
+                                  <span className="text-yellow-500">🔍 Buscando...</span>
+                                ) : result.status === 'found' ? (
+                                  <span className="text-green-400 font-bold">✓ Encontrado</span>
+                                ) : result.status === 'not_found' ? (
+                                  <span className="text-rose-400 font-bold">✗ Não encontrado</span>
+                                ) : (
+                                  <span className="text-red-400">Erro</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Conteúdo do Resultado */}
+                            {result?.status === 'found' && dxfData && (
+                              <div className="p-3 text-xs space-y-2">
+                                <div>
+                                  <span className="text-zinc-500">Caminho:</span>
+                                  <div className="font-mono text-[10px] text-zinc-400 break-all select-all">
+                                    {dxfData.path}
+                                  </div>
+                                </div>
+
+                                {dxfData.panelInfo && (
+                                  <div className="bg-blue-500/5 p-2 rounded border border-blue-500/10 mb-2">
+                                    {(dxfData.panelInfo.dimension === '-18' || dxfData.panelInfo.dimension === '18') ? (
+                                      <div className="text-green-400 font-medium flex items-center gap-2 py-1">
+                                        <CheckCircle className="h-4 w-4" />
+                                        <span>Arquivo configurado para 18mm</span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="text-blue-400 font-medium mb-1 text-[11px] uppercase">📋 Primeiro PAINEL:</div>
+                                        <div className="text-blue-300">
+                                          {dxfData.panelInfo.panelCode} <span className="font-mono text-blue-400">({dxfData.panelInfo.dimension})</span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+
+                                {dxfData.fresaInfo && (
+                                  <div className="space-y-3">
+                                    {/* SEÇÃO FRESAS */}
+                                    {dxfData.fresaInfo.fresa37List && dxfData.fresaInfo.fresa37List.length > 0 && (
+                                      <div className="bg-purple-500/5 p-2 rounded border border-purple-500/10">
+                                        <div className="text-purple-400 font-medium mb-1 text-[11px] uppercase flex items-center gap-1">
+                                          <span>🔧 FRESAS</span>
+                                          <span className="text-[9px] opacity-60">({dxfData.fresaInfo.fresa37List.length} itens)</span>
+                                        </div>
+                                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+                                          {dxfData.fresaInfo.fresa37List.map((item: any, idx: number) => (
+                                            <div key={`fresa-${idx}`} className="bg-purple-900/20 p-1.5 rounded border border-purple-500/20">
+                                              <div className="flex justify-between items-center mb-1">
+                                                <span className="font-mono text-[9px] text-purple-300">ITEM #{item.index} (L{item.line})</span>
+                                              </div>
+                                              <div className="space-y-0.5 ml-1 text-[9px]">
+                                                <div className={item.hasNegative37 ? "text-green-300" : "text-zinc-500"}>
+                                                  {item.hasNegative37 ? "✓ MM -37" : "• MM -37"}
+                                                </div>
+                                                <div className={item.hasPositive37 ? "text-green-300" : "text-zinc-500"}>
+                                                  {item.hasPositive37 ? "✓ MM 37" : "• MM 37"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
                                         </div>
                                       </div>
                                     )}
+
+                                    {/* SEÇÃO USINAGENS */}
+                                    {dxfData.fresaInfo.usinagem37List && dxfData.fresaInfo.usinagem37List.length > 0 && (
+                                      <div className="bg-blue-500/5 p-2 rounded border border-blue-500/10">
+                                        <div className="text-blue-400 font-medium mb-1 text-[11px] uppercase flex items-center gap-1">
+                                          <span>🛠️ USINAGENS</span>
+                                          <span className="text-[9px] opacity-60">({dxfData.fresaInfo.usinagem37List.length} itens)</span>
+                                        </div>
+                                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+                                          {dxfData.fresaInfo.usinagem37List.map((item: any, idx: number) => (
+                                            <div key={`usinagem-${idx}`} className="bg-blue-900/20 p-1.5 rounded border border-blue-500/20">
+                                              <div className="flex justify-between items-center mb-1">
+                                                <span className="font-mono text-[9px] text-blue-300">ITEM #{item.index} (L{item.line})</span>
+                                              </div>
+                                              <div className="space-y-0.5 ml-1 text-[9px]">
+                                                <div className={item.hasNegative37 ? "text-green-300" : "text-zinc-500"}>
+                                                  {item.hasNegative37 ? "✓ MM -37" : "• MM -37"}
+                                                </div>
+                                                <div className={item.hasPositive37 ? "text-green-300" : "text-zinc-500"}>
+                                                  {item.hasPositive37 ? "✓ MM 37" : "• MM 37"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Botão de Correção (Unificado) */}
                                     {(
-                                      (dxfFound.fresaInfo.count37 > 0 && (dxfFound.fresaInfo.firstFresa37?.hasNegative37 || dxfFound.fresaInfo.firstFresa37?.hasPositive37)) ||
-                                      (dxfFound.panelInfo?.dimension === '-37' || dxfFound.panelInfo?.dimension === '37')
+                                      (dxfData.fresaInfo.count37 > 0 || dxfData.fresaInfo.usinagemCount37 > 0) ||
+                                      (dxfData.panelInfo?.dimension === '-37' || dxfData.panelInfo?.dimension === '37')
                                     ) && (
-                                        <div className="mt-3 pt-2 border-t border-purple-500/30">
+                                        <div className="mt-1">
                                           <button
-                                            onClick={fixFresa37to18}
-                                            disabled={dxfFixing}
-                                            className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:opacity-50 text-white font-semibold rounded text-sm transition"
+                                            onClick={() => fixFresa37to18(drawing)}
+                                            disabled={isFixing}
+                                            className="w-full px-2 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:opacity-50 text-white font-semibold rounded text-xs transition flex items-center justify-center gap-2"
                                           >
-                                            {dxfFixing ? "⏳ Trocando..." : "🔧 Trocar Valores"}
+                                            {isFixing ? (
+                                              <>⏳ Corrigindo...</>
+                                            ) : (
+                                              <>🔧 Corrigir TUDO (Fresa + Usinagem)</>
+                                            )}
                                           </button>
                                         </div>
                                       )}
                                   </div>
-                                </td>
-                              </tr>
+                                )}
+                              </div>
                             )}
-                          </>
-                        )}
-                      </tbody>
-                    </table>
+
+                            {/* Mensagem de Erro/Não encontrado */}
+                            {result?.message && (
+                              <div className="p-3 text-xs text-rose-300 border-t border-rose-500/20 bg-rose-500/5">
+                                {result.message}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {uniqueDrawings.length === 0 && (
+                        <div className="text-center text-zinc-500 text-xs py-4">
+                          Nenhum código de desenho encontrado nos metadados.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

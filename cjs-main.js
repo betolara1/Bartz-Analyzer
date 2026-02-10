@@ -170,7 +170,9 @@ async function validateXml(fileFullPath, cfg = {}) {
       // dedupe by id or snippet
       const map = new Map();
       for (const r of es08Matches) {
-        const key = r.id ? `id:${r.id}` : `sn:${r.snippet}`;
+        // Usar combinação de id, referencia e desenho para unicidade, 
+        // pois itens com mesmo ID (slug) podem ter desenhos diferentes.
+        const key = `${r.id || ''}|${r.referencia || ''}|${r.desenho || ''}`;
         if (!map.has(key)) map.set(key, r);
       }
       payload.meta.es08Matches = Array.from(map.values());
@@ -1158,15 +1160,14 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
       console.log(`  [${i + 1}] ${f}`);
     });
 
-    // Procurar arquivo que comece com o código de desenho (case-insensitive)
-    const searchPattern = drawingCode.toLowerCase();
-    console.log('[DXF Search] Padrão de busca (lowercase):', searchPattern);
-    console.log('[DXF Search] Procurando arquivo que comece com:', searchPattern);
+    // Procurar arquivo que seja EXATAMENTE o código de desenho + .dxf (case-insensitive)
+    const exactFilename = `${drawingCode.toLowerCase()}.dxf`;
+    console.log('[DXF Search] Nome de arquivo esperado (lowercase):', exactFilename);
 
     const foundFile = files.find(f => {
       const lowerF = f.toLowerCase();
-      const matches = lowerF.startsWith(searchPattern);
-      console.log(`  [Comparação] "${f}" (${lowerF}) -> começa com "${searchPattern}"? ${matches}`);
+      const matches = lowerF === exactFilename;
+      console.log(`  [Comparação] "${f}" (${lowerF}) === "${exactFilename}"? ${matches}`);
       return matches;
     });
 
@@ -1223,92 +1224,123 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
         console.log('[DXF Analysis] ✗ Nenhum PANEL encontrado no DXF');
       }
 
-      // 2. PROCURAR FRESA_12_37 ou FRESA_12_18
+      // 2. PROCURAR FRESA_12_37 ou FRESA_12_18 e USINAGEM_37 ou USINAGEM_18
       let fresa37Found = false;
       let fresa18Found = false;
+      let usinagem37Found = false;
+      let usinagem18Found = false;
+
       let fresa37Count = 0;
       let fresa18Count = 0;
-      let firstFresa37Info = null;
+      let usinagem37Count = 0;
+      let usinagem18Count = 0;
+
+      const fresa37List = [];
+      const usinagem37List = [];
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim().toUpperCase();
-        if (line === 'FRESA_12_37') {
-          fresa37Found = true;
-          fresa37Count++;
+        if (line === 'FRESA_12_37' || line === 'USINAGEM_37') {
+          const isUsinagem = line === 'USINAGEM_37';
+          if (isUsinagem) {
+            usinagem37Found = true;
+            usinagem37Count++;
+          } else {
+            fresa37Found = true;
+            fresa37Count++;
+          }
 
-          // Se for a primeira FRESA_12_37, extrair detalhes
-          if (fresa37Count === 1) {
-            console.log('[DXF Analysis] ✓ PRIMEIRA FRESA_12_37 encontrada na linha', i);
+          console.log(`[DXF Analysis] ✓ ${line} #${isUsinagem ? usinagem37Count : fresa37Count} encontrada na linha`, i);
 
-            // Procurar pelos códigos 30 (-37) e 39 (37 ou -37) após essa linha
-            let hasNegative37 = false;
-            let hasPositive37 = false;
+          // Procurar pelos códigos 30 (-37) e 39 (37 ou -37) após essa linha
+          let hasNegative37 = false;
+          let hasPositive37 = false;
 
-            for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
-              const codeLine = lines[j].trim();
+          // Scan next 20 lines for coordinates
+          for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
+            const codeLine = lines[j].trim();
 
-              if (codeLine === '30') {
-                const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
-                if (valueLine === '-37') {
-                  hasNegative37 = true;
-                  console.log('[DXF Analysis]   ✓ Código 30 = -37 encontrado na linha', j);
-                }
-              }
-
-              if (codeLine === '39') {
-                const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
-                if (valueLine === '37' || valueLine === '-37') {
-                  hasPositive37 = true;
-                  console.log('[DXF Analysis]   ✓ Código 39 =', valueLine, 'encontrado na linha', j);
-                }
+            if (codeLine === '30') {
+              const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
+              if (valueLine === '-37') {
+                hasNegative37 = true;
+                console.log(`[DXF Analysis]   ✓ [Item #${isUsinagem ? usinagem37Count : fresa37Count}] Código 30 = -37 encontrado na linha`, j);
               }
             }
 
-            firstFresa37Info = {
-              hasNegative37,
-              hasPositive37
-            };
-
-            console.log('[DXF Analysis]   Resumo FRESA_12_37: -37?', hasNegative37, '| 37?', hasPositive37);
+            if (codeLine === '39') {
+              const valueLine = j + 1 < lines.length ? lines[j + 1].trim() : null;
+              if (valueLine === '37' || valueLine === '-37') {
+                hasPositive37 = true;
+                console.log(`[DXF Analysis]   ✓ [Item #${isUsinagem ? usinagem37Count : fresa37Count}] Código 39 =`, valueLine, 'encontrado na linha', j);
+              }
+            }
           }
 
-          console.log('[DXF Analysis] ✓ FRESA_12_37 encontrada na linha', i);
+          const itemData = {
+            index: isUsinagem ? usinagem37Count : fresa37Count,
+            line: i + 1,
+            hasNegative37,
+            hasPositive37,
+            type: line
+          };
+
+          if (isUsinagem) {
+            usinagem37List.push(itemData);
+          } else {
+            fresa37List.push(itemData);
+          }
+
         } else if (line === 'FRESA_12_18') {
           fresa18Found = true;
           fresa18Count++;
           console.log('[DXF Analysis] ✓ FRESA_12_18 encontrada na linha', i);
+        } else if (line === 'USINAGEM_18') {
+          usinagem18Found = true;
+          usinagem18Count++;
+          console.log('[DXF Analysis] ✓ USINAGEM_18 encontrada na linha', i);
         }
       }
 
-      if (fresa37Found && fresa18Found) {
+      // Montar resumo do fresaInfo
+      const has37 = fresa37Found || usinagem37Found;
+      const has18 = fresa18Found || usinagem18Found;
+
+      if (has37 && has18) {
         fresaInfo = {
-          fresaCode: `FRESA_12_37 (${fresa37Count}x) e FRESA_12_18 (${fresa18Count}x)`,
+          fresaCode: `FRESA/USINAGEM 37 (${fresa37Count + usinagem37Count}x) e 18 (${fresa18Count + usinagem18Count}x)`,
           status: 'Estado misto (contém ambas as versões)',
           count37: fresa37Count,
           count18: fresa18Count,
-          firstFresa37: firstFresa37Info
+          usinagemCount37: usinagem37Count,
+          usinagemCount18: usinagem18Count,
+          fresa37List,
+          usinagem37List
         };
-        console.log('[DXF Analysis] ✓ FRESA: Ambas as versões presentes');
-      } else if (fresa37Found) {
+      } else if (has37) {
         fresaInfo = {
-          fresaCode: `FRESA_12_37 (${fresa37Count}x)`,
+          fresaCode: `37MM (${fresa37Count} Fresa / ${usinagem37Count} Usinagem)`,
           status: 'Status: ⚠️ Ainda está DUPLICADO em 37MM',
           count37: fresa37Count,
           count18: 0,
-          firstFresa37: firstFresa37Info
+          usinagemCount37: usinagem37Count,
+          usinagemCount18: 0,
+          fresa37List,
+          usinagem37List
         };
-        console.log('[DXF Analysis] ✓ FRESA: 37MM (DUPLICADO)');
-      } else if (fresa18Found) {
+      } else if (has18) {
         fresaInfo = {
-          fresaCode: `FRESA_12_18 (${fresa18Count}x)`,
+          fresaCode: `18MM (${fresa18Count} Fresa / ${usinagem18Count} Usinagem)`,
           status: 'Status: ✅ Corrigido para 18MM',
           count37: 0,
           count18: fresa18Count,
-          firstFresa37: null
+          usinagemCount37: 0,
+          usinagemCount18: usinagem18Count,
+          fresa37List: [],
+          usinagem37List: []
         };
-        console.log('[DXF Analysis] ✓ FRESA: 18MM (CORRIGIDO)');
       } else {
-        console.log('[DXF Analysis] ✗ Nenhuma FRESA_12_?? encontrada');
+        console.log('[DXF Analysis] ✗ Nenhuma FRESA ou USINAGEM encontrada');
       }
 
     } catch (dxfErr) {
@@ -1385,12 +1417,13 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
         }
       }
 
-      // 2. Alterar primeira FRESA_12_37: valores 30 (-37→-18 ou 37→18) e 39 (37→18 ou -37→-18)
-      if (!firstFresa37Found && line.toUpperCase() === 'FRESA_12_37') {
-        console.log('[DXF Fix] ✓ PRIMEIRA FRESA_12_37 encontrada na linha', i);
-        firstFresa37Found = true;
+      // 2. Alterar TODAS as ocorrências de FRESA_12_37 ou USINAGEM_37: 
+      // valores 30 (-37→-18 ou 37→18) e 39 (37→18 ou -37→-18)
+      const isTarget = line.toUpperCase() === 'FRESA_12_37' || line.toUpperCase() === 'USINAGEM_37';
+      if (isTarget) {
+        console.log(`[DXF Fix] ✓ ${line} encontrada na linha`, i);
 
-        // Procurar códigos 30 e 39 após essa linha
+        // Procurar códigos 30 e 39 após essa linha (para este item específico)
         for (let j = i + 1; j < lines.length && j < i + 20; j++) {
           const codeLine = lines[j].trim();
 
@@ -1435,17 +1468,23 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
       }
     }
 
-    // 3. Substituir todas as ocorrências de FRESA_12_37 por FRESA_12_18
+    // 3. Substituir nomes
     let fresa37Replacements = 0;
+    let usinagem37Replacements = 0;
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim().toUpperCase() === 'FRESA_12_37') {
+      const lineUpper = lines[i].trim().toUpperCase();
+      if (lineUpper === 'FRESA_12_37') {
         lines[i] = lines[i].replace(/FRESA_12_37/i, 'FRESA_12_18');
         fresa37Replacements++;
         console.log('[DXF Fix] ✓ FRESA_12_37 → FRESA_12_18 na linha', i);
+      } else if (lineUpper === 'USINAGEM_37') {
+        lines[i] = lines[i].replace(/USINAGEM_37/i, 'USINAGEM_18');
+        usinagem37Replacements++;
+        console.log('[DXF Fix] ✓ USINAGEM_37 → USINAGEM_18 na linha', i);
       }
     }
 
-    if (fresa37Replacements > 0) {
+    if (fresa37Replacements > 0 || usinagem37Replacements > 0) {
       modified = true;
     }
 
