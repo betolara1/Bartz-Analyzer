@@ -81,6 +81,8 @@ export default function FileDetailDrawer({
     setCoringaTo("");
   }, [data]);
 
+
+  // detect if any coringa matches contain CG1 or CG2
   // detect if any coringa matches contain CG1 or CG2
   const hasCG1 = React.useMemo(() => {
     return !!((data?.meta?.coringaMatches || []) as string[]).find(m => /cg1/i.test(String(m)));
@@ -115,11 +117,72 @@ export default function FileDetailDrawer({
   const [erpSearchResults, setErpSearchResults] = React.useState<Array<{ code: string; description: string }>>([]);
   const [erpSearching, setErpSearching] = React.useState(false);
 
-  // Resetar DXF encontrado quando dados mudam
+  // Estados para busca de pedido (baseado nos primeiros 5 dígitos do filename)
+  const [orderNum, setOrderNum] = React.useState<string | null>(null);
+  const [orderComments, setOrderComments] = React.useState<any[]>([]);
+  const [orderLoading, setOrderLoading] = React.useState(false);
+
+  // Filtrar coringas baseados no tipo selecionado na busca (ERP)
+  const filteredCoringaMatches = React.useMemo(() => {
+    const rawMatches = (data?.meta?.coringaMatches || []) as string[];
+    if (!erpSearchType) return rawMatches;
+
+    // Mapeamento de tipo para prefixo
+    const map: Record<string, string> = {
+      'CHAPAS': 'CHAPA_',
+      'FITAS': 'FITA_',
+      'TAPAFURO': 'TAPAFURO_',
+      'PAINEL': 'PAINEL_'
+    };
+
+    const prefix = map[erpSearchType];
+    if (!prefix) return rawMatches;
+
+    return rawMatches.filter(m => m.toUpperCase().startsWith(prefix));
+  }, [data, erpSearchType]);
+
+  // Se o filtro mudar e o item selecionado não estiver mais na lista, seleciona o primeiro disponível
+  React.useEffect(() => {
+    if (filteredCoringaMatches.length > 0) {
+      if (!coringaFrom || !filteredCoringaMatches.includes(coringaFrom)) {
+        setCoringaFrom(filteredCoringaMatches[0]);
+      }
+    } else {
+      setCoringaFrom(null);
+    }
+  }, [filteredCoringaMatches, coringaFrom]);
+
   React.useEffect(() => {
     setDxfResults({});
     setDxfFixing({});
-  }, [data?.fullpath]);
+    setOrderNum(null);
+    setOrderComments([]);
+    setOrderLoading(false);
+
+    if (data?.filename) {
+      // Tentar pegar os primeiros 5 dígitos (ex: 65946)
+      const match = data.filename.match(/^(\d{5})/);
+      if (match && match[1]) {
+        const num = match[1];
+        setOrderNum(num);
+        fetchOrderComments(num);
+      }
+    }
+  }, [data?.fullpath, data?.filename]);
+
+  async function fetchOrderComments(num: string) {
+    setOrderLoading(true);
+    try {
+      const res = await (window as any).electron?.analyzer?.getOrderComments?.(num);
+      if (res?.ok) {
+        setOrderComments(res.data || []);
+      }
+    } catch (e) {
+      console.error("Erro ao buscar comentários do pedido:", e);
+    } finally {
+      setOrderLoading(false);
+    }
+  }
 
   // Identificar desenhos únicos
   const uniqueDrawings = React.useMemo(() => {
@@ -210,9 +273,32 @@ export default function FileDetailDrawer({
 
       if (result?.ok) {
         toast.success(`✅ ${drawingCode} corrigido! substituições: ${result.changes?.fresa37Replacements}`);
-        // Re-buscar este desenho para atualizar status na tela?
-        // Simplesmente deixamos assim ou atualizamos o estado local se quisermos refletir na hora.
-        // O ideal seria atualizar fresaInfo no estado local.
+
+        // Atualizar o estado local para refletir a correção imediatamente
+        setDxfResults(prev => {
+          const next = { ...prev };
+          const current = next[drawingCode];
+          if (current?.status === 'found' && current.data) {
+            next[drawingCode] = {
+              ...current,
+              data: {
+                ...current.data,
+                panelInfo: current.data.panelInfo ? {
+                  ...current.data.panelInfo,
+                  dimension: '18' // Força o status de 18mm
+                } : undefined,
+                fresaInfo: current.data.fresaInfo ? {
+                  ...current.data.fresaInfo,
+                  fresa37List: [], // Limpa a lista de fresas pendentes
+                  usinagem37List: [], // Limpa a lista de usinagens pendentes
+                  count37: 0,
+                  usinagemCount37: 0
+                } : undefined
+              }
+            };
+          }
+          return next;
+        });
       } else {
         toast.error(`Erro em ${drawingCode}: ${result?.message || 'Falha ao corrigir'}`);
       }
@@ -634,6 +720,40 @@ export default function FileDetailDrawer({
               </div>
             )}
 
+            {/* BUSCA DE PEDIDO (informações do PHP) */}
+            {orderNum && (
+              <section className="rounded-lg border border-indigo-500/20 bg-indigo-500/10">
+                <div className="px-4 py-2 text-indigo-300 text-sm font-medium flex items-center gap-2 border-b border-indigo-500/10">
+                  <Search className="h-4 w-4" />
+                  Informações do Pedido: <span className="text-white font-bold">{orderNum}</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {orderLoading ? (
+                    <div className="text-xs text-zinc-400 animate-pulse">Buscando dados no sistema...</div>
+                  ) : orderComments.length > 0 ? (
+                    <div className="space-y-4">
+                      {orderComments.map((c, i) => (
+                        <div key={i} className="space-y-1">
+                          {c.txt_titulo && (
+                            <div className="text-[10px] uppercase font-bold text-indigo-200 opacity-80">
+                              {c.txt_titulo}
+                            </div>
+                          )}
+                          <div className="text-sm text-white leading-relaxed bg-black/20 p-2 rounded border border-indigo-500/5">
+                            {c.txt_comentario || "Sem comentário."}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-500 italic">
+                      Nenhum comentário encontrado para este pedido.
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* BUSCA DE PRODUTO ERP - Acima da seção Cor Coringa */}
             {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
               <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
@@ -680,7 +800,6 @@ export default function FileDetailDrawer({
                         <option value="">TODOS</option>
                         <option value="CHAPAS">CHAPAS</option>
                         <option value="FITAS">FITAS</option>
-                        <option value="PUXADORES">PUXADORES</option>
                         <option value="TAPAFURO">TAPAFURO</option>
                         <option value="PAINEL">PAINEL</option>
                       </select>
@@ -768,7 +887,7 @@ export default function FileDetailDrawer({
                       onChange={(e) => setCoringaFrom(e.target.value)}
                       className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
                     >
-                      {((data?.meta?.coringaMatches || []) as string[]).map((m, i) => (
+                      {filteredCoringaMatches.map((m, i) => (
                         <option key={i} value={m}>{m}</option>
                       ))}
                     </select>
@@ -792,23 +911,6 @@ export default function FileDetailDrawer({
                       className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50"
                     >
                       Trocar
-                    </button>
-
-                    <button
-                      onClick={async () => {
-                        if (!data) return;
-                        const id = toast.loading('Atualizando arquivo...');
-                        try {
-                          const ok = await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
-                          if (ok) toast.success('Arquivo reprocessado.');
-                          else toast.error('Falha ao reprocessar.');
-                        } catch (e: any) {
-                          toast.error(String(e?.message || e));
-                        } finally { toast.dismiss(id); }
-                      }}
-                      className="px-3 py-2 rounded border border-amber-500 text-amber-300 bg-transparent hover:bg-amber-900/10"
-                    >
-                      Atualizar arquivo
                     </button>
                     {lastReplace && (
                       <button
@@ -927,25 +1029,6 @@ export default function FileDetailDrawer({
                 </div>
               </section>
             )}
-
-            {/* LOG JSON (Resumo/Completo) */}
-            <section className="rounded-lg border border-zinc-700 bg-zinc-900/40">
-              <div className="px-4 py-2 text-xs uppercase tracking-wide text-zinc-400 flex items-center justify-between border-b border-zinc-800">
-                <span className="inline-flex items-center gap-2">
-                  <FileJson className="h-4 w-4" />
-                  Log JSON {showFull ? "(completo)" : "(resumo)"}
-                </span>
-                <button
-                  onClick={() => setShowFull((v) => !v)}
-                  className="text-[11px] px-2 py-1 rounded border border-zinc-700 hover:bg-zinc-800"
-                >
-                  {showFull ? "Mostrar resumo" : "Mostrar completo"}
-                </button>
-              </div>
-              <pre className="px-4 py-3 max-h-[50vh] overflow-auto text-xs leading-relaxed text-zinc-200 font-mono whitespace-pre">
-                {jsonToShow}
-              </pre>
-            </section>
           </div>
         </div>
       </SheetContent>

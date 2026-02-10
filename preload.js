@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electron', {
     exportReport: (reportData) => ipcRenderer.invoke('analyzer:exportReport', reportData),
     searchCsvProduct: (colorName, productType) => ipcRenderer.invoke('analyzer:searchCsvProduct', { colorName, productType }),
     searchErpProduct: (params) => ipcRenderer.invoke('analyzer:searchErpProduct', params),
+    getOrderComments: (numPedido) => ipcRenderer.invoke('analyzer:getOrderComments', numPedido),
   },
 
   settings: {
