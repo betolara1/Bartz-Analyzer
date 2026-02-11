@@ -121,6 +121,8 @@ export default function FileDetailDrawer({
   const [orderNum, setOrderNum] = React.useState<string | null>(null);
   const [orderComments, setOrderComments] = React.useState<any[]>([]);
   const [orderLoading, setOrderLoading] = React.useState(false);
+  const [cg1Done, setCg1Done] = React.useState(false);
+  const [cg2Done, setCg2Done] = React.useState(false);
 
   // Filtrar coringas baseados no tipo selecionado na busca (ERP)
   const filteredCoringaMatches = React.useMemo(() => {
@@ -158,6 +160,9 @@ export default function FileDetailDrawer({
     setOrderNum(null);
     setOrderComments([]);
     setOrderLoading(false);
+    setLastReplace(null);
+    setCg1Done(false);
+    setCg2Done(false);
 
     if (data?.filename) {
       // Tentar pegar os primeiros 5 dígitos (ex: 65946)
@@ -885,8 +890,9 @@ export default function FileDetailDrawer({
                     <label className="text-xs text-zinc-300 mb-1 block">Coringa encontrada</label>
                     <select
                       value={coringaFrom ?? ""}
+                      disabled={!!lastReplace}
                       onChange={(e) => setCoringaFrom(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50"
                     >
                       {filteredCoringaMatches.map((m, i) => (
                         <option key={i} value={m}>{m}</option>
@@ -900,64 +906,96 @@ export default function FileDetailDrawer({
                     <input
                       placeholder="Digite a cor/substituição..."
                       value={coringaTo}
+                      disabled={!!lastReplace}
                       onChange={(e) => setCoringaTo(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded"
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50"
                     />
                   </div>
 
                   <div className="flex gap-2">
                     <button
-                      disabled={!coringaFrom || !coringaTo || isReplacing}
+                      disabled={!coringaFrom || !coringaTo || isReplacing || !!lastReplace}
                       onClick={() => setConfirmCoringaOpen(true)}
-                      className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50"
+                      className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50 hover:bg-amber-400 transition-colors"
                     >
                       Trocar
                     </button>
-                    {lastReplace && (
-                      <button
-                        onClick={async () => {
-                          if (!data) return;
-                          const id = toast.loading('Desfazendo ultima troca...');
-                          try {
-                            const res = await (window as any).electron?.analyzer?.undoReplace?.(data.fullpath);
-                            if (res?.ok) {
-                              toast.success('Troca desfeita. Arquivo restaurado.');
-                              setLastReplace(null);
-                            } else {
-                              toast.error(`Falha: ${res?.message || 'não foi possível desfazer'}`);
-                            }
-                          } catch (e: any) {
-                            toast.error(String(e?.message || e));
-                          } finally { toast.dismiss(id); }
-                        }}
-                        className="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700"
-                      >
-                        Desfazer última troca
-                      </button>
-                    )}
                   </div>
                   {/* CG1 / CG2 bulk replace UI (only show if detected) */}
                   {(hasCG1 || hasCG2) && (
                     <div className="mt-3 border-t border-amber-600/20 pt-3">
-                      <div className="text-sm text-zinc-200 mb-2">Troca em lote por sigla (CG1 / CG2)</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-xs text-zinc-300 mb-1 block">CG1 →</label>
-                          <input value={cg1Replace} onChange={(e) => setCg1Replace(e.target.value)} placeholder="Ex: LA" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
-                        </div>
-                        <div>
-                          <label className="text-xs text-zinc-300 mb-1 block">CG2 →</label>
-                          <input value={cg2Replace} onChange={(e) => setCg2Replace(e.target.value)} placeholder="Ex: MO" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          disabled={!(cg1Replace || cg2Replace)}
-                          onClick={() => setConfirmCgOpen(true)}
-                          className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50"
-                        >
-                          Trocar CG1/CG2
-                        </button>
+                      <div className="text-sm text-zinc-200 mb-2">Troca de Siglas de Cor</div>
+                      <div className={`grid gap-2 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        {hasCG1 && (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-xs text-zinc-300 mb-1 block">CG1 →</label>
+                              <input
+                                value={cg1Replace}
+                                disabled={cg1Done}
+                                onChange={(e) => setCg1Replace(e.target.value)}
+                                placeholder="Ex: LA"
+                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50"
+                              />
+                            </div>
+                            <button
+                              disabled={!cg1Replace || cg1Done}
+                              onClick={async () => {
+                                if (!data) return;
+                                const id = toast.loading('Trocando CG1...');
+                                try {
+                                  const ok = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
+                                  if (ok) {
+                                    toast.success('CG1 trocado com sucesso.');
+                                    setCg1Done(true);
+                                    await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                  } else {
+                                    toast.error('Erro ao trocar CG1.');
+                                  }
+                                } catch (e: any) { toast.error(String(e?.message || e)); }
+                                finally { toast.dismiss(id); }
+                              }}
+                              className="w-full px-3 py-1.5 rounded bg-amber-600 text-white font-medium disabled:opacity-50 text-xs"
+                            >
+                              Trocar Sigla CG1
+                            </button>
+                          </div>
+                        )}
+                        {hasCG2 && (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-xs text-zinc-300 mb-1 block">CG2 →</label>
+                              <input
+                                value={cg2Replace}
+                                disabled={cg2Done}
+                                onChange={(e) => setCg2Replace(e.target.value)}
+                                placeholder="Ex: MO"
+                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50"
+                              />
+                            </div>
+                            <button
+                              disabled={!cg2Replace || cg2Done}
+                              onClick={async () => {
+                                if (!data) return;
+                                const id = toast.loading('Trocando CG2...');
+                                try {
+                                  const ok = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
+                                  if (ok) {
+                                    toast.success('CG2 trocado com sucesso.');
+                                    setCg2Done(true);
+                                    await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                  } else {
+                                    toast.error('Erro ao trocar CG2.');
+                                  }
+                                } catch (e: any) { toast.error(String(e?.message || e)); }
+                                finally { toast.dismiss(id); }
+                              }}
+                              className="w-full px-3 py-1.5 rounded bg-amber-800 text-white font-medium disabled:opacity-50 text-xs"
+                            >
+                              Trocar Sigla CG2
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
