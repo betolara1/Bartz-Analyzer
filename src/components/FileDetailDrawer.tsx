@@ -837,118 +837,120 @@ export default function FileDetailDrawer({
               </div>
             )}
 
-            {/* ERP SEARCH PANEL */}
-            <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
-              <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                Busca de Produto (ERP)
-              </div>
-              <div className="px-4 pb-3 space-y-3">
-                <div className="text-[11px] text-zinc-400">
-                  Use um dos campos abaixo para buscar diretamente no banco de dados do servidor.
+            {/* ERP SEARCH PANEL - visible only if Coringa detected */}
+            {Array.isArray(data?.meta?.coringaMatches) && (data.meta.coringaMatches.length > 0) && (
+              <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
+                <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  Busca de Produto (ERP)
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Input para Código */}
-                  <div>
-                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Código</label>
-                    <input
-                      placeholder="Ex: 10.01.0001"
-                      value={erpSearchCode}
-                      onChange={(e) => {
-                        setErpSearchCode(e.target.value);
-                        if (e.target.value) {
-                          setErpSearchDesc('');
-                          setErpSearchType('');
-                        }
-                      }}
-                      disabled={!!erpSearchDesc || !!erpSearchType}
-                      className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                    />
+                <div className="px-4 pb-3 space-y-3">
+                  <div className="text-[11px] text-zinc-400">
+                    Use um dos campos abaixo para buscar diretamente no banco de dados do servidor.
                   </div>
 
-                  {/* Select para tipo de produto */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Input para Código */}
+                    <div>
+                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Código</label>
+                      <input
+                        placeholder="Ex: 10.01.0001"
+                        value={erpSearchCode}
+                        onChange={(e) => {
+                          setErpSearchCode(e.target.value);
+                          if (e.target.value) {
+                            setErpSearchDesc('');
+                            setErpSearchType('');
+                          }
+                        }}
+                        disabled={!!erpSearchDesc || !!erpSearchType}
+                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
+                      />
+                    </div>
+
+                    {/* Select para tipo de produto */}
+                    <div>
+                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Tipo</label>
+                      <select
+                        value={erpSearchType}
+                        onChange={(e) => {
+                          setErpSearchType(e.target.value);
+                          if (e.target.value) setErpSearchCode('');
+                        }}
+                        disabled={!!erpSearchCode}
+                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
+                      >
+                        <option value="">TODOS</option>
+                        <option value="CHAPAS">CHAPAS</option>
+                        <option value="FITAS">FITAS</option>
+                        <option value="TAPAFURO">TAPAFURO</option>
+                        <option value="PAINEL">PAINEL</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Input para Descrição */}
                   <div>
-                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Tipo</label>
-                    <select
-                      value={erpSearchType}
+                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Descrição (Cor, MM, etc)</label>
+                    <input
+                      placeholder="Ex: BRANCO SUPREMO"
+                      value={erpSearchDesc}
                       onChange={(e) => {
-                        setErpSearchType(e.target.value);
+                        setErpSearchDesc(e.target.value);
                         if (e.target.value) setErpSearchCode('');
                       }}
                       disabled={!!erpSearchCode}
                       className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                    >
-                      <option value="">TODOS</option>
-                      <option value="CHAPAS">CHAPAS</option>
-                      <option value="FITAS">FITAS</option>
-                      <option value="TAPAFURO">TAPAFURO</option>
-                      <option value="PAINEL">PAINEL</option>
-                    </select>
+                    />
                   </div>
-                </div>
 
-                {/* Input para Descrição */}
-                <div>
-                  <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Descrição (Cor, MM, etc)</label>
-                  <input
-                    placeholder="Ex: BRANCO SUPREMO"
-                    value={erpSearchDesc}
-                    onChange={(e) => {
-                      setErpSearchDesc(e.target.value);
-                      if (e.target.value) setErpSearchCode('');
-                    }}
-                    disabled={!!erpSearchCode}
-                    className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                  />
-                </div>
+                  {/* Botão de buscar */}
+                  <button
+                    disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
+                    onClick={handleErpSearch}
+                    className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg"
+                  >
+                    {erpSearching ? 'Buscando...' : 'Buscar no Servidor'}
+                  </button>
 
-                {/* Botão de buscar */}
-                <button
-                  disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
-                  onClick={handleErpSearch}
-                  className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg"
-                >
-                  {erpSearching ? 'Buscando...' : 'Buscar no Servidor'}
-                </button>
-
-                {/* Resultados em Tabela */}
-                {erpSearchResults.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <div className="max-h-[300px] overflow-y-auto rounded border border-zinc-800 bg-[#0a0a0a]">
-                      <table className="w-full text-[11px]">
-                        <thead className="sticky top-0 bg-[#1a1a1a] text-zinc-400 border-b border-zinc-800">
-                          <tr>
-                            <th className="text-left px-2 py-1.5 font-bold uppercase">Código</th>
-                            <th className="text-left px-2 py-1.5 font-bold uppercase">Descrição</th>
-                            <th className="w-10">Preencher</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-900">
-                          {erpSearchResults.map((prod, idx) => (
-                            <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
-                              <td className="px-2 py-2 font-mono text-blue-300">{prod.code}</td>
-                              <td className="px-2 py-2 text-zinc-300">{prod.description}</td>
-                              <td className="px-2 py-2">
-                                <button
-                                  onClick={() => {
-                                    setCoringaTo(prod.code);
-                                    toast.success(`Código "${prod.code}" selecionado`);
-                                  }}
-                                  className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 px-2 py-0.5 text-[10px] uppercase font-bold"
-                                >
-                                  Usar Cod
-                                </button>
-                              </td>
+                  {/* Resultados em Tabela */}
+                  {erpSearchResults.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      <div className="max-h-[300px] overflow-y-auto rounded border border-zinc-800 bg-[#0a0a0a]">
+                        <table className="w-full text-[11px]">
+                          <thead className="sticky top-0 bg-[#1a1a1a] text-zinc-400 border-b border-zinc-800">
+                            <tr>
+                              <th className="text-left px-2 py-1.5 font-bold uppercase">Código</th>
+                              <th className="text-left px-2 py-1.5 font-bold uppercase">Descrição</th>
+                              <th className="w-10">Preencher</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-900">
+                            {erpSearchResults.map((prod, idx) => (
+                              <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
+                                <td className="px-2 py-2 font-mono text-blue-300">{prod.code}</td>
+                                <td className="px-2 py-2 text-zinc-300">{prod.description}</td>
+                                <td className="px-2 py-2">
+                                  <button
+                                    onClick={() => {
+                                      setCoringaTo(prod.code);
+                                      toast.success(`Código "${prod.code}" selecionado`);
+                                    }}
+                                    className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 px-2 py-0.5 text-[10px] uppercase font-bold"
+                                  >
+                                    Usar Cod
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </section>
+                  )}
+                </div>
+              </section>
+            )}
 
             {/* COR CORINGA - quick replace UI */}
             {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (

@@ -104,7 +104,7 @@ export default function Dashboard() {
     logsErrors: "",
     logsProcessed: "",
     drawings: "",
-    enableAutoFix: false,
+    enableAutoFix: true,
   });
   const pickFolderOptions = ["entrada", "working", "ok", "erro", "logsErrors", "logsProcessed", "drawings"] as const;
   const [probe, setProbe] = useState<any>({});
@@ -134,7 +134,7 @@ export default function Dashboard() {
     mounted.current = true;
 
     (window as any).electron?.settings?.load?.()
-      .then((sv: any) => sv && setCfg((c) => ({ ...c, ...sv })));
+      .then((sv: any) => sv && setCfg((c) => ({ ...c, ...sv, enableAutoFix: true })));
 
     (window as any).electron?.analyzer?.onEvent?.((msg: any) => {
       if (!mounted.current) return;
@@ -608,11 +608,12 @@ export default function Dashboard() {
 
             {/* Toggle Auto-fix */}
             <div className="flex items-center gap-3 mt-2">
-              <label className="text-sm text-[#A7A7A7] flex items-center gap-2 cursor-pointer select-none">
+              <label className="text-sm text-[#A7A7A7] flex items-center gap-2 cursor-pointer select-none opacity-70">
                 <input
                   type="checkbox"
-                  checked={!!(cfg as any).enableAutoFix}
-                  onChange={(e) => setCfg(prev => ({ ...prev, enableAutoFix: e.target.checked }))}
+                  checked={true}
+                  readOnly
+                  className="accent-[#27AE60]"
                 />
                 <span className="text-white">
                   Auto-fix (trocar preço 0→0.10 • quantidade 0→1)
