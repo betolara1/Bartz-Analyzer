@@ -520,6 +520,41 @@ export default function FileDetailDrawer({
               </div>
             )}
 
+
+            {/* BUSCA DE PEDIDO (informações do PHP) */}
+            {orderNum && (
+              <section className="rounded-lg border border-indigo-500/20 bg-indigo-500/10">
+                <div className="px-4 py-2 text-indigo-300 text-sm font-medium flex items-center gap-2 border-b border-indigo-500/10">
+                  <Search className="h-4 w-4" />
+                  Informações do Pedido: <span className="text-white font-bold">{orderNum}</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {orderLoading ? (
+                    <div className="text-xs text-zinc-400 animate-pulse">Buscando dados no sistema...</div>
+                  ) : orderComments.length > 0 ? (
+                    <div className="space-y-4">
+                      {orderComments.map((c, i) => (
+                        <div key={i} className="space-y-1">
+                          {c.txt_titulo && (
+                            <div className="text-[10px] uppercase font-bold text-indigo-200 opacity-80">
+                              {c.txt_titulo}
+                            </div>
+                          )}
+                          <div className="text-sm text-white leading-relaxed bg-black/20 p-2 rounded border border-indigo-500/5">
+                            {c.txt_comentario || "Sem comentário."}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-500 italic">
+                      Nenhum comentário encontrado para este pedido.
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* ES08 (DUPLADO 37MM) - Dados complementares */}
             {Array.isArray(data?.meta?.es08Matches) && (data!.meta!.es08Matches!.length > 0) && (
               <div className="mt-1">
@@ -603,7 +638,7 @@ export default function FileDetailDrawer({
 
                                 {dxfData.panelInfo && (
                                   <div className="bg-blue-500/5 p-2 rounded border border-blue-500/10 mb-2">
-                                    {(dxfData.panelInfo.dimension === '-18' || dxfData.panelInfo.dimension === '18') ? (
+                                    {(Math.abs(parseFloat(dxfData.panelInfo.dimension)) === 18) ? (
                                       <div className="text-green-400 font-medium flex items-center gap-2 py-1">
                                         <CheckCircle className="h-4 w-4" />
                                         <span>Arquivo configurado para 18mm</span>
@@ -718,40 +753,6 @@ export default function FileDetailDrawer({
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* BUSCA DE PEDIDO (informações do PHP) */}
-            {orderNum && (
-              <section className="rounded-lg border border-indigo-500/20 bg-indigo-500/10">
-                <div className="px-4 py-2 text-indigo-300 text-sm font-medium flex items-center gap-2 border-b border-indigo-500/10">
-                  <Search className="h-4 w-4" />
-                  Informações do Pedido: <span className="text-white font-bold">{orderNum}</span>
-                </div>
-                <div className="p-4 space-y-3">
-                  {orderLoading ? (
-                    <div className="text-xs text-zinc-400 animate-pulse">Buscando dados no sistema...</div>
-                  ) : orderComments.length > 0 ? (
-                    <div className="space-y-4">
-                      {orderComments.map((c, i) => (
-                        <div key={i} className="space-y-1">
-                          {c.txt_titulo && (
-                            <div className="text-[10px] uppercase font-bold text-indigo-200 opacity-80">
-                              {c.txt_titulo}
-                            </div>
-                          )}
-                          <div className="text-sm text-white leading-relaxed bg-black/20 p-2 rounded border border-indigo-500/5">
-                            {c.txt_comentario || "Sem comentário."}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-zinc-500 italic">
-                      Nenhum comentário encontrado para este pedido.
-                    </div>
-                  )}
-                </div>
-              </section>
             )}
 
             {/* BUSCA DE PRODUTO ERP - Acima da seção Cor Coringa */}
