@@ -1632,6 +1632,30 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
   }
 });
 
+// ========== ANALYZER: MOVE TO OK ==========
+ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
+  try {
+    if (!filePath) return { ok: false, message: "Arquivo não informado" };
+    const cfg = await loadCfg();
+    if (!cfg.ok) return { ok: false, message: "Pasta Final OK não configurada" };
+
+    const fileName = path.basename(filePath);
+    const destPath = path.join(cfg.ok, fileName);
+
+    // Garantir que a pasta de destino existe
+    await fse.ensureDir(cfg.ok);
+
+    // Mover arquivo (overwrite se existir)
+    await fse.move(filePath, destPath, { overwrite: true });
+
+    console.log(`[Move] Arquivo movido para OK: ${destPath}`);
+    return { ok: true, destPath };
+  } catch (e) {
+    console.error("[Move] Erro ao mover arquivo:", e);
+    return { ok: false, message: String(e.message || e) };
+  }
+});
+
 /** ----------------- lifecycle ----------------- **/
 app.whenReady().then(createWindow);
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

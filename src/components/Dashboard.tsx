@@ -126,7 +126,7 @@ export default function Dashboard() {
       if (isOK) toast.success(`${base} ✓ OK`);
       else toast.warning(`${base} com inconformidades (${(p?.erros || []).length})`);
       if (p?.movedTo) toast.info(`Movido para: ${p.movedTo}`);
-    } catch {}
+    } catch { }
   }
 
   // listeners + cfg
@@ -244,7 +244,7 @@ export default function Dashboard() {
       const current = (cfg as any)[key] || "";
       const chosen = await (window as any).electron?.settings?.pickFolder?.(current);
       if (chosen) setPaths({ [key]: chosen } as any);
-    } catch {}
+    } catch { }
   }
 
   // testar acesso de TODOS os paths
@@ -320,16 +320,16 @@ export default function Dashboard() {
     try {
       const okFiles = rows.filter(r => r.status === "OK").length;
       const errorFiles = rows.filter(r => r.status === "ERRO").length;
-      
+
       const reportData = {
         rows,
         totalFiles: rows.length,
         okFiles,
         errorFiles
       };
-      
+
       const result = await (window as any).electron?.analyzer?.exportReport?.(reportData);
-      
+
       if (result?.ok) {
         toast.dismiss(toastId);
         toast.success(`Relatório exportado com sucesso!\n${result.filesCount} arquivo(s) processado(s)`, {
@@ -374,13 +374,32 @@ export default function Dashboard() {
     setDetailOpen(true);
   }
 
+  function handleFileMoved(oldPath: string, newPath: string) {
+    setRows(prev => {
+      const copy = [...prev];
+      const idx = copy.findIndex(r => r.fullpath === oldPath);
+      if (idx !== -1) {
+        copy[idx] = {
+          ...copy[idx],
+          fullpath: newPath,
+          filename: newPath.split(/[\\/]/).pop() || copy[idx].filename,
+          status: "OK",
+          errors: [],
+          // Remove tag de erro se existir
+          tags: (copy[idx].tags || []).filter(t => t.toLowerCase() !== "duplado 37mm" && t.toLowerCase() !== "duplado37mm"),
+        };
+      }
+      return copy;
+    });
+  }
+
   // métricas p/ card lateral
-  const totalFiles     = rows.length;
-  const okFiles        = rows.filter(r => r.status === "OK").length;
-  const errorFiles     = rows.filter(r => r.status === "ERRO").length;
-  const ferragensFiles = rows.filter(r => r.status === "FERRAGENS-ONLY" || (r.tags||[]).includes("ferragens")).length;
-  const autoFixedFiles = rows.filter(r => (r.autoFixes||[]).length > 0).length;
-  const lastActivity   = rows[0]?.timestamp ?? "--:--";
+  const totalFiles = rows.length;
+  const okFiles = rows.filter(r => r.status === "OK").length;
+  const errorFiles = rows.filter(r => r.status === "ERRO").length;
+  const ferragensFiles = rows.filter(r => r.status === "FERRAGENS-ONLY" || (r.tags || []).includes("ferragens")).length;
+  const autoFixedFiles = rows.filter(r => (r.autoFixes || []).length > 0).length;
+  const lastActivity = rows[0]?.timestamp ?? "--:--";
 
   // ---- UI ----
   return (
@@ -421,22 +440,22 @@ export default function Dashboard() {
                   <Input
                     id="entrada"
                     value={cfg.entrada}
-                    onChange={(e)=>setPaths({ entrada: e.target.value })}
+                    onChange={(e) => setPaths({ entrada: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button
                     variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("entrada")}
+                    onClick={() => pickFolder("entrada")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
                   </Button>
                 </div>
-                {testResults["entrada"]===true && (
+                {testResults["entrada"] === true && (
                   <p className="text-[#27AE60] text-xs">acesso confirmado</p>
                 )}
-                {testResults["entrada"]===false && (
+                {testResults["entrada"] === false && (
                   <p className="text-[#E74C3C] text-xs">erro / sem acesso</p>
                 )}
               </div>
@@ -448,22 +467,22 @@ export default function Dashboard() {
                   <Input
                     id="working"
                     value={cfg.working}
-                    onChange={(e)=>setPaths({ working: e.target.value })}
+                    onChange={(e) => setPaths({ working: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button
                     variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("working")}
+                    onClick={() => pickFolder("working")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
                   </Button>
                 </div>
-                {testResults["working"]===true && (
+                {testResults["working"] === true && (
                   <p className="text-[#27AE60] text-xs">acesso confirmado</p>
                 )}
-                {testResults["working"]===false && (
+                {testResults["working"] === false && (
                   <p className="text-[#E74C3C] text-xs">erro / sem acesso</p>
                 )}
               </div>
@@ -475,12 +494,12 @@ export default function Dashboard() {
                   <Input
                     id="ok"
                     value={cfg.ok}
-                    onChange={(e)=>setPaths({ ok: e.target.value })}
+                    onChange={(e) => setPaths({ ok: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("ok")}
+                    onClick={() => pickFolder("ok")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
@@ -495,12 +514,12 @@ export default function Dashboard() {
                   <Input
                     id="erro"
                     value={cfg.erro}
-                    onChange={(e)=>setPaths({ erro: e.target.value })}
+                    onChange={(e) => setPaths({ erro: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("erro")}
+                    onClick={() => pickFolder("erro")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
@@ -515,12 +534,12 @@ export default function Dashboard() {
                   <Input
                     id="drawings"
                     value={cfg.drawings}
-                    onChange={(e)=>setPaths({ drawings: e.target.value })}
+                    onChange={(e) => setPaths({ drawings: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("drawings")}
+                    onClick={() => pickFolder("drawings")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
@@ -535,12 +554,12 @@ export default function Dashboard() {
                   <Input
                     id="logsErrors"
                     value={cfg.logsErrors}
-                    onChange={(e)=>setPaths({ logsErrors: e.target.value })}
+                    onChange={(e) => setPaths({ logsErrors: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("logsErrors")}
+                    onClick={() => pickFolder("logsErrors")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
@@ -555,12 +574,12 @@ export default function Dashboard() {
                   <Input
                     id="logsProcessed"
                     value={cfg.logsProcessed}
-                    onChange={(e)=>setPaths({ logsProcessed: e.target.value })}
+                    onChange={(e) => setPaths({ logsProcessed: e.target.value })}
                     className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
                     placeholder="\\\\servidor\\share\\pasta"
                   />
                   <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={()=>pickFolder("logsProcessed")}
+                    onClick={() => pickFolder("logsProcessed")}
                     className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
                   >
                     <FolderOpen className="h-4 w-4" />
@@ -641,7 +660,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-[#A7A7A7]">Taxa de sucesso</span>
                   <span className="text-sm font-medium text-[#27AE60]">
-                    {totalFiles>0 ? Math.round(((okFiles+ferragensFiles)/totalFiles)*100) : 0}%
+                    {totalFiles > 0 ? Math.round(((okFiles + ferragensFiles) / totalFiles) * 100) : 0}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -818,6 +837,7 @@ export default function Dashboard() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         data={detailData}
+        onFileMoved={handleFileMoved}
       />
 
       {/* toasts */}

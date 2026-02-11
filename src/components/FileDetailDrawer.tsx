@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
-import { X, FileJson, AlertTriangle, Search, CheckCircle } from "lucide-react";
+import { X, FileJson, AlertTriangle, Search, CheckCircle, Check } from "lucide-react";
 
 type Row = {
   filename: string;
@@ -40,10 +40,12 @@ export default function FileDetailDrawer({
   open,
   onOpenChange,
   data,
+  onFileMoved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   data: Row | null;
+  onFileMoved?: (oldPath: string, newPath: string) => void;
 }) {
   const [coringaFrom, setCoringaFrom] = React.useState<string | null>(null);
   const [coringaTo, setCoringaTo] = React.useState<string>("");
@@ -198,6 +200,28 @@ export default function FileDetailDrawer({
     });
     return Array.from(set);
   }, [data]);
+
+  // Shared function to move file to OK directory
+  const handleMoveToOk = async () => {
+    if (!data?.fullpath) return;
+    const id = toast.loading('Movendo arquivo para FINAL OK...');
+    try {
+      const res = await (window as any).electron?.analyzer?.moveToOk?.(data.fullpath);
+      if (res?.ok) {
+        toast.success('Arquivo movido com sucesso!');
+        if (onFileMoved && res.destPath) {
+          onFileMoved(data.fullpath, res.destPath);
+        }
+        onOpenChange(false);
+      } else {
+        toast.error(`Erro ao mover: ${res?.message}`);
+      }
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message || e}`);
+    } finally {
+      toast.dismiss(id);
+    }
+  };
 
   // Função para buscar arquivo DXF pelo código de desenho (busca todos únicos)
   async function searchAllDrawings() {
@@ -472,11 +496,24 @@ export default function FileDetailDrawer({
                   Erros ({data?.errors?.length})
                 </div>
                 <ul className="px-5 pb-3 space-y-1">
-                  {data!.errors!.map((e, i) => (
-                    <li key={i} className="text-rose-200 text-sm">
-                      • {e}
-                    </li>
-                  ))}
+                  {data!.errors!.map((e, i) => {
+                    const isMachineError = (e || "").toString().toUpperCase().includes("PROBLEMA NA GERAÇÃO DE MÁQUINAS");
+
+                    return (
+                      <li key={i} className="text-rose-200 text-sm flex items-center justify-between gap-4 py-0.5">
+                        <span>• {e}</span>
+                        {isMachineError && (
+                          <button
+                            onClick={handleMoveToOk}
+                            className="shrink-0 px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-1 shadow-sm"
+                          >
+                            <Check className="h-3 w-3" />
+                            Mover p/ OK
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             )}
@@ -755,125 +792,163 @@ export default function FileDetailDrawer({
                         </div>
                       )}
                     </div>
+
+                    {/* MOVER PARA OK - Sempre visível se houver desenhos, com aviso se não estiver 100% */}
+                    {uniqueDrawings.length > 0 && (
+                      (() => {
+                        const allOk = uniqueDrawings.every(d => {
+                          const info = dxfResults[d]?.data;
+                          if (!info) return false;
+                          const isPanel18 = Math.abs(parseFloat(info.panelInfo?.dimension || '0')) === 18;
+                          const noFresa37 = (info.fresaInfo?.count37 || 0) === 0;
+                          const noUsinagem37 = (info.fresaInfo?.usinagemCount37 || 0) === 0;
+                          return isPanel18 && noFresa37 && noUsinagem37;
+                        });
+
+                        return (
+                          <div className={`mt-4 pt-4 border-t ${allOk ? 'border-emerald-500/30' : 'border-yellow-500/30'}`}>
+                            <div className="flex items-center justify-between">
+                              <div className={`${allOk ? 'text-emerald-400' : 'text-yellow-400'} text-sm font-medium`}>
+                                {allOk ? (
+                                  <>
+                                    <Check className="inline-block h-4 w-4 mr-2" />
+                                    Todos os desenhos corrigidos!
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+                                    Alguns desenhos ainda requerem atenção.
+                                  </>
+                                )}
+                              </div>
+                              <button
+                                onClick={handleMoveToOk}
+                                className={`px-3 py-2 ${allOk ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-yellow-600 hover:bg-yellow-700'} text-white rounded text-sm font-bold shadow-lg transition-all flex items-center gap-2`}
+                              >
+                                <span className="uppercase text-[10px]">Mover para OK</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* BUSCA DE PRODUTO ERP - Acima da seção Cor Coringa */}
-            {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
-              <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
-                <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  Busca de Produto (ERP)
+            {/* ERP SEARCH PANEL */}
+            <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
+              <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                Busca de Produto (ERP)
+              </div>
+              <div className="px-4 pb-3 space-y-3">
+                <div className="text-[11px] text-zinc-400">
+                  Use um dos campos abaixo para buscar diretamente no banco de dados do servidor.
                 </div>
-                <div className="px-4 pb-3 space-y-3">
-                  <div className="text-[11px] text-zinc-400">
-                    Use um dos campos abaixo para buscar diretamente no banco de dados do servidor.
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Input para Código */}
-                    <div>
-                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Código</label>
-                      <input
-                        placeholder="Ex: 10.01.0001"
-                        value={erpSearchCode}
-                        onChange={(e) => {
-                          setErpSearchCode(e.target.value);
-                          if (e.target.value) {
-                            setErpSearchDesc('');
-                            setErpSearchType('');
-                          }
-                        }}
-                        disabled={!!erpSearchDesc || !!erpSearchType}
-                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                      />
-                    </div>
-
-                    {/* Select para tipo de produto */}
-                    <div>
-                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Tipo</label>
-                      <select
-                        value={erpSearchType}
-                        onChange={(e) => {
-                          setErpSearchType(e.target.value);
-                          if (e.target.value) setErpSearchCode('');
-                        }}
-                        disabled={!!erpSearchCode}
-                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                      >
-                        <option value="">TODOS</option>
-                        <option value="CHAPAS">CHAPAS</option>
-                        <option value="FITAS">FITAS</option>
-                        <option value="TAPAFURO">TAPAFURO</option>
-                        <option value="PAINEL">PAINEL</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Input para Descrição */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Input para Código */}
                   <div>
-                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Descrição (Cor, MM, etc)</label>
+                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Código</label>
                     <input
-                      placeholder="Ex: BRANCO SUPREMO"
-                      value={erpSearchDesc}
+                      placeholder="Ex: 10.01.0001"
+                      value={erpSearchCode}
                       onChange={(e) => {
-                        setErpSearchDesc(e.target.value);
-                        if (e.target.value) setErpSearchCode('');
+                        setErpSearchCode(e.target.value);
+                        if (e.target.value) {
+                          setErpSearchDesc('');
+                          setErpSearchType('');
+                        }
                       }}
-                      disabled={!!erpSearchCode}
+                      disabled={!!erpSearchDesc || !!erpSearchType}
                       className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
                     />
                   </div>
 
-                  {/* Botão de buscar */}
-                  <button
-                    disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
-                    onClick={handleErpSearch}
-                    className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg"
-                  >
-                    {erpSearching ? 'Buscando...' : 'Buscar no Servidor'}
-                  </button>
-
-                  {/* Resultados em Tabela */}
-                  {erpSearchResults.length > 0 && (
-                    <div className="mt-2 space-y-2">
-                      <div className="max-h-[300px] overflow-y-auto rounded border border-zinc-800 bg-[#0a0a0a]">
-                        <table className="w-full text-[11px]">
-                          <thead className="sticky top-0 bg-[#1a1a1a] text-zinc-400 border-b border-zinc-800">
-                            <tr>
-                              <th className="text-left px-2 py-1.5 font-bold uppercase">Código</th>
-                              <th className="text-left px-2 py-1.5 font-bold uppercase">Descrição</th>
-                              <th className="w-10">Preencher</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {erpSearchResults.map((prod, idx) => (
-                              <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
-                                <td className="px-2 py-2 font-mono text-blue-300">{prod.code}</td>
-                                <td className="px-2 py-2 text-zinc-300">{prod.description}</td>
-                                <td className="px-2 py-2">
-                                  <button
-                                    onClick={() => {
-                                      setCoringaTo(prod.code);
-                                      toast.success(`Código "${prod.code}" selecionado`);
-                                    }}
-                                    className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                                    title="Preencher"
-                                  >Preencher Campo
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
+                  {/* Select para tipo de produto */}
+                  <div>
+                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Tipo</label>
+                    <select
+                      value={erpSearchType}
+                      onChange={(e) => {
+                        setErpSearchType(e.target.value);
+                        if (e.target.value) setErpSearchCode('');
+                      }}
+                      disabled={!!erpSearchCode}
+                      className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
+                    >
+                      <option value="">TODOS</option>
+                      <option value="CHAPAS">CHAPAS</option>
+                      <option value="FITAS">FITAS</option>
+                      <option value="TAPAFURO">TAPAFURO</option>
+                      <option value="PAINEL">PAINEL</option>
+                    </select>
+                  </div>
                 </div>
-              </section>
-            )}
+
+                {/* Input para Descrição */}
+                <div>
+                  <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Descrição (Cor, MM, etc)</label>
+                  <input
+                    placeholder="Ex: BRANCO SUPREMO"
+                    value={erpSearchDesc}
+                    onChange={(e) => {
+                      setErpSearchDesc(e.target.value);
+                      if (e.target.value) setErpSearchCode('');
+                    }}
+                    disabled={!!erpSearchCode}
+                    className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
+                  />
+                </div>
+
+                {/* Botão de buscar */}
+                <button
+                  disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
+                  onClick={handleErpSearch}
+                  className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg"
+                >
+                  {erpSearching ? 'Buscando...' : 'Buscar no Servidor'}
+                </button>
+
+                {/* Resultados em Tabela */}
+                {erpSearchResults.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <div className="max-h-[300px] overflow-y-auto rounded border border-zinc-800 bg-[#0a0a0a]">
+                      <table className="w-full text-[11px]">
+                        <thead className="sticky top-0 bg-[#1a1a1a] text-zinc-400 border-b border-zinc-800">
+                          <tr>
+                            <th className="text-left px-2 py-1.5 font-bold uppercase">Código</th>
+                            <th className="text-left px-2 py-1.5 font-bold uppercase">Descrição</th>
+                            <th className="w-10">Preencher</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-900">
+                          {erpSearchResults.map((prod, idx) => (
+                            <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
+                              <td className="px-2 py-2 font-mono text-blue-300">{prod.code}</td>
+                              <td className="px-2 py-2 text-zinc-300">{prod.description}</td>
+                              <td className="px-2 py-2">
+                                <button
+                                  onClick={() => {
+                                    setCoringaTo(prod.code);
+                                    toast.success(`Código "${prod.code}" selecionado`);
+                                  }}
+                                  className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 px-2 py-0.5 text-[10px] uppercase font-bold"
+                                >
+                                  Usar Cod
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
 
             {/* COR CORINGA - quick replace UI */}
             {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
@@ -892,7 +967,7 @@ export default function FileDetailDrawer({
                       value={coringaFrom ?? ""}
                       disabled={!!lastReplace}
                       onChange={(e) => setCoringaFrom(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50"
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50 outline-none"
                     >
                       {filteredCoringaMatches.map((m, i) => (
                         <option key={i} value={m}>{m}</option>
@@ -908,7 +983,7 @@ export default function FileDetailDrawer({
                       value={coringaTo}
                       disabled={!!lastReplace}
                       onChange={(e) => setCoringaTo(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50"
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50 outline-none"
                     />
                   </div>
 
@@ -921,6 +996,7 @@ export default function FileDetailDrawer({
                       Trocar
                     </button>
                   </div>
+
                   {/* CG1 / CG2 bulk replace UI (only show if detected) */}
                   {(hasCG1 || hasCG2) && (
                     <div className="mt-3 border-t border-amber-600/20 pt-3">
@@ -935,7 +1011,7 @@ export default function FileDetailDrawer({
                                 disabled={cg1Done}
                                 onChange={(e) => setCg1Replace(e.target.value)}
                                 placeholder="Ex: LA"
-                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50"
+                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50 outline-none"
                               />
                             </div>
                             <button
@@ -944,8 +1020,8 @@ export default function FileDetailDrawer({
                                 if (!data) return;
                                 const id = toast.loading('Trocando CG1...');
                                 try {
-                                  const ok = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
-                                  if (ok) {
+                                  const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
+                                  if (res?.ok) {
                                     toast.success('CG1 trocado com sucesso.');
                                     setCg1Done(true);
                                     await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
@@ -970,7 +1046,7 @@ export default function FileDetailDrawer({
                                 disabled={cg2Done}
                                 onChange={(e) => setCg2Replace(e.target.value)}
                                 placeholder="Ex: MO"
-                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50"
+                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50 outline-none"
                               />
                             </div>
                             <button
@@ -979,8 +1055,8 @@ export default function FileDetailDrawer({
                                 if (!data) return;
                                 const id = toast.loading('Trocando CG2...');
                                 try {
-                                  const ok = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
-                                  if (ok) {
+                                  const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
+                                  if (res?.ok) {
                                     toast.success('CG2 trocado com sucesso.');
                                     setCg2Done(true);
                                     await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
@@ -1003,68 +1079,44 @@ export default function FileDetailDrawer({
               </section>
             )}
 
-            {/* REFERENCIA empty fill UI - INDEPENDENT SECTION */}
-            {showReferenciaPanel && (
+            {/* REFERENCIA empty fill UI */}
+            {((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
               <section className="rounded-lg border border-rose-500/20 bg-rose-500/10">
                 <div className="px-4 py-2 text-rose-300 text-sm font-medium flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
-                  Itens com REFERENCIA vazia {hasReferenciaArray ? `(${(data!.meta!.referenciaEmpty!.length)})` : ""}
+                  Itens com REFERENCIA vazia
                 </div>
                 <div className="px-4 pb-3 space-y-3">
-                  {!hasReferenciaArray && (
-                    <div className="text-xs text-zinc-300 mb-2">
-                      Foi detectado o erro <span className="font-mono">ITEM SEM CÓDIGO</span>, mas os IDs ainda não foram coletados na metadados.
-                      Clique em "Reprocessar" (ícone de refresh na lista) ou no botão abaixo para revalidar o arquivo e preencher a lista de IDs.
-                      <div className="mt-2">
-                        <button
-                          onClick={async () => {
-                            if (!data) return;
-                            const id = toast.loading('Reprocessando arquivo para coletar IDs...');
-                            try {
-                              const ok = await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
-                              if (ok) toast.success('Arquivo reprocessado. Aguarde a atualização do painel.');
-                              else toast.warning('Reprocessamento não retornou dados novos.');
-                            } catch (e: any) { toast.error(String(e?.message || e)); }
-                            finally { toast.dismiss(id); }
-                          }}
-                          className="px-3 py-2 rounded bg-rose-500 text-black font-medium"
-                        >
-                          Reprocessar agora
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {hasReferenciaArray && (
-                    <>
-                      <div className="text-xs text-zinc-300 mb-2">Selecione o ID e digite o código para preencher REFERENCIA:</div>
-                      {/* single-select + input */}
-                      <div className="mb-3">
-                        <label className="text-xs text-zinc-300 mb-1 block">Selecionar ID</label>
-                        <select
-                          value={selectedRefSingle ?? ''}
-                          onChange={(e) => setSelectedRefSingle(e.target.value || null)}
-                          className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2"
-                        >
-                          <option value="">-- selecionar --</option>
-                          {((data!.meta!.referenciaEmpty!) as any[]).filter((r: any) => !!r.id).map((r: any, i: number) => (
-                            <option key={i} value={r.id}>{r.id}</option>
-                          ))}
-                        </select>
-                        <label className="text-xs text-zinc-300 mb-1 block">Código REFERENCIA</label>
-                        <input value={refFillValue} onChange={(e) => setRefFillValue(e.target.value)} placeholder="Ex: ABC123" className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2" />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          disabled={!selectedRefSingle || !refFillValue}
-                          onClick={() => setConfirmRefOpen(true)}
-                          className="px-3 py-2 rounded bg-rose-500 text-black font-medium disabled:opacity-50 flex-1"
-                        >
-                          Preencher REFERENCIA
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <div className="text-xs text-zinc-300 mb-2">Selecione o ID e digite o código para preencher REFERENCIA:</div>
+                  <div className="mb-3">
+                    <label className="text-xs text-zinc-300 mb-1 block">Selecionar ID</label>
+                    <select
+                      value={selectedRefSingle ?? ''}
+                      onChange={(e) => setSelectedRefSingle(e.target.value || null)}
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2 outline-none"
+                    >
+                      <option value="">-- selecionar --</option>
+                      {((data?.meta?.referenciaEmpty || []) as any[]).filter(r => !!r.id).map((r, i) => (
+                        <option key={i} value={r.id}>{r.id}</option>
+                      ))}
+                    </select>
+                    <label className="text-xs text-zinc-300 mb-1 block">Código REFERENCIA</label>
+                    <input
+                      value={refFillValue}
+                      onChange={(e) => setRefFillValue(e.target.value)}
+                      placeholder="Ex: ABC123"
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2 outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={!selectedRefSingle || !refFillValue}
+                      onClick={() => setConfirmRefOpen(true)}
+                      className="px-3 py-2 rounded bg-rose-500 text-black font-medium disabled:opacity-50 flex-1 hover:bg-rose-400 transition-colors"
+                    >
+                      Preencher REFERENCIA
+                    </button>
+                  </div>
                 </div>
               </section>
             )}
@@ -1160,7 +1212,7 @@ export default function FileDetailDrawer({
         <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
           <AlertDialogTitle className="text-white">Confirmar preenchimento de REFERENCIA?</AlertDialogTitle>
           <AlertDialogDescription className="text-zinc-300">
-            Você está prestes a preencher REFERENCIA do item <span className="font-mono font-bold text-rose-300">{selectedRefSingle}</span> com <span className="font-mono font-bold text-rose-300">{refFillValue}</span>.
+            Você está prestes a preencher REFERENCIA do item <span className="font-mono font-bold text-rose-300">{selectedRefSingle}</span> with <span className="font-mono font-bold text-rose-300">{refFillValue}</span>.
             <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
           </AlertDialogDescription>
           <div className="flex gap-2 justify-end">
