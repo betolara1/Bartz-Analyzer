@@ -35,7 +35,15 @@ async function checkWrite(dir) {
 }
 
 async function testPathsAll(cfg) {
-  const keys = ["entrada", "working", "ok", "erro", "logsErrors", "logsProcessed", "drawings"];
+  const keys = [
+    "entrada",
+    "exportacao",
+    "ok",
+    "erro",
+    "logsErrors",
+    "logsProcessed",
+    "drawings",
+  ];
   const out = {};
   for (const k of keys) out[k] = await checkWrite(cfg[k]);
   return out;
@@ -134,8 +142,10 @@ async function validateXml(fileFullPath, cfg = {}) {
       if (refIsMissing && baseIsMissing) {
         const snippet = ((itemTag || '').trim()).slice(0, 400);
         const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
+        const descMatch = snippet.match(/\bDESCRICAO\s*=\s*"([^"]+)"/i);
         const id = idMatch ? idMatch[1] : null;
-        refEmptyMatches.push({ id, snippet });
+        const descricao = descMatch ? descMatch[1] : null;
+        refEmptyMatches.push({ id, descricao, snippet });
       }
     }
     if (refEmptyMatches.length) {
@@ -339,7 +349,7 @@ async function processOne(fileFullPath, cfg) {
     const isOK = (analysis.erros || []).length === 0;
 
     const baseName = path.basename(fileFullPath);
-    const destDir = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
+    const destDir = isOK ? (cfg.ok || cfg.exportacao) : (cfg.erro || cfg.exportacao);
 
     let finalPath = path.resolve(fileFullPath);
     const originalPath = path.resolve(fileFullPath); // Guardar caminho original
@@ -385,7 +395,7 @@ ipcMain.handle("settings:load", async () => {
   const saved = await loadCfg();
   return {
     entrada: normalizeWin(saved.entrada || ""),
-    working: normalizeWin(saved.working || ""),
+    exportacao: normalizeWin(saved.exportacao || saved.working || ""),
     ok: normalizeWin(saved.ok || ""),
     erro: normalizeWin(saved.erro || ""),
     logsErrors: normalizeWin(saved.logsErrors || ""),
@@ -395,10 +405,11 @@ ipcMain.handle("settings:load", async () => {
   };
 });
 
-ipcMain.handle("settings:save", async (_e, obj) => {
-  const next = {
+/** Prepara objeto de config pronto para salvar (sanitizado) **/
+function sanitizeCfg(obj) {
+  return {
     entrada: normalizeWin(obj?.entrada || ""),
-    working: normalizeWin(obj?.working || ""),
+    exportacao: normalizeWin(obj?.exportacao || obj?.working || ""),
     ok: normalizeWin(obj?.ok || ""),
     erro: normalizeWin(obj?.erro || ""),
     logsErrors: normalizeWin(obj?.logsErrors || ""),
@@ -406,21 +417,39 @@ ipcMain.handle("settings:save", async (_e, obj) => {
     drawings: normalizeWin(obj?.drawings || ""),
     enableAutoFix: !!obj?.enableAutoFix,
   };
+}
+
+/** Salvar config **/
+async function saveCfg(obj) {
+  const final = sanitizeCfg(obj);
+  await fse.writeJson(CONFIG_FILE, final, { spaces: 2 });
+  currentCfg = final;
+  return final;
+}
+
+/** Objeto de teste p/ pasta **/
+async function testPaths(obj) {
+  const payload = sanitizeCfg(obj);
+  const res = {};
+  for (const k of ["entrada", "exportacao", "ok", "erro"]) {
+    res[k] = await canWrite(payload[k]);
+  }
+  for (const k of ["logsErrors", "logsProcessed", "drawings"]) {
+    res[k] = await canWrite(payload[k]);
+  }
+  return res;
+}
+
+ipcMain.handle("settings:save", async (_e, obj) => {
+  const next = sanitizeCfg(obj);
   await saveCfg(next);
   currentCfg = next;
   return { ok: true, saved: next };
 });
+
 ipcMain.handle("settings:testPaths", async (_e, obj) => {
-  const cfg = {
-    entrada: normalizeWin(obj?.entrada || ""),
-    working: normalizeWin(obj?.working || ""),
-    ok: normalizeWin(obj?.ok || ""),
-    erro: normalizeWin(obj?.erro || ""),
-    logsErrors: normalizeWin(obj?.logsErrors || ""),
-    logsProcessed: normalizeWin(obj?.logsProcessed || ""),
-    enableAutoFix: !!obj?.enableAutoFix,
-  };
-  return await testPathsAll(cfg);
+  const cfg = sanitizeCfg(obj);
+  return await testPaths(cfg);
 });
 
 ipcMain.handle("settings:pickFolder", async (_e, initial) => {
@@ -440,7 +469,7 @@ ipcMain.handle("analyzer:start", async (_e, overrideCfg) => {
 
     const cfg = {
       entrada: normalizeWin(raw.entrada),
-      working: normalizeWin(raw.working),
+      exportacao: normalizeWin(raw.exportacao || raw.working),
       ok: normalizeWin(raw.ok),
       erro: normalizeWin(raw.erro),
       logsErrors: normalizeWin(raw.logsErrors),
@@ -448,7 +477,7 @@ ipcMain.handle("analyzer:start", async (_e, overrideCfg) => {
       enableAutoFix: !!raw.enableAutoFix,
     };
 
-    for (const k of ["entrada", "working", "ok", "erro"]) {
+    for (const k of ["entrada", "exportacao", "ok", "erro"]) {
       if (!cfg[k]) { send("error", { where: "start", message: `Config inválida: '${k}' vazio.` }); return false; }
       await fse.ensureDir(cfg[k]);
     }
@@ -508,7 +537,7 @@ async function resolveFilePathMaybeBase(input, cfg) {
   if (!input) return null;
   if (await fse.pathExists(input)) return input;
   const base = path.basename(input);
-  const candidates = [cfg?.entrada, cfg?.ok, cfg?.erro, cfg?.working].filter(Boolean);
+  const candidates = [cfg?.entrada, cfg?.ok, cfg?.erro, cfg?.exportacao].filter(Boolean);
   for (const dir of candidates) {
     const full = path.join(dir, base);
     if (await fse.pathExists(full)) return full;
@@ -548,14 +577,14 @@ ipcMain.handle("analyzer:openInFolder", async (_e, fileFullPath) => {
 ipcMain.handle("analyzer:reprocessOne", async (_e, fileFullPath) => {
   try {
     const cfg = currentCfg || (await loadCfg());
-    if (!cfg?.working) { send("error", { where: "reprocessOne", message: "Config faltando (working)." }); return false; }
+    if (!cfg?.exportacao) { send("error", { where: "reprocessOne", message: "Config faltando (Exportação)." }); return false; }
 
     const real = await resolveFilePathMaybeBase(fileFullPath, cfg);
     if (!real) { send("error", { where: "reprocessOne", message: "Arquivo não encontrado." }); return false; }
 
-    await fse.ensureDir(cfg.working);
+    await fse.ensureDir(cfg.exportacao);
     const base = path.basename(real);
-    const staging = path.join(cfg.working, base);
+    const staging = path.join(cfg.exportacao, base);
 
     await fse.copy(real, staging, { overwrite: true });
     await processOne(staging, cfg);
@@ -810,22 +839,25 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       const originalRaw = raw; // Guardar para debug
       raw = raw.replace(itemRegex, (itemMatch) => {
         // Passo 2: Substituir REFERENCIA dentro dessa tag ITEM específica
-        // Lidar com casos onde REFERENCIA talvez não exista ainda (adicionar se necessário)
+        // APENAS se estiver vazia ou não existir
         let updated = itemMatch;
-        // Procurar atributo REFERENCIA - usar [\s\S] para lidar com quebras de linha
-        if (/REFERENCIA\s*=\s*"[^"]*"/i.test(updated)) {
-          updated = updated.replace(
-            /REFERENCIA\s*=\s*"[^"]*"/i,
-            `REFERENCIA="${String(value)}"`
-          );
+        const refAttrRegex = /REFERENCIA\s*=\s*"([^"]*)"/i;
+        const matchRef = updated.match(refAttrRegex);
+
+        if (matchRef) {
+          const currentRef = matchRef[1] || "";
+          // Só substitui se estiver vazio
+          if (currentRef.trim() === "") {
+            updated = updated.replace(refAttrRegex, `REFERENCIA="${String(value)}"`);
+            c++;
+          }
         } else {
           // Atributo REFERENCIA não existe, adiciona antes do fechamento
-          // Encontrar o > no final, tratando possível espaçamento/quebras de linha antes dele
           updated = updated.replace(/[\s\S]*?>/, (match) => {
             return match.replace(/[\s\n]*>/, ` REFERENCIA="${String(value)}"`);
           });
+          c++;
         }
-        c++;
         return updated;
       });
 
@@ -873,7 +905,7 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       const analysis = await validateXml(real, cfg);
       const isOK = (analysis.erros || []).length === 0;
       const baseName = path.basename(real);
-      const destDir = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
+      const destDir = isOK ? (cfg.ok || cfg.exportacao) : (cfg.erro || cfg.exportacao);
 
       if (destDir) {
         await fse.ensureDir(destDir);
@@ -1534,15 +1566,15 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
     const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
     const timestamp = `${dateStr}_${timeStr}`;
 
-    // Obter pasta de logs da config
-    let logsFolder = currentCfg?.logsErrors || '';
-    if (!logsFolder || !await fse.pathExists(logsFolder)) {
-      logsFolder = path.join(app.getPath('desktop'), 'Bartz-Analyzer_Reports');
-      await fse.ensureDir(logsFolder);
+    // Obter pasta de exportação da config
+    let exportFolder = currentCfg?.exportacao || "";
+    if (!exportFolder || !(await fse.pathExists(exportFolder))) {
+      exportFolder = path.join(app.getPath("desktop"), "Bartz-Analyzer_Exports");
+      await fse.ensureDir(exportFolder);
     }
 
     // ========== CSV ==========
-    const csvPath = path.join(logsFolder, `Relatorio_${timestamp}.csv`);
+    const csvPath = path.join(exportFolder, `Relatorio_${timestamp}.csv`);
     const csvLines = [];
 
     // Cabeçalho

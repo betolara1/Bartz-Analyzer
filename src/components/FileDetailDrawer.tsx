@@ -837,8 +837,8 @@ export default function FileDetailDrawer({
               </div>
             )}
 
-            {/* ERP SEARCH PANEL - visible only if Coringa detected */}
-            {Array.isArray(data?.meta?.coringaMatches) && (data.meta.coringaMatches.length > 0) && (
+            {/* ERP SEARCH PANEL - visible if Coringa detected OR item without code */}
+            {((Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
               <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
                 <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
                   <Search className="h-4 w-4" />
@@ -933,7 +933,17 @@ export default function FileDetailDrawer({
                                 <td className="px-2 py-2">
                                   <button
                                     onClick={() => {
-                                      setCoringaTo(prod.code);
+                                      // Se tiver coringa matches, preenche o coringaTo
+                                      if (Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) {
+                                        setCoringaTo(prod.code);
+                                      }
+
+                                      // Se o painel de REFERENCIA vazia estiver visível, preenche o refFillValue
+                                      const showRefPanel = ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
+                                      if (showRefPanel) {
+                                        setRefFillValue(prod.code);
+                                      }
+
                                       toast.success(`Código "${prod.code}" selecionado`);
                                     }}
                                     className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 px-2 py-0.5 text-[10px] uppercase font-bold"
@@ -1102,7 +1112,23 @@ export default function FileDetailDrawer({
                         <option key={i} value={r.id}>{r.id}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Exibir descrição do item selecionado */}
+                  {selectedRefSingle && (() => {
+                    const item = (data?.meta?.referenciaEmpty as any[])?.find(r => r.id === selectedRefSingle);
+                    if (!item?.descricao) return null;
+                    return (
+                      <div className="mb-3 p-2 bg-rose-500/5 border border-rose-500/10 rounded">
+                        <div className="text-[10px] text-rose-300 font-bold uppercase mb-0.5 opacity-70">Descrição do Item</div>
+                        <div className="text-xs text-white italic">"{item.descricao}"</div>
+                      </div>
+                    );
+                  })()}
+
+                  <div>
                     <label className="text-xs text-zinc-300 mb-1 block">Código REFERENCIA</label>
+
                     <input
                       value={refFillValue}
                       onChange={(e) => setRefFillValue(e.target.value)}

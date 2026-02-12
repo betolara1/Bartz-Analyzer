@@ -33,7 +33,7 @@ function createWindow() {
 
 /* ---------------- utils --------------- */
 function send(evt, payload) {
-  try { win && win.webContents.send('analyzer:event', { evt, payload }); } catch {}
+  try { win && win.webContents.send('analyzer:event', { evt, payload }); } catch { }
 }
 async function loadCfg() {
   try { return JSON.parse(await fsp.readFile(CFG_FILE, 'utf8')); } catch { return {}; }
@@ -49,20 +49,20 @@ function normalizeWin(p) {
 }
 async function checkWrite(dir) {
   try {
-    if (!dir) return { exist:false, write:false, error:'vazio' };
+    if (!dir) return { exist: false, write: false, error: 'vazio' };
     const p = normalizeWin(dir);
     await fse.ensureDir(p);
     const probe = path.join(p, `.probe_${Date.now()}.tmp`);
     await fsp.writeFile(probe, 'ok');
     await fsp.unlink(probe);
-    return { exist:true, write:true };
+    return { exist: true, write: true };
   } catch (e) {
-    const exist = await fse.pathExists(dir).catch(()=>false);
-    return { exist, write:false, error:String(e && e.message || e) };
+    const exist = await fse.pathExists(dir).catch(() => false);
+    return { exist, write: false, error: String(e && e.message || e) };
   }
 }
 async function testPaths(cfg) {
-  const keys = ['entrada','working','ok','erro','logsErrors','logsProcessed','drawings'];
+  const keys = ['entrada', 'exportacao', 'ok', 'erro', 'logsErrors', 'logsProcessed', 'drawings'];
   const out = {};
   for (const k of keys) out[k] = await checkWrite(cfg[k]);
   return out;
@@ -90,10 +90,10 @@ async function processOne(fileFullPath, cfg) {
 
     const isOK = (payload.erros || []).length === 0;
     const base = path.basename(fileFullPath);
-    const dest = isOK ? (cfg.ok || cfg.working) : (cfg.erro || cfg.working);
+    const dest = isOK ? (cfg.ok || cfg.exportacao) : (cfg.erro || cfg.exportacao);
     if (dest) {
       await fse.ensureDir(dest);
-      await fse.move(fileFullPath, path.join(dest, base), { overwrite: true }).catch(()=>{});
+      await fse.move(fileFullPath, path.join(dest, base), { overwrite: true }).catch(() => { });
     }
 
     const logDir = isOK ? cfg.logsProcessed : cfg.logsErrors;
@@ -112,26 +112,26 @@ ipcMain.handle('settings:load', async () => (await loadCfg()));
 ipcMain.handle('settings:save', async (_e, obj) => {
   const next = {
     entrada: normalizeWin(obj?.entrada || ''),
-    working: normalizeWin(obj?.working || ''),
-    ok:      normalizeWin(obj?.ok || ''),
-    erro:    normalizeWin(obj?.erro || ''),
-    logsErrors:    normalizeWin(obj?.logsErrors || ''),
+    exportacao: normalizeWin(obj?.exportacao || obj?.working || ''),
+    ok: normalizeWin(obj?.ok || ''),
+    erro: normalizeWin(obj?.erro || ''),
+    logsErrors: normalizeWin(obj?.logsErrors || ''),
     logsProcessed: normalizeWin(obj?.logsProcessed || ''),
-    drawings:      normalizeWin(obj?.drawings || ''),
+    drawings: normalizeWin(obj?.drawings || ''),
   };
   await saveCfg(next);
   currentCfg = next;
-  return { ok:true, saved: next };
+  return { ok: true, saved: next };
 });
 ipcMain.handle('settings:testPaths', async (_e, obj) => {
   const cfg = {
     entrada: normalizeWin(obj?.entrada || ''),
-    working: normalizeWin(obj?.working || ''),
-    ok:      normalizeWin(obj?.ok || ''),
-    erro:    normalizeWin(obj?.erro || ''),
-    logsErrors:    normalizeWin(obj?.logsErrors || ''),
+    exportacao: normalizeWin(obj?.exportacao || obj?.working || ''),
+    ok: normalizeWin(obj?.ok || ''),
+    erro: normalizeWin(obj?.erro || ''),
+    logsErrors: normalizeWin(obj?.logsErrors || ''),
     logsProcessed: normalizeWin(obj?.logsProcessed || ''),
-    drawings:      normalizeWin(obj?.drawings || ''),
+    drawings: normalizeWin(obj?.drawings || ''),
   };
   return await testPaths(cfg);
 });
@@ -152,16 +152,16 @@ ipcMain.handle('analyzer:start', async (_e, overrideCfg) => {
 
     const cfg = {
       entrada: normalizeWin(raw.entrada),
-      working: normalizeWin(raw.working),
-      ok:      normalizeWin(raw.ok),
-      erro:    normalizeWin(raw.erro),
-      logsErrors:    normalizeWin(raw.logsErrors),
+      exportacao: normalizeWin(raw.exportacao || raw.working),
+      ok: normalizeWin(raw.ok),
+      erro: normalizeWin(raw.erro),
+      logsErrors: normalizeWin(raw.logsErrors),
       logsProcessed: normalizeWin(raw.logsProcessed),
-      drawings:      normalizeWin(raw.drawings),
+      drawings: normalizeWin(raw.drawings),
     };
 
-    for (const k of ['entrada','working','ok','erro']) {
-      if (!cfg[k]) { send('error', { where:'start', message:`Config inválida: '${k}' vazio.` }); return false; }
+    for (const k of ['entrada', 'exportacao', 'ok', 'erro']) {
+      if (!cfg[k]) { send('error', { where: 'start', message: `Config inválida: '${k}' vazio.` }); return false; }
       await fse.ensureDir(cfg[k]);
     }
     currentCfg = cfg;
@@ -177,14 +177,14 @@ ipcMain.handle('analyzer:start', async (_e, overrideCfg) => {
       interval: isUncEntrada ? 800 : 100
     });
 
-    watcher.on('add',    (p) => p.toLowerCase().endsWith('.xml') && processOne(p, cfg));
+    watcher.on('add', (p) => p.toLowerCase().endsWith('.xml') && processOne(p, cfg));
     watcher.on('change', (p) => p.toLowerCase().endsWith('.xml') && processOne(p, cfg));
-    watcher.on('error',  (err) => send('error', { where:'watch', message:String(err) }));
+    watcher.on('error', (err) => send('error', { where: 'watch', message: String(err) }));
 
     send('started', { watching: cfg.entrada });
     return true;
   } catch (e) {
-    send('error', { where:'start', message:String(e && e.message || e) });
+    send('error', { where: 'start', message: String(e && e.message || e) });
     return false;
   }
 });
@@ -195,7 +195,7 @@ ipcMain.handle('analyzer:stop', async () => {
     send('stopped', {});
     return true;
   } catch (e) {
-    send('error', { where:'stop', message:String(e && e.message || e) });
+    send('error', { where: 'stop', message: String(e && e.message || e) });
     return false;
   }
 });
@@ -203,7 +203,7 @@ ipcMain.handle('analyzer:stop', async () => {
 ipcMain.handle('analyzer:scanOnce', async () => {
   try {
     const cfg = currentCfg || await loadCfg();
-    if (!cfg?.entrada) { send('error', { where:'scanOnce', message:'Entrada não configurada.' }); return false; }
+    if (!cfg?.entrada) { send('error', { where: 'scanOnce', message: 'Entrada não configurada.' }); return false; }
     const files = await fsp.readdir(cfg.entrada);
     for (const f of files) {
       if (f.toLowerCase().endsWith('.xml')) {
@@ -213,7 +213,7 @@ ipcMain.handle('analyzer:scanOnce', async () => {
     send('scan-finished', {});
     return true;
   } catch (e) {
-    send('error', { where:'scanOnce', message:String(e && e.message || e) });
+    send('error', { where: 'scanOnce', message: String(e && e.message || e) });
     return false;
   }
 });
@@ -222,23 +222,23 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
   try {
     console.log('[DXF Search] ========== INICIANDO BUSCA ==========');
     console.log('[DXF Search] Código de desenho procurado:', drawingCode);
-    
+
     // Buscar na pasta "desenho_dxf" no Desktop
     const desktopPath = path.join(app.getPath('home'), 'Desktop');
     const dxfFolderPath = path.join(desktopPath, 'desenho_dxf');
-    
+
     console.log('[DXF Search] Desktop path:', desktopPath);
     console.log('[DXF Search] DXF folder path:', dxfFolderPath);
-    
+
     // Verificar se a pasta existe
     const folderExists = await fse.pathExists(dxfFolderPath);
     console.log('[DXF Search] Pasta "desenho_dxf" existe?', folderExists);
-    
+
     if (!folderExists) {
       console.log('[DXF Search] ❌ FALHA: Pasta não encontrada');
       return { found: false, path: null, message: `Pasta não encontrada: ${dxfFolderPath}` };
     }
-    
+
     // Buscar o arquivo na pasta
     const files = await fsp.readdir(dxfFolderPath);
     console.log('[DXF Search] Total de arquivos na pasta:', files.length);
@@ -246,19 +246,19 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
     files.forEach((f, i) => {
       console.log(`  [${i + 1}] ${f}`);
     });
-    
+
     // Procurar arquivo que comece com o código de desenho (case-insensitive)
     const searchPattern = drawingCode.toLowerCase();
     console.log('[DXF Search] Padrão de busca (lowercase):', searchPattern);
     console.log('[DXF Search] Procurando arquivo que comece com:', searchPattern);
-    
+
     const foundFile = files.find(f => {
       const lowerF = f.toLowerCase();
       const matches = lowerF.startsWith(searchPattern);
       console.log(`  Comparando "${f}" (${lowerF}) -> começa com "${searchPattern}"? ${matches}`);
       return matches;
     });
-    
+
     if (foundFile) {
       const fullPath = path.join(dxfFolderPath, foundFile);
       console.log('[DXF Search] ✅ SUCESSO: Arquivo encontrado');
@@ -266,7 +266,7 @@ ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
       console.log('[DXF Search] Caminho completo:', fullPath);
       return { found: true, path: fullPath, name: foundFile };
     }
-    
+
     console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão');
     return { found: false, path: null, message: `Arquivo "${drawingCode}" não encontrado em desenho_dxf` };
   } catch (e) {
