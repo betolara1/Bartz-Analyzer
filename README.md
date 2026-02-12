@@ -1,36 +1,88 @@
+# Bartz Analyzer - Sistema de Monitoramento XML
 
-  # Bartz Analyzer - Sistema de Monitoramento XML
+Aplicativo robusto desenvolvido em **Electron + Vite + React** para monitoramento em tempo real, validação automática e intervenção manual em arquivos XML de orçamentos.
 
-Aplicativo Electron + Vite para monitoramento e verificação de arquivos XML (fluxo interno para validações, correções automáticas e ajustes manuais).
+O design foi projetado para ser intuitivo e eficiente, focado na produtividade do fluxo interno da Bartz.
 
-O design original está disponível em Figma: https://www.figma.com/design/cyPiS70Dbr7of4AXm6VSH8/Bartz-Analyzer---Sistema-de-Monitoramento-XML
+---
 
-## ✨ Principais Funcionalidades
+## 🚀 Principais Funcionalidades
 
-- **Monitoramento em tempo real** de arquivos XML em pasta configurada
-- **Validação automática** com detecção de erros e avisos
-- **Correção automática** de quantidade zero e preço zero
-- **Detecção de Duplado 37MM** - alertas para itens com ITEM_BASE="ES08"
-- **Gerenciamento de Cor Coringa** (detecção e substituição manual)
-- **Preenchimento automático de REFERENCIA** por IDs específicas
-- **Diálogos de confirmação** para operações críticas (evita erros por clique acidental)
-- **Sistema de backup e histórico** para operações de substituição
-- **Desfazer (Undo)** para reverter alterações
-- **Organização automática** de arquivos em pastas OK/ERRO com limpeza de duplicatas
+### 1. Monitoramento e Automação
+- **Monitoramento em Tempo Real**: Observa pastas (inclusive caminhos UNC de rede) usando `chokidar` com suporte a polling.
+- **Validação Automática de Regras**:
+  - **REFERENCIA vazia**: Detecta itens sem código de referência.
+  - **Quantidade Zero**: Corrige automaticamente de `0` para `1`.
+  - **Preço Zero**: Ajusta automaticamente preços zerados para `0.10`.
+- **Organização de Arquivos**: Move arquivos automaticamente para as pastas **OK** ou **ERRO** com base no resultado da validação, limpando duplicatas remanescentes.
 
-## Pré-requisitos
+### 2. Detecções Especializadas (Tags)
+O sistema categoriza os arquivos automaticamente:
+- **FERRAGENS**: Arquivos que contêm apenas itens de ferragens (`BUILDER="N"`).
+- **MUXARABI**: Identifica referências `MX008001` ou `MX008002`.
+- **COR CORINGA**: Detecta tokens de cores que precisam de substituição.
+- **CURVO**: Identifica módulos curvos (`LR00xx`).
+- **DUPLADO 37MM**: Alerta para itens com `ITEM_BASE="ES08"`.
 
-- Node.js (>=16) e npm
-- Windows / macOS / Linux (o app foi desenvolvido com foco em Windows; caminhos UNC e explorer são suportados)
+### 3. Integração com ERP e Dados Externos
+- **Busca de Produtos ERP**: Interface para consultar códigos, descrições e tipos de produtos diretamente no banco de dados do servidor.
+- **Busca em CSV**: Consulta local de catálogos de CHAPAS, FITAS, PAINEL, PUXADORES e TAPAFURO através de arquivos CSV.
+- **Comentários do Pedido**: Busca automática de observações e títulos de pedidos via API externa ao abrir um arquivo.
 
-## Instalação e execução em desenvolvimento
+### 4. Gestão de Desenhos DXF
+- **Busca Inteligente**: Localiza arquivos DXF correspondentes aos itens ES08 em pastas configuradas ou no fallback `Desktop/desenho_dxf`.
+- **Análise de Arquivo DXF**: Lê o conteúdo técnico do DXF para identificar dimensões de `PANEL` e tokens de usinagem (`FRESA_12_37`, `USINAGEM_37`).
+- **Correção 37mm → 18mm**: Ferramenta para converter automaticamente usinagens e dimensões de 37mm para 18mm no arquivo físico do DXF.
 
-No diretório do projeto:
+### 5. Intervenções Manuais (Drawer de Detalhes)
+- **Substituição de Cor Coringa**: Troca individual de tokens ou substituição em lote de siglas (CG1/CG2).
+- **Preenchimento de REFERENCIA**: Permite atribuir códigos a IDs específicos que estavam vazios.
+- **Diálogos de Confirmação**: Todas as trocas manuais exigem confirmação visual e criam backups automáticos.
+- **Sistema de Undo (Desfazer)**: Possibilidade de reverter a última alteração feita em um arquivo, restaurando o backup original.
 
-```powershell
-npm install
-npm run dev
-```
+### 6. Relatórios e Auditoria
+- **Relatório Diário Agregado**: Exportação manual (via Dashboard) ou automática para **JSON** e **CSV** na pasta de exportação configurada.
+- **Scheduler Automático (Interno)**: O sistema gera relatórios automaticamente às **11:30** e **17:30**, de segunda a sexta, enquanto o programa estiver aberto. Ele agrega todos os logs do dia.
+- **Histórico de Ações**: O relatório registra o status inicial, status final e todas as ações de robô (auto-fix) ou manuais realizadas no arquivo.
+- **Logs Detalhados**: Gravação de arquivos JSON das validações nas pastas de logs (base para o relatório automático).
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Runtime**: [Electron](https://www.electronjs.org/)
+- **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- **Estilização**: [Tailwind CSS](https://tailwindcss.com/) + [Radix UI](https://www.radix-ui.com/)
+- **Ícones**: [Lucide React](https://lucide.dev/)
+- **Manipulação de XML**: `fast-xml-parser`
+- **Utilidades**: `fs-extra`, `chokidar`, `sonner` (toasts), `clsx`.
+
+---
+
+## ⚙️ Configuração
+
+O aplicativo utiliza uma tela de configurações para definir o ambiente de trabalho:
+- **Caminhos UNC**: Suporte total a caminhos de rede (ex: `\\servidor\pasta`).
+- **Pasta de Entrada**: Local onde os arquivos XML originais são depositados.
+- **Pastas Finais (OK/ERRO)**: Destino dos arquivos após o processamento.
+- **Pasta de Desenhos**: Local oficial para busca de arquivos DXF.
+- **Logs**: Pastas separadas para logs de processamento e erros.
+
+---
+
+## 💻 Instalação e Desenvolvimento
+
+**Pré-requisitos**: Node.js instalado.
+
+1. Instale as dependências:
+   ```bash
+   npm install
+   ```
+
+2. Inicie o ambiente de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
 
 Isto inicia a build do frontend e a aplicação Electron em modo de desenvolvimento. Em dev o app tenta carregar `http://localhost:5174/`.
 

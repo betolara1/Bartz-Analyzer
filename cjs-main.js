@@ -1562,166 +1562,238 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
   }
 });
 
+/** ================== RELATÓRIO AUTOMÁTICO ================== **/
+
+/**
+ * Agrega todos os arquivos processados hoje a partir dos logs gravados em logsProcessed e logsErrors.
+ */
+async function aggregateTodayLogs() {
+  const cfg = currentCfg || (await loadCfg());
+  const logDirs = [cfg.logsProcessed, cfg.logsErrors].filter(d => !!d);
+  if (logDirs.length === 0) return { rows: [] };
+
+  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const fileMap = new Map();
+
+  for (const dir of logDirs) {
+    if (!(await fse.pathExists(dir))) continue;
+    const files = await fs.promises.readdir(dir);
+
+    for (const file of files) {
+      if (!file.toLowerCase().endsWith('.json')) continue;
+      const fullPath = path.join(dir, file);
+      const stats = await fs.promises.stat(fullPath);
+
+      // Filtra apenas arquivos modificados hoje
+      if (stats.mtime.toISOString().split('T')[0] === todayStr) {
+        try {
+          const analysis = await fse.readJson(fullPath);
+          const originalFile = analysis.arquivo;
+          const filename = path.basename(originalFile || '');
+          if (!filename) continue;
+
+          // Deduplicação básica
+          const isOK = (analysis.erros || []).length === 0;
+          let status = isOK ? "OK" : "ERRO";
+          if (analysis.meta?.ferragensOnly) status = "FERRAGENS-ONLY";
+
+          const entry = {
+            filename,
+            fullpath: originalFile,
+            status,
+            errors: (analysis.erros || []).map(e => e.descricao || String(e)),
+            autoFixes: (analysis.autoFixes || []),
+            warnings: (analysis.avisos || []),
+            tags: (analysis.tags || []),
+            timestamp: stats.mtime.toLocaleString('pt-BR'),
+            initialStatus: status,
+            initialErrors: status === "ERRO" ? (analysis.erros || []).map(e => e.descricao || String(e)) : [],
+            history: []
+          };
+
+          // Se já existe, mantemos o primeiro status inicial
+          if (fileMap.has(filename)) {
+            const old = fileMap.get(filename);
+            entry.initialStatus = old.initialStatus;
+            entry.initialErrors = old.initialErrors;
+          }
+          fileMap.set(filename, entry);
+        } catch (e) {
+          /* ignorar erro de leitura */
+        }
+      }
+    }
+  }
+
+  return { rows: Array.from(fileMap.values()) };
+}
+
+/**
+ * Salva o relatório diário (JSON e CSV) baseado nos dados fornecidos.
+ * Refatorado para ser usado tanto via IPC quanto pelo Agendador Automático.
+ */
+async function saveDailyReport(reportData) {
+  console.log('[Report] ========== INICIANDO GERAÇÃO DE RELATÓRIO ==========');
+
+  const now = new Date();
+  const dayStr = now.toLocaleDateString('pt-BR').split('/').reverse().join('-'); // 2026-02-12
+  const timestamp = dayStr;
+
+  // Obter pasta de exportação da config
+  let exportFolder = currentCfg?.exportacao || "";
+  if (!exportFolder || !(await fse.pathExists(exportFolder))) {
+    exportFolder = path.join(app.getPath("desktop"), "Bartz-Analyzer_Exports");
+    await fse.ensureDir(exportFolder);
+  }
+
+  const jsonPath = path.join(exportFolder, `Relatorio_${timestamp}.json`);
+  const csvPath = path.join(exportFolder, `Relatorio_${timestamp}.csv`);
+
+  let existingData = { files: [] };
+  if (await fse.pathExists(jsonPath)) {
+    try {
+      const raw = await fs.promises.readFile(jsonPath, 'utf8');
+      existingData = JSON.parse(raw);
+      if (!Array.isArray(existingData.files)) existingData.files = [];
+    } catch (e) {
+      console.warn('[Report] Erro ao ler JSON existente, recomeçando:', e.message);
+    }
+  }
+
+  // Mesclar linhas
+  const fileMap = new Map();
+  existingData.files.forEach(f => {
+    if (f.filename) fileMap.set(f.filename, f);
+  });
+
+  if (Array.isArray(reportData.rows)) {
+    reportData.rows.forEach(r => {
+      if (r.filename) {
+        const old = fileMap.get(r.filename);
+        if (old) {
+          r.initialStatus = old.initialStatus || r.initialStatus;
+          r.initialErrors = (old.initialErrors && old.initialErrors.length > 0) ? old.initialErrors : (r.initialErrors || []);
+          const combinedHistory = [...(old.history || [])];
+          (r.history || []).forEach(entry => {
+            if (!combinedHistory.includes(entry)) combinedHistory.push(entry);
+          });
+          r.history = combinedHistory;
+        }
+        fileMap.set(r.filename, r);
+      }
+    });
+  }
+
+  const allFiles = Array.from(fileMap.values());
+  const totalFiles = allFiles.length;
+  const okFiles = allFiles.filter(f => f.status === "OK").length;
+  const errorFiles = allFiles.filter(f => f.status === "ERRO").length;
+  const ferragensFiles = allFiles.filter(f => f.status === "FERRAGENS-ONLY").length;
+
+  const formatStatus = (status) => {
+    const s = String(status || "").toUpperCase();
+    if (s === "OK") return "🟢 OK";
+    if (s === "ERRO") return "🔴 ERRO";
+    if (s === "FERRAGENS-ONLY") return "🟡 FERRAGENS-ONLY";
+    return s;
+  };
+
+  // JSON
+  const jsonData = {
+    ultimaExportacao: now.toLocaleString('pt-BR'),
+    summary: {
+      totalFiles,
+      okFiles,
+      errorFiles,
+      successRate: totalFiles > 0 ? ((okFiles / totalFiles) * 100).toFixed(2) + '%' : 'N/A'
+    },
+    files: allFiles,
+    config: {
+      entrada: currentCfg?.entrada || '',
+      ok: currentCfg?.ok || '',
+      erro: currentCfg?.erro || ''
+    }
+  };
+
+  await fs.promises.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
+  console.log('[Report] ✓ JSON atualizado:', jsonPath);
+
+  // CSV
+  const csvLines = [];
+  csvLines.push(['STATUS_INICIAL', 'STATUS_FINAL', 'ARQUIVO', 'ERROS_DETECTADOS', 'AVISOS', 'TAGS', 'ACOES_REALIZADAS (HISTORICO)', 'FINALIZADO_EM'].map(v => `"${v}"`).join(';'));
+
+  for (const row of allFiles) {
+    const errorsList = (row.initialErrors && row.initialErrors.length > 0) ? row.initialErrors : (row.errors || []);
+    csvLines.push([
+      formatStatus(row.initialStatus || row.status || ''),
+      formatStatus(row.status || ''),
+      row.filename || '',
+      errorsList.join(' | '),
+      (row.warnings || []).join(' | '),
+      (row.tags || []).join(', '),
+      (row.history || []).join(' | '),
+      row.timestamp || ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+  }
+
+  csvLines.push('');
+  csvLines.push(['RESUMO DO RELATÓRIO DO DIA'].map(v => `"${v}"`).join(';'));
+  csvLines.push(['Data da Última Exportação', now.toLocaleString('pt-BR')].map(v => `"${v}"`).join(';'));
+  csvLines.push(['Total de Arquivos Processados', totalFiles].map(v => `"${v}"`).join(';'));
+  csvLines.push(['Arquivos OK', `🟢 ${okFiles}`].map(v => `"${v}"`).join(';'));
+  csvLines.push(['Arquivos com ERRO', `🔴 ${errorFiles}`].map(v => `"${v}"`).join(';'));
+  csvLines.push(['Arquivos FERRAGENS-ONLY', `🟡 ${ferragensFiles}`].map(v => `"${v}"`).join(';'));
+  csvLines.push(['Taxa de Sucesso', totalFiles > 0 ? `${(((okFiles + ferragensFiles) / totalFiles) * 100).toFixed(2)}%` : 'N/A'].map(v => `"${v}"`).join(';'));
+
+  await fs.promises.writeFile(csvPath, csvLines.join('\n'), 'utf8');
+  console.log('[Report] ✓ CSV atualizado:', csvPath);
+
+  return { ok: true, csvPath, jsonPath, filesCount: totalFiles };
+}
+
+/**
+ * Loop que verifica o horário a cada minuto para gerar o relatório automático.
+ */
+function startAutomaticScheduler() {
+  console.log('[Scheduler] Iniciado. Verificando horários (11:30 e 17:30 de Seg a Sex)...');
+
+  setInterval(async () => {
+    const now = new Date();
+    const day = now.getDay(); // 0=Dom, 1=Seg, ..., 6=Sab
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // Apenas Segunda a Sexta
+    if (day >= 1 && day <= 5) {
+      if ((hours === 11 && minutes === 30) || (hours === 17 && minutes === 30)) {
+        console.log(`[Scheduler] Horário atingido (${hours}:${minutes}). Executando exportação automática...`);
+        try {
+          const reportData = await aggregateTodayLogs();
+          if (reportData.rows.length > 0) {
+            await saveDailyReport(reportData);
+            console.log(`[Scheduler] Exportação automática concluída com sucesso.`);
+          } else {
+            console.log(`[Scheduler] Nenhum arquivo processado hoje para exportar.`);
+          }
+        } catch (e) {
+          console.error(`[Scheduler] Erro na exportação automática:`, e.message);
+        }
+      }
+    }
+  }, 60000); // 60 segundos
+}
+
 /** ================== IPC: EXPORT REPORT ================== **/
 ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
   try {
-    console.log('[Export Report] ========== INICIANDO EXPORTAÇÃO (AGREGADA POR DIA) ==========');
-
-    // Preparar data para o nome do arquivo (YYYY-MM-DD)
-    const now = new Date();
-    const dayStr = now.toLocaleDateString('pt-BR').split('/').reverse().join('-'); // 2026-02-12
-    const timestamp = dayStr;
-
-    // Obter pasta de exportação da config
-    let exportFolder = currentCfg?.exportacao || "";
-    if (!exportFolder || !(await fse.pathExists(exportFolder))) {
-      exportFolder = path.join(app.getPath("desktop"), "Bartz-Analyzer_Exports");
-      await fse.ensureDir(exportFolder);
-    }
-
-    const jsonPath = path.join(exportFolder, `Relatorio_${timestamp}.json`);
-    const csvPath = path.join(exportFolder, `Relatorio_${timestamp}.csv`);
-
-    let existingData = { files: [] };
-    if (await fse.pathExists(jsonPath)) {
-      try {
-        const raw = await fsp.readFile(jsonPath, 'utf8');
-        existingData = JSON.parse(raw);
-        if (!Array.isArray(existingData.files)) existingData.files = [];
-      } catch (e) {
-        console.warn('[Export Report] Erro ao ler JSON existente, recomeçando:', e.message);
-      }
-    }
-
-    // Mesclar linhas (usando filename como chave única para evitar duplicados ao mover de pasta)
-    const fileMap = new Map();
-    // Colocar os existentes no mapa
-    existingData.files.forEach(f => {
-      if (f.filename) fileMap.set(f.filename, f);
-    });
-
-    // Adicionar/Sobrescrever com os novos
-    if (Array.isArray(reportData.rows)) {
-      reportData.rows.forEach(r => {
-        if (r.filename) {
-          const old = fileMap.get(r.filename);
-          if (old) {
-            // Preservar initialStatus original
-            r.initialStatus = old.initialStatus || r.initialStatus;
-
-            // Preservar initialErrors original
-            r.initialErrors = (old.initialErrors && old.initialErrors.length > 0)
-              ? old.initialErrors
-              : (r.initialErrors || []);
-
-            // Mesclar histórico (manter entradas únicas)
-            const combinedHistory = [...(old.history || [])];
-            (r.history || []).forEach(entry => {
-              if (!combinedHistory.includes(entry)) {
-                combinedHistory.push(entry);
-              }
-            });
-            r.history = combinedHistory;
-          }
-          fileMap.set(r.filename, r);
-        }
-      });
-    }
-
-    const allFiles = Array.from(fileMap.values());
-    const totalFiles = allFiles.length;
-    const okFiles = allFiles.filter(f => f.status === "OK").length;
-    const errorFiles = allFiles.filter(f => f.status === "ERRO").length;
-    const ferragensFiles = allFiles.filter(f => f.status === "FERRAGENS-ONLY").length;
-
-    // Helper para cores no status (usando emojis para visualização no Excel/TXT)
-    const formatStatus = (status) => {
-      const s = String(status || "").toUpperCase();
-      if (s === "OK") return "🟢 OK";
-      if (s === "ERRO") return "🔴 ERRO";
-      if (s === "FERRAGENS-ONLY") return "🟡 FERRAGENS-ONLY";
-      return s;
-    };
-
-    // ========== SALVAR JSON ==========
-    const jsonData = {
-      ultimaExportacao: now.toLocaleString('pt-BR'),
-      summary: {
-        totalFiles,
-        okFiles,
-        errorFiles,
-        successRate: totalFiles > 0 ? ((okFiles / totalFiles) * 100).toFixed(2) + '%' : 'N/A'
-      },
-      files: allFiles,
-      config: {
-        entrada: currentCfg?.entrada || '',
-        ok: currentCfg?.ok || '',
-        erro: currentCfg?.erro || ''
-      }
-    };
-
-    await fsp.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
-    console.log('[Export Report] ✓ JSON atualizado:', jsonPath);
-
-    // ========== GERAR CSV A PARTIR DO JSON ATUALIZADO ==========
-    const csvLines = [];
-    csvLines.push([
-      'STATUS_INICIAL',
-      'STATUS_FINAL',
-      'ARQUIVO',
-      'ERROS_DETECTADOS',
-      'AVISOS',
-      'TAGS',
-      'ACOES_REALIZADAS (HISTORICO)',
-      'FINALIZADO_EM'
-    ].map(v => `"${v}"`).join(';'));
-
-    for (const row of allFiles) {
-      // Usar initialErrors se existirem, senão os erros atuais (que podem estar vazios se OK)
-      const errorsList = (row.initialErrors && row.initialErrors.length > 0) ? row.initialErrors : (row.errors || []);
-      const errors = errorsList.join(' | ');
-      const warnings = (row.warnings || []).join(' | ');
-      const tags = (row.tags || []).join(', ');
-      const history = (row.history || []).join(' | ');
-
-      csvLines.push([
-        formatStatus(row.initialStatus || row.status || ''),
-        formatStatus(row.status || ''),
-        row.filename || '',
-        errors,
-        warnings,
-        tags,
-        history,
-        row.timestamp || ''
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
-    }
-
-    csvLines.push('');
-    csvLines.push(['RESUMO DO RELATÓRIO DO DIA'].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Data da Última Exportação', now.toLocaleString('pt-BR')].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Total de Arquivos Processados', totalFiles].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Arquivos OK', `🟢 ${okFiles}`].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Arquivos com ERRO', `🔴 ${errorFiles}`].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Arquivos FERRAGENS-ONLY', `🟡 ${ferragensFiles}`].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Taxa de Sucesso', totalFiles > 0 ? `${(((okFiles + ferragensFiles) / totalFiles) * 100).toFixed(2)}%` : 'N/A'].map(v => `"${v}"`).join(';'));
-
-    await fsp.writeFile(csvPath, csvLines.join('\n'), 'utf8');
-    console.log('[Export Report] ✓ CSV atualizado:', csvPath);
-
+    const res = await saveDailyReport(reportData);
     return {
-      ok: true,
-      csvPath,
-      jsonPath,
-      message: `Relatório diário atualizado (${dayStr})`,
-      filesCount: totalFiles
+      ...res,
+      message: `Relatório diário atualizado (${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')})`
     };
   } catch (e) {
     console.log('[Export Report] ❌ ERRO NA EXPORTAÇÃO:', e.message || e);
-    console.error('[Export Report] Stack:', e.stack);
-    return {
-      ok: false,
-      message: `Erro ao exportar relatório: ${String(e && e.message || e)}`
-    };
+    return { ok: false, message: `Erro ao exportar relatório: ${String(e.message || e)}` };
   }
 });
 
@@ -1750,6 +1822,9 @@ ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
 });
 
 /** ----------------- lifecycle ----------------- **/
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  startAutomaticScheduler();
+});
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
