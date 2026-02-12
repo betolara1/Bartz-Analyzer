@@ -30,6 +30,9 @@ type Row = {
     machines?: { id: string; name?: string }[];
     [k: string]: any;
   };
+  initialStatus?: Status;
+  history?: string[];
+  initialErrors?: string[];
 };
 
 // ...
@@ -65,7 +68,10 @@ function toRow(p: any): Row | null {
     warnings,
     tags,
     timestamp: new Date().toLocaleString(),
-    meta: p?.meta || {}, // <<< importante
+    meta: p?.meta || {},
+    initialStatus: status, // Será sobrescrito se já existir no loop do prev
+    history: [],
+    initialErrors: status === "ERRO" ? erros : [],
   };
 }
 function formatTag(tag: string) {
@@ -157,26 +163,51 @@ export default function Dashboard() {
         if (!row) return;
 
         setRows((prev: Row[]) => {
-          const i = prev.findIndex((r) => r.fullpath === row.fullpath);
+          // Tentar achar pelo fullpath primeiro, depois pelo filename (caso tenha movido)
+          let i = prev.findIndex((r) => r.fullpath === row.fullpath);
+          if (i < 0) {
+            i = prev.findIndex((r) => r.filename === row.filename);
+          }
+
+          let updatedRow = { ...row };
+
           if (i >= 0) {
+            // Preservar initialStatus, initialErrors e history do registro anterior (mesmo se mudou de pasta)
+            updatedRow.initialStatus = prev[i].initialStatus || row.status;
+            updatedRow.initialErrors = (prev[i].initialErrors?.length ?? 0) > 0
+              ? prev[i].initialErrors
+              : updatedRow.initialErrors;
+            updatedRow.history = [...(prev[i].history || [])];
+
+            // Se houve autoFixes novos neste processamento, registrar no histórico
+            if ((payload?.autoFixes || []).length > 0) {
+              const fixStr = `[Robô] Auto-fix: ${payload.autoFixes.join(", ")}`;
+              if (!updatedRow.history.includes(fixStr)) {
+                updatedRow.history.push(fixStr);
+              }
+            }
+
             const copy = prev.slice();
-            copy[i] = row;
+            copy[i] = updatedRow;
             return copy;
           }
+
+          // Novo arquivo detectado
+          updatedRow.initialStatus = row.status;
+          updatedRow.initialErrors = row.status === "ERRO" ? row.errors : [];
+          if ((payload?.autoFixes || []).length > 0) {
+            updatedRow.history = [`[Robô] Auto-fix: ${payload.autoFixes.join(", ")}`];
+          }
+
           // When file moves from ERRO to OK, remove the old ERRO entry
-          // by checking if we have the same filename in ERRO folder
           const baseName = row.filename;
           const filtered = prev.filter((r) => {
             const sameFile = r.filename === baseName;
             const isInErroFolder = r.fullpath.toLowerCase().includes('\\erro\\') || r.fullpath.toLowerCase().includes('/erro/');
-            // If this is OK status and we find same file in ERRO folder, remove it
-            if (row.status === 'OK' && sameFile && isInErroFolder) {
-              console.log(`[Dashboard] Removing old ERRO entry: ${r.fullpath}`);
-              return false;
-            }
+            if (row.status === 'OK' && sameFile && isInErroFolder) return false;
             return true;
           });
-          return [row, ...filtered];
+          return [updatedRow, ...filtered];
         });
 
         // if the detail drawer currently shows this file, refresh its data so the UI (coringa select) updates
@@ -367,6 +398,21 @@ export default function Dashboard() {
     } finally {
       toast.dismiss(id);
     }
+  }
+
+  async function handleManualAction(fullpath: string, action: string) {
+    setRows((prev) => {
+      const idx = prev.findIndex(r => r.fullpath === fullpath);
+      if (idx < 0) return prev;
+      const copy = [...prev];
+      const row = { ...copy[idx] };
+      const timePrefix = new Date().toLocaleTimeString('pt-BR');
+      row.history = [...(row.history || []), `[${timePrefix}] ${action}`];
+      copy[idx] = row;
+      // Se for o arquivo que está aberto no detalhe, atualiza ele também
+      setDetailData(prevData => (prevData && prevData.fullpath === fullpath ? row : prevData));
+      return copy;
+    });
   }
 
   function handleFileDetail(file: Row) {
@@ -839,6 +885,7 @@ export default function Dashboard() {
         onOpenChange={setDetailOpen}
         data={detailData}
         onFileMoved={handleFileMoved}
+        onAction={handleManualAction}
       />
 
       {/* toasts */}

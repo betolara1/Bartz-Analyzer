@@ -41,11 +41,13 @@ export default function FileDetailDrawer({
   onOpenChange,
   data,
   onFileMoved,
+  onAction,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   data: Row | null;
   onFileMoved?: (oldPath: string, newPath: string) => void;
+  onAction?: (path: string, action: string) => void;
 }) {
   const [coringaFrom, setCoringaFrom] = React.useState<string | null>(null);
   const [coringaTo, setCoringaTo] = React.useState<string>("");
@@ -302,6 +304,9 @@ export default function FileDetailDrawer({
 
       if (result?.ok) {
         toast.success(`✅ ${drawingCode} corrigido! substituições: ${result.changes?.fresa37Replacements}`);
+        if (onAction && data) {
+          onAction(data.fullpath, `[Manual] DXF: corrigido Fresa 37mm para 18mm no desenho "${drawingCode}"`);
+        }
 
         // Atualizar o estado local para refletir a correção imediatamente
         setDxfResults(prev => {
@@ -1035,6 +1040,9 @@ export default function FileDetailDrawer({
                                   const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
                                   if (res?.ok) {
                                     toast.success('CG1 trocado com sucesso.');
+                                    if (onAction && data) {
+                                      onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG1 para "${cg1Replace}"`);
+                                    }
                                     setCg1Done(true);
                                     await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
                                   } else {
@@ -1070,6 +1078,9 @@ export default function FileDetailDrawer({
                                   const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
                                   if (res?.ok) {
                                     toast.success('CG2 trocado com sucesso.');
+                                    if (onAction && data) {
+                                      onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG2 para "${cg2Replace}"`);
+                                    }
                                     setCg2Done(true);
                                     await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
                                   } else {
@@ -1172,6 +1183,9 @@ export default function FileDetailDrawer({
                   const res = await (window as any).electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, coringaTo);
                   if (res?.ok) {
                     toast.success(`Substituídos ${res.replaced || 0} ocorrência(s)`);
+                    if (onAction && data) {
+                      onAction(data.fullpath, `[Manual] Coringa: substituído "${coringaFrom}" por "${coringaTo}"`);
+                    }
                     setLastReplace({ backupPath: res.backupPath, from: coringaFrom, to: coringaTo, replaced: res.replaced });
                   } else {
                     toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
@@ -1255,6 +1269,9 @@ export default function FileDetailDrawer({
                   const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
                   if (res?.ok) {
                     toast.success(`Preenchidas ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)} ocorrência(s)`);
+                    if (onAction && data) {
+                      onAction(data.fullpath, `[Manual] Referência: preenchido ID "${selectedRefSingle}" com valor "${refFillValue}"`);
+                    }
                     setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
                     setRefFillValue('');
                     setSelectedRefSingle(null);

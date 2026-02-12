@@ -1558,13 +1558,12 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
 /** ================== IPC: EXPORT REPORT ================== **/
 ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
   try {
-    console.log('[Export Report] ========== INICIANDO EXPORTAÇÃO ==========');
+    console.log('[Export Report] ========== INICIANDO EXPORTAÇÃO (AGREGADA POR DIA) ==========');
 
-    // Preparar data/hora
+    // Preparar data para o nome do arquivo (YYYY-MM-DD)
     const now = new Date();
-    const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
-    const timeStr = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
-    const timestamp = `${dateStr}_${timeStr}`;
+    const dayStr = now.toLocaleDateString('pt-BR').split('/').reverse().join('-'); // 2026-02-12
+    const timestamp = dayStr;
 
     // Obter pasta de exportação da config
     let exportFolder = currentCfg?.exportacao || "";
@@ -1573,70 +1572,80 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
       await fse.ensureDir(exportFolder);
     }
 
-    // ========== CSV ==========
+    const jsonPath = path.join(exportFolder, `Relatorio_${timestamp}.json`);
     const csvPath = path.join(exportFolder, `Relatorio_${timestamp}.csv`);
-    const csvLines = [];
 
-    // Cabeçalho
-    csvLines.push([
-      'DATA/HORA',
-      'ARQUIVO',
-      'STATUS',
-      'ERROS',
-      'AVISOS',
-      'AUTO-FIX',
-      'TAGS'
-    ].map(v => `"${v}"`).join(';'));
-
-    // Linhas de dados
-    if (Array.isArray(reportData.rows)) {
-      for (const row of reportData.rows) {
-        const errors = (row.errors || []).join(' | ');
-        const warnings = (row.warnings || []).join(' | ');
-        const autoFixes = (row.autoFixes || []).join(' | ');
-        const tags = (row.tags || []).join(', ');
-
-        csvLines.push([
-          row.timestamp || '',
-          row.filename || '',
-          row.status || '',
-          errors,
-          warnings,
-          autoFixes,
-          tags
-        ].map(v => `"${v}"`).join(';'));
+    let existingData = { files: [] };
+    if (await fse.pathExists(jsonPath)) {
+      try {
+        const raw = await fsp.readFile(jsonPath, 'utf8');
+        existingData = JSON.parse(raw);
+        if (!Array.isArray(existingData.files)) existingData.files = [];
+      } catch (e) {
+        console.warn('[Export Report] Erro ao ler JSON existente, recomeçando:', e.message);
       }
     }
 
-    // Resumo estatístico
-    const totalFiles = reportData.totalFiles || 0;
-    const okFiles = reportData.okFiles || 0;
-    const errorFiles = reportData.errorFiles || 0;
+    // Mesclar linhas (usando filename como chave única para evitar duplicados ao mover de pasta)
+    const fileMap = new Map();
+    // Colocar os existentes no mapa
+    existingData.files.forEach(f => {
+      if (f.filename) fileMap.set(f.filename, f);
+    });
 
-    csvLines.push('');
-    csvLines.push(['RESUMO DO RELATÓRIO'].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Data da Exportação', now.toLocaleString('pt-BR')].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Total de Arquivos Processados', totalFiles].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Arquivos OK', okFiles].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Arquivos com ERRO', errorFiles].map(v => `"${v}"`).join(';'));
-    csvLines.push(['Taxa de Sucesso', totalFiles > 0 ? `${((okFiles / totalFiles) * 100).toFixed(2)}%` : 'N/A'].map(v => `"${v}"`).join(';'));
+    // Adicionar/Sobrescrever com os novos
+    if (Array.isArray(reportData.rows)) {
+      reportData.rows.forEach(r => {
+        if (r.filename) {
+          const old = fileMap.get(r.filename);
+          if (old) {
+            // Preservar initialStatus original
+            r.initialStatus = old.initialStatus || r.initialStatus;
 
-    const csvContent = csvLines.join('\n');
-    await fsp.writeFile(csvPath, csvContent, 'utf8');
-    console.log('[Export Report] ✓ CSV criado:', csvPath);
+            // Preservar initialErrors original
+            r.initialErrors = (old.initialErrors && old.initialErrors.length > 0)
+              ? old.initialErrors
+              : (r.initialErrors || []);
 
-    // ========== JSON (mais detalhado) ==========
-    const jsonPath = path.join(logsFolder, `Relatorio_${timestamp}.json`);
+            // Mesclar histórico (manter entradas únicas)
+            const combinedHistory = [...(old.history || [])];
+            (r.history || []).forEach(entry => {
+              if (!combinedHistory.includes(entry)) {
+                combinedHistory.push(entry);
+              }
+            });
+            r.history = combinedHistory;
+          }
+          fileMap.set(r.filename, r);
+        }
+      });
+    }
+
+    const allFiles = Array.from(fileMap.values());
+    const totalFiles = allFiles.length;
+    const okFiles = allFiles.filter(f => f.status === "OK").length;
+    const errorFiles = allFiles.filter(f => f.status === "ERRO").length;
+    const ferragensFiles = allFiles.filter(f => f.status === "FERRAGENS-ONLY").length;
+
+    // Helper para cores no status (usando emojis para visualização no Excel/TXT)
+    const formatStatus = (status) => {
+      const s = String(status || "").toUpperCase();
+      if (s === "OK") return "🟢 OK";
+      if (s === "ERRO") return "🔴 ERRO";
+      if (s === "FERRAGENS-ONLY") return "🟡 FERRAGENS-ONLY";
+      return s;
+    };
+
+    // ========== SALVAR JSON ==========
     const jsonData = {
-      exportDate: now.toLocaleString('pt-BR'),
-      exportTimestamp: now.getTime(),
+      ultimaExportacao: now.toLocaleString('pt-BR'),
       summary: {
         totalFiles,
         okFiles,
         errorFiles,
         successRate: totalFiles > 0 ? ((okFiles / totalFiles) * 100).toFixed(2) + '%' : 'N/A'
       },
-      files: reportData.rows || [],
+      files: allFiles,
       config: {
         entrada: currentCfg?.entrada || '',
         ok: currentCfg?.ok || '',
@@ -1645,13 +1654,58 @@ ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
     };
 
     await fsp.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
-    console.log('[Export Report] ✓ JSON criado:', jsonPath);
+    console.log('[Export Report] ✓ JSON atualizado:', jsonPath);
+
+    // ========== GERAR CSV A PARTIR DO JSON ATUALIZADO ==========
+    const csvLines = [];
+    csvLines.push([
+      'STATUS_INICIAL',
+      'STATUS_FINAL',
+      'ARQUIVO',
+      'ERROS_DETECTADOS',
+      'AVISOS',
+      'TAGS',
+      'ACOES_REALIZADAS (HISTORICO)',
+      'FINALIZADO_EM'
+    ].map(v => `"${v}"`).join(';'));
+
+    for (const row of allFiles) {
+      // Usar initialErrors se existirem, senão os erros atuais (que podem estar vazios se OK)
+      const errorsList = (row.initialErrors && row.initialErrors.length > 0) ? row.initialErrors : (row.errors || []);
+      const errors = errorsList.join(' | ');
+      const warnings = (row.warnings || []).join(' | ');
+      const tags = (row.tags || []).join(', ');
+      const history = (row.history || []).join(' | ');
+
+      csvLines.push([
+        formatStatus(row.initialStatus || row.status || ''),
+        formatStatus(row.status || ''),
+        row.filename || '',
+        errors,
+        warnings,
+        tags,
+        history,
+        row.timestamp || ''
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+    }
+
+    csvLines.push('');
+    csvLines.push(['RESUMO DO RELATÓRIO DO DIA'].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Data da Última Exportação', now.toLocaleString('pt-BR')].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Total de Arquivos Processados', totalFiles].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Arquivos OK', `🟢 ${okFiles}`].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Arquivos com ERRO', `🔴 ${errorFiles}`].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Arquivos FERRAGENS-ONLY', `🟡 ${ferragensFiles}`].map(v => `"${v}"`).join(';'));
+    csvLines.push(['Taxa de Sucesso', totalFiles > 0 ? `${(((okFiles + ferragensFiles) / totalFiles) * 100).toFixed(2)}%` : 'N/A'].map(v => `"${v}"`).join(';'));
+
+    await fsp.writeFile(csvPath, csvLines.join('\n'), 'utf8');
+    console.log('[Export Report] ✓ CSV atualizado:', csvPath);
 
     return {
       ok: true,
       csvPath,
       jsonPath,
-      message: `Relatório exportado com sucesso (${timestamp})`,
+      message: `Relatório diário atualizado (${dayStr})`,
       filesCount: totalFiles
     };
   } catch (e) {
