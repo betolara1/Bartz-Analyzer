@@ -1,5 +1,7 @@
 // main.js (CJS)
 const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+// Desabilitar aceleração de hardware para evitar erros de cache de GPU
+app.disableHardwareAcceleration();
 const path = require("path");
 const { exec } = require("child_process");
 const fs = require("fs");
@@ -17,7 +19,7 @@ function isUNC(p) { return typeof p === "string" && p.startsWith("\\\\"); }
 function normalizeWin(p) { if (!p) return ""; return isUNC(p) ? p.replace(/\//g, "\\") : path.normalize(p); }
 
 async function loadCfg() { try { return JSON.parse(await fsp.readFile(CFG_FILE, "utf8")); } catch { return {}; } }
-async function saveCfg(obj) { await fse.ensureFile(CFG_FILE); await fsp.writeFile(CFG_FILE, JSON.stringify(obj || {}, null, 2), "utf8"); }
+// saveCfg unificado será definido abaixo
 
 async function checkWrite(dir) {
   try {
@@ -53,6 +55,10 @@ function send(evt, payload) {
   try { win && win.webContents.send("analyzer:event", { evt, payload }); } catch { }
 }
 
+ipcMain.on('renderer-error', (_, err) => {
+  console.error('[Renderer Error]', err);
+});
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -69,6 +75,7 @@ function createWindow() {
     win.webContents.openDevTools({ mode: "detach" });
   } else {
     win.loadFile(path.join(__dirname, "dist/index.html"));
+    // win.webContents.openDevTools({ mode: "detach" }); // Comentado para a versão final
   }
 }
 
@@ -422,7 +429,7 @@ function sanitizeCfg(obj) {
 /** Salvar config **/
 async function saveCfg(obj) {
   const final = sanitizeCfg(obj);
-  await fse.writeJson(CONFIG_FILE, final, { spaces: 2 });
+  await fse.writeJson(CFG_FILE, final, { spaces: 2 });
   currentCfg = final;
   return final;
 }
@@ -432,10 +439,10 @@ async function testPaths(obj) {
   const payload = sanitizeCfg(obj);
   const res = {};
   for (const k of ["entrada", "exportacao", "ok", "erro"]) {
-    res[k] = await canWrite(payload[k]);
+    res[k] = await checkWrite(payload[k]);
   }
   for (const k of ["logsErrors", "logsProcessed", "drawings"]) {
-    res[k] = await canWrite(payload[k]);
+    res[k] = await checkWrite(payload[k]);
   }
   return res;
 }

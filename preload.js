@@ -33,3 +33,21 @@ contextBridge.exposeInMainWorld('electron', {
     pickFolder: (initial) => ipcRenderer.invoke('settings:pickFolder', initial || ''),
   },
 });
+
+// Capturar erros do renderer (React/JS) e enviar para o processo principal (terminal)
+window.onerror = (msg, url, line, col, error) => {
+  ipcRenderer.send('renderer-error', {
+    msg,
+    url,
+    line,
+    col,
+    stack: error ? error.stack : 'No stack trace'
+  });
+};
+
+window.addEventListener('unhandledrejection', (event) => {
+  ipcRenderer.send('renderer-error', {
+    msg: `Unhandled Promise Rejection: ${event.reason}`,
+    stack: event.reason?.stack || 'No stack trace'
+  });
+});

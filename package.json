@@ -9,7 +9,33 @@
     "dev:renderer": "vite --port 5174 --strictPort",
     "dev:main": "wait-on http://localhost:5174 && cross-env VITE_DEV=1 electron .",
     "build": "vite build",
+    "dist:win": "npm run build && electron-builder --win",
     "start": "electron ."
+  },
+  "build": {
+    "productName": "Bartz Analyzer",
+    "appId": "com.bartz.analyzer",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "cjs-main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "node_modules/app-builder-lib/templates/icons/proton-native/proton-native.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Bartz Analyzer"
+    }
   },
   "devDependencies": {
     "@types/node": "^20.12.12",
