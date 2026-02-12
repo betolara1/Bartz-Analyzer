@@ -1752,10 +1752,42 @@ async function saveDailyReport(reportData) {
 }
 
 /**
- * Loop que verifica o horário a cada minuto para gerar o relatório automático.
+ * Remove todos os arquivos das pastas configuradas (OK, ERRO, Logs).
+ */
+async function clearTargetFolders() {
+  console.log('[Scheduler] ========== INICIANDO LIMPEZA DE PASTAS ==========');
+  const cfg = currentCfg || (await loadCfg());
+  const foldersToClear = [cfg.ok, cfg.erro, cfg.logsProcessed, cfg.logsErrors].filter(d => !!d);
+
+  if (foldersToClear.length === 0) {
+    console.log('[Scheduler] Nenhuma pasta configurada para limpeza.');
+    return;
+  }
+
+  for (const dir of foldersToClear) {
+    try {
+      if (await fse.pathExists(dir)) {
+        const files = await fs.promises.readdir(dir);
+        for (const file of files) {
+          const fullPath = path.join(dir, file);
+          const stats = await fs.promises.stat(fullPath);
+          if (stats.isFile()) {
+            await fse.remove(fullPath);
+          }
+        }
+        console.log(`[Scheduler] ✓ Pasta limpa: ${dir}`);
+      }
+    } catch (e) {
+      console.error(`[Scheduler] Erro ao limpar pasta ${dir}:`, e.message);
+    }
+  }
+}
+
+/**
+ * Loop que verifica o horário a cada minuto para gerar o relatório automático e limpar pastas.
  */
 function startAutomaticScheduler() {
-  console.log('[Scheduler] Iniciado. Verificando horários (11:30 e 17:30 de Seg a Sex)...');
+  console.log('[Scheduler] Iniciado. Verificando horários (Relatórios: 11:30/17:30 | Limpeza: 17:30)...');
 
   setInterval(async () => {
     const now = new Date();
@@ -1765,8 +1797,9 @@ function startAutomaticScheduler() {
 
     // Apenas Segunda a Sexta
     if (day >= 1 && day <= 5) {
+      // Relatórios automáticos
       if ((hours === 11 && minutes === 30) || (hours === 17 && minutes === 30)) {
-        console.log(`[Scheduler] Horário atingido (${hours}:${minutes}). Executando exportação automática...`);
+        console.log(`[Scheduler] Horário de relatório atingido (${hours}:${minutes}). Executando exportação automática...`);
         try {
           const reportData = await aggregateTodayLogs();
           if (reportData.rows.length > 0) {
@@ -1777,6 +1810,17 @@ function startAutomaticScheduler() {
           }
         } catch (e) {
           console.error(`[Scheduler] Erro na exportação automática:`, e.message);
+        }
+      }
+
+      // Limpeza automática (apenas às 17:30, após ou junto com o relatório)
+      if (hours === 17 && minutes === 30) {
+        console.log(`[Scheduler] Horário de limpeza atingido (17:30). Executando limpeza de pastas...`);
+        try {
+          await clearTargetFolders();
+          console.log(`[Scheduler] Limpeza automática concluída com sucesso.`);
+        } catch (e) {
+          console.error(`[Scheduler] Erro na limpeza automática:`, e.message);
         }
       }
     }

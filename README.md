@@ -42,7 +42,8 @@ O sistema categoriza os arquivos automaticamente:
 
 ### 6. Relatórios e Auditoria
 - **Relatório Diário Agregado**: Exportação manual (via Dashboard) ou automática para **JSON** e **CSV** na pasta de exportação configurada.
-- **Scheduler Automático (Interno)**: O sistema gera relatórios automaticamente às **11:30** e **17:30**, de segunda a sexta, enquanto o programa estiver aberto. Ele agrega todos os logs do dia.
+- **Scheduler Automático (Interno)**: O sistema gera relatórios automaticamente às **11:30** e **17:30**, de segunda a sexta, enquanto o programa estiver aberto.
+- **Limpeza Automática (Cleanup)**: Às **17:30**, de segunda a sexta, o sistema limpa automaticamente os arquivos das pastas **OK**, **ERRO** e **Logs**, mantendo o ambiente limpo após a exportação do relatório.
 - **Histórico de Ações**: O relatório registra o status inicial, status final e todas as ações de robô (auto-fix) ou manuais realizadas no arquivo.
 - **Logs Detalhados**: Gravação de arquivos JSON das validações nas pastas de logs (base para o relatório automático).
 
