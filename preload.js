@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electron', {
     searchErpProduct: (params) => ipcRenderer.invoke('analyzer:searchErpProduct', params),
     getOrderComments: (numPedido) => ipcRenderer.invoke('analyzer:getOrderComments', numPedido),
     moveToOk: (filePath) => ipcRenderer.invoke('analyzer:moveToOk', filePath),
+    clearTargetFolders: () => ipcRenderer.invoke('analyzer:clearTargetFolders'),
   },
 
   settings: {

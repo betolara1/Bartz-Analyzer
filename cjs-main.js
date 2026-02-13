@@ -220,6 +220,87 @@ async function validateXml(fileFullPath, cfg = {}) {
     }
   } catch (e) { /* ignore regex problems */ }
 
+  // ===== ITENS ESPECIAIS (ES0?) exceto ES08 =====
+  try {
+    const specialItems = [];
+    const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
+    for (const m of itemMatches) {
+      const itemTag = m[0];
+      const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(ES0[1-7]|ES09|ES0[0-9]{2,})"/i);
+      // O padrão acima pega ES01-ES07, ES09 e qualquer ES0 seguido de 2 ou mais dígitos (ex: ES010)
+      // Mas o pedido diz "tudo o que começar com ES0? ... Exceto o ES08"
+      // Então vamos simplificar para: começa com ES0 e NÃO é ES08 exatamente.
+      const baseMatchSimple = itemTag.match(/\bITEM_BASE\s*=\s*"(ES0[^"]*)"/i);
+
+      if (baseMatchSimple) {
+        const itemBase = baseMatchSimple[1].toUpperCase();
+        if (itemBase !== "ES08") {
+          const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+          const desenho = desenhoMatch ? desenhoMatch[1] : "";
+
+          const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+          const descricao = descMatch ? descMatch[1] : "";
+
+          const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+          const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+          const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+
+          const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+          const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+          const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+          const dimensao = `${l}x${a}x${p}`;
+
+          specialItems.push({ itemBase, desenho, descricao, dimensao });
+        }
+      }
+    }
+
+    payload.meta = payload.meta || {};
+    // Dedup por itemBase, desenho, descricao e dimensao
+    const spMap = new Map();
+    for (const s of specialItems) {
+      const key = `${s.itemBase}|${s.desenho}|${s.descricao}|${s.dimensao}`;
+      if (!spMap.has(key)) spMap.set(key, s);
+    }
+    payload.meta.specialItems = Array.from(spMap.values());
+  } catch (e) { /* ignore */ }
+
+  // ===== CHAVE DE IMPORTAÇÃO =====
+  try {
+    const importKeyMatch = txt.match(/<IMPORTKEY\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);
+    if (importKeyMatch) {
+      payload.meta = payload.meta || {};
+      payload.meta.importKey = importKeyMatch[1];
+    }
+  } catch (e) { /* ignore */ }
+
+  // ===== MUXARABI (MX008) =====
+  try {
+    const muxarabiItems = [];
+    const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
+    for (const m of itemMatches) {
+      const itemTag = m[0];
+      const mxMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(MX008[^"]*)"/i);
+      if (mxMatch) {
+        const itemBase = mxMatch[1].toUpperCase();
+        const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+        const desenho = desenhoMatch ? desenhoMatch[1] : "";
+        const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+        const descricao = descMatch ? descMatch[1] : "";
+        muxarabiItems.push({ itemBase, desenho, descricao });
+      }
+    }
+    if (muxarabiItems.length > 0) {
+      payload.meta = payload.meta || {};
+      const mxMap = new Map();
+      for (const m of muxarabiItems) {
+        const key = `${m.itemBase}|${m.desenho}|${m.descricao}`;
+        if (!mxMap.has(key)) mxMap.set(key, m);
+      }
+      payload.meta.muxarabiItems = Array.from(mxMap.values());
+    }
+  } catch (e) { /* ignore */ }
+
   // Avisos (não erro) + flags
   const hasMuxarabi = /\bMX008001\b/i.test(txt) || /\bMX008002\b/i.test(txt);
   if (hasMuxarabi) {
@@ -1573,7 +1654,7 @@ async function aggregateTodayLogs() {
   if (logDirs.length === 0) return { rows: [] };
 
   const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const fileMap = new Map();
+  const fileGroups = new Map();
 
   for (const dir of logDirs) {
     if (!(await fse.pathExists(dir))) continue;
@@ -1582,50 +1663,72 @@ async function aggregateTodayLogs() {
     for (const file of files) {
       if (!file.toLowerCase().endsWith('.json')) continue;
       const fullPath = path.join(dir, file);
-      const stats = await fs.promises.stat(fullPath);
+      try {
+        const stats = await fs.promises.stat(fullPath);
 
-      // Filtra apenas arquivos modificados hoje
-      if (stats.mtime.toISOString().split('T')[0] === todayStr) {
-        try {
+        // Filtra apenas arquivos modificados hoje
+        if (stats.mtime.toISOString().split('T')[0] === todayStr) {
           const analysis = await fse.readJson(fullPath);
           const originalFile = analysis.arquivo;
           const filename = path.basename(originalFile || '');
           if (!filename) continue;
 
-          // Deduplicação básica
-          const isOK = (analysis.erros || []).length === 0;
-          let status = isOK ? "OK" : "ERRO";
-          if (analysis.meta?.ferragensOnly) status = "FERRAGENS-ONLY";
-
-          const entry = {
-            filename,
-            fullpath: originalFile,
-            status,
-            errors: (analysis.erros || []).map(e => e.descricao || String(e)),
-            autoFixes: (analysis.autoFixes || []),
-            warnings: (analysis.avisos || []),
-            tags: (analysis.tags || []),
-            timestamp: stats.mtime.toLocaleString('pt-BR'),
-            initialStatus: status,
-            initialErrors: status === "ERRO" ? (analysis.erros || []).map(e => e.descricao || String(e)) : [],
-            history: []
-          };
-
-          // Se já existe, mantemos o primeiro status inicial
-          if (fileMap.has(filename)) {
-            const old = fileMap.get(filename);
-            entry.initialStatus = old.initialStatus;
-            entry.initialErrors = old.initialErrors;
-          }
-          fileMap.set(filename, entry);
-        } catch (e) {
-          /* ignorar erro de leitura */
+          if (!fileGroups.has(filename)) fileGroups.set(filename, []);
+          fileGroups.get(filename).push({ analysis, mtime: stats.mtime, originalFile });
         }
+      } catch (e) {
+        /* ignorar erro de leitura */
       }
     }
   }
 
-  return { rows: Array.from(fileMap.values()) };
+  const rows = [];
+  for (const [filename, logs] of fileGroups.entries()) {
+    // Ordenar por mtime crescente (mais antigo primeiro)
+    logs.sort((a, b) => a.mtime - b.mtime);
+
+    const earliest = logs[0];
+    const latest = logs[logs.length - 1];
+
+    // Verificar se o arquivo XML atualmente reside na pasta OK
+    // Isso é importante se o usuário moveu o arquivo manualmente (sem gerar log)
+    let finalXmlFoundInOk = false;
+    if (cfg.ok && await fse.pathExists(path.join(cfg.ok, filename))) {
+      finalXmlFoundInOk = true;
+    }
+
+    const isOK = (latest.analysis.erros || []).length === 0 || finalXmlFoundInOk;
+    let status = isOK ? "OK" : "ERRO";
+    if (!finalXmlFoundInOk && latest.analysis.meta?.ferragensOnly) status = "FERRAGENS-ONLY";
+
+    const isEarlyOK = (earliest.analysis.erros || []).length === 0;
+    let earlyStatus = isEarlyOK ? "OK" : "ERRO";
+    if (earliest.analysis.meta?.ferragensOnly) earlyStatus = "FERRAGENS-ONLY";
+
+    // Mesclar histórico de todas as passagens do dia
+    const combinedHistory = [];
+    logs.forEach(l => {
+      (l.analysis.history || []).forEach(h => {
+        if (!combinedHistory.includes(h)) combinedHistory.push(h);
+      });
+    });
+
+    rows.push({
+      filename,
+      fullpath: latest.originalFile,
+      status,
+      errors: finalXmlFoundInOk ? [] : (latest.analysis.erros || []).map(e => e.descricao || String(e)),
+      autoFixes: (latest.analysis.autoFixes || []),
+      warnings: (latest.analysis.avisos || []),
+      tags: (latest.analysis.tags || []),
+      timestamp: latest.mtime.toLocaleString('pt-BR'),
+      initialStatus: earlyStatus,
+      initialErrors: earlyStatus === "ERRO" ? (earliest.analysis.erros || []).map(e => e.descricao || String(e)) : [],
+      history: combinedHistory
+    });
+  }
+
+  return { rows: rows };
 }
 
 /**
@@ -1761,9 +1864,10 @@ async function clearTargetFolders() {
 
   if (foldersToClear.length === 0) {
     console.log('[Scheduler] Nenhuma pasta configurada para limpeza.');
-    return;
+    return { ok: false, message: 'Nenhuma pasta configurada para limpeza.' };
   }
 
+  let clearedCount = 0;
   for (const dir of foldersToClear) {
     try {
       if (await fse.pathExists(dir)) {
@@ -1773,6 +1877,7 @@ async function clearTargetFolders() {
           const stats = await fs.promises.stat(fullPath);
           if (stats.isFile()) {
             await fse.remove(fullPath);
+            clearedCount++;
           }
         }
         console.log(`[Scheduler] ✓ Pasta limpa: ${dir}`);
@@ -1781,6 +1886,7 @@ async function clearTargetFolders() {
       console.error(`[Scheduler] Erro ao limpar pasta ${dir}:`, e.message);
     }
   }
+  return { ok: true, clearedCount };
 }
 
 /**
@@ -1812,20 +1918,19 @@ function startAutomaticScheduler() {
           console.error(`[Scheduler] Erro na exportação automática:`, e.message);
         }
       }
-
-      // Limpeza automática (apenas às 17:30, após ou junto com o relatório)
-      if (hours === 17 && minutes === 30) {
-        console.log(`[Scheduler] Horário de limpeza atingido (17:30). Executando limpeza de pastas...`);
-        try {
-          await clearTargetFolders();
-          console.log(`[Scheduler] Limpeza automática concluída com sucesso.`);
-        } catch (e) {
-          console.error(`[Scheduler] Erro na limpeza automática:`, e.message);
-        }
-      }
     }
   }, 60000); // 60 segundos
 }
+
+/** ================== IPC: CLEAR TARGET FOLDERS ================== **/
+ipcMain.handle('analyzer:clearTargetFolders', async () => {
+  try {
+    return await clearTargetFolders();
+  } catch (e) {
+    console.error('[Clear Folders] Erro:', e.message);
+    return { ok: false, message: e.message };
+  }
+});
 
 /** ================== IPC: EXPORT REPORT ================== **/
 ipcMain.handle('analyzer:exportReport', async (_e, reportData) => {
@@ -1856,6 +1961,22 @@ ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
 
     // Mover arquivo (overwrite se existir)
     await fse.move(filePath, destPath, { overwrite: true });
+
+    // ✅ GRAVAR LOG DE SUCESSO AO MOVER MANUALMENTE
+    // Isso garante que o agendador automático veja este arquivo como OK
+    if (cfg.logsProcessed) {
+      await fse.ensureDir(cfg.logsProcessed);
+      const logName = fileName.replace(/\.xml$/i, '') + '_ok.json';
+      const logData = {
+        arquivo: path.resolve(destPath),
+        erros: [],
+        warnings: [],
+        tags: ["manually-moved"],
+        autoFixes: [],
+        timestamp: new Date().toLocaleString('pt-BR')
+      };
+      await fsp.writeFile(path.join(cfg.logsProcessed, logName), JSON.stringify(logData, null, 2), 'utf8');
+    }
 
     console.log(`[Move] Arquivo movido para OK: ${destPath}`);
     return { ok: true, destPath };

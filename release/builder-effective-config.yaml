@@ -1,0 +1,22 @@
+directories:
+  output: release
+  buildResources: build
+productName: Bartz Analyzer
+appId: com.bartz.analyzer
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - cjs-main.js
+      - preload.js
+      - package.json
+win:
+  target: nsis
+  icon: node_modules/app-builder-lib/templates/icons/proton-native/proton-native.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Bartz Analyzer
+electronVersion: 37.4.0

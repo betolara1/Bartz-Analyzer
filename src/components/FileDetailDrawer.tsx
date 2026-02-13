@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
-import { X, FileJson, AlertTriangle, Search, CheckCircle, Check } from "lucide-react";
+import { X, FileJson, AlertTriangle, Search, CheckCircle, Check, Grid3X3, ChevronDown, ChevronRight } from "lucide-react";
 
 type Row = {
   filename: string;
@@ -54,6 +54,13 @@ export default function FileDetailDrawer({
   const [isReplacing, setIsReplacing] = React.useState(false);
   const [lastReplace, setLastReplace] = React.useState<any | null>(null);
   const [showFull, setShowFull] = React.useState(false);
+
+  // Estados para seções colapsáveis
+  const [machinesOpen, setMachinesOpen] = React.useState(false);
+  const [importKeyOpen, setImportKeyOpen] = React.useState(false);
+  const [orderInfoOpen, setOrderInfoOpen] = React.useState(false);
+  const [specialItemsOpen, setSpecialItemsOpen] = React.useState(false);
+  const [muxarabiOpen, setMuxarabiOpen] = React.useState(false);
 
   // Estados para diálogos de confirmação
   const [confirmCoringaOpen, setConfirmCoringaOpen] = React.useState(false);
@@ -476,17 +483,9 @@ export default function FileDetailDrawer({
                 </div>
               </div>
 
-              {/* status + fechar */}
+              {/* status */}
               <div className="ml-auto flex items-start gap-2">
                 <StatusChip status={data?.status} />
-                <SheetClose asChild>
-                  <button
-                    className="h-8 w-8 inline-flex items-center justify-center rounded hover:bg-white/10"
-                    aria-label="Fechar"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </SheetClose>
               </div>
             </div>
           </SheetHeader>
@@ -543,64 +542,189 @@ export default function FileDetailDrawer({
             {/* MÁQUINAS (dedupadas) */}
             {machines.length > 0 && (
               <div className="mt-1">
-                <div className="text-sm font-medium mb-2 opacity-80">
-                  Máquinas detectadas
+                <div
+                  className="text-sm font-medium mb-2 opacity-80 flex items-center justify-between cursor-pointer hover:bg-white/5 p-1 rounded transition-colors"
+                  onClick={() => setMachinesOpen(!machinesOpen)}
+                >
+                  <div className="flex items-center gap-2">
+                    {machinesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Máquinas detectadas
+                  </div>
                 </div>
-                <div className="bg-[#151515] border border-[#2C2C2C] rounded-md overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-[#1F1F1F] text-[#A7A7A7]">
-                      <tr>
-                        <th className="text-left px-3 py-2">ID do Plugin</th>
-                        <th className="text-left px-3 py-2">Nome</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {machines.map((m, i) => (
-                        <tr key={`${m.id ?? i}`} className="border-t border-[#2C2C2C]">
-                          <td className="px-3 py-2 font-mono">{m.id || "-"}</td>
-                          <td className="px-3 py-2">{m.name || "—"}</td>
+                {machinesOpen && (
+                  <div className="bg-[#151515] border border-[#2C2C2C] rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-[#1F1F1F] text-[#A7A7A7]">
+                        <tr>
+                          <th className="text-left px-3 py-2">ID do Plugin</th>
+                          <th className="text-left px-3 py-2">Nome</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {machines.map((m, i) => (
+                          <tr key={`${m.id ?? i}`} className="border-t border-[#2C2C2C]">
+                            <td className="px-3 py-2 font-mono">{m.id || "-"}</td>
+                            <td className="px-3 py-2">{m.name || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 
 
+            {/* CHAVE DE IMPORTAÇÃO */}
+            {data?.meta?.importKey && (
+              <section className="rounded-lg border border-zinc-700 bg-zinc-800/20 overflow-hidden">
+                <div
+                  className="px-4 py-2 text-zinc-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-zinc-700"
+                  onClick={() => setImportKeyOpen(!importKeyOpen)}
+                >
+                  <div className="flex items-center gap-2">
+                    {importKeyOpen ? <ChevronDown className="h-4 w-4 text-emerald-400" /> : <ChevronRight className="h-4 w-4 text-emerald-400" />}
+                    Chave de Importação
+                  </div>
+                </div>
+                {importKeyOpen && (
+                  <div className="p-3">
+                    <div className="bg-black/40 p-2 rounded border border-zinc-700 font-mono text-[10px] break-all select-all text-emerald-300/90 leading-relaxed">
+                      {data.meta.importKey}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* BUSCA DE PEDIDO (informações do PHP) */}
             {orderNum && (
-              <section className="rounded-lg border border-indigo-500/20 bg-indigo-500/10">
-                <div className="px-4 py-2 text-indigo-300 text-sm font-medium flex items-center gap-2 border-b border-indigo-500/10">
-                  <Search className="h-4 w-4" />
-                  Informações do Pedido: <span className="text-white font-bold">{orderNum}</span>
+              <section className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 overflow-hidden">
+                <div
+                  className="px-4 py-2 text-indigo-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-indigo-500/10"
+                  onClick={() => setOrderInfoOpen(!orderInfoOpen)}
+                >
+                  <div className="flex items-center gap-2">
+                    {orderInfoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Informações do Pedido: <span className="text-white font-bold ml-1">{orderNum}</span>
+                  </div>
                 </div>
-                <div className="p-4 space-y-3">
-                  {orderLoading ? (
-                    <div className="text-xs text-zinc-400 animate-pulse">Buscando dados no sistema...</div>
-                  ) : orderComments.length > 0 ? (
-                    <div className="space-y-4">
-                      {orderComments.map((c, i) => (
-                        <div key={i} className="space-y-1">
-                          {c.txt_titulo && (
-                            <div className="text-[10px] uppercase font-bold text-indigo-200 opacity-80">
-                              {c.txt_titulo}
+                {orderInfoOpen && (
+                  <div className="p-4 space-y-3">
+                    {orderLoading ? (
+                      <div className="text-xs text-zinc-400 animate-pulse">Buscando dados no sistema...</div>
+                    ) : orderComments.length > 0 ? (
+                      <div className="space-y-4">
+                        {orderComments.map((c, i) => (
+                          <div key={i} className="space-y-1">
+                            {c.txt_titulo && (
+                              <div className="text-[10px] uppercase font-bold text-indigo-200 opacity-80">
+                                {c.txt_titulo}
+                              </div>
+                            )}
+                            <div className="text-sm text-white leading-relaxed bg-black/20 p-2 rounded border border-indigo-500/5">
+                              {c.txt_comentario || "Sem comentário."}
                             </div>
-                          )}
-                          <div className="text-sm text-white leading-relaxed bg-black/20 p-2 rounded border border-indigo-500/5">
-                            {c.txt_comentario || "Sem comentário."}
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-zinc-500 italic">
+                        Nenhum comentário encontrado para este pedido.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* ITENS ESPECIAIS (ES0?) exceto ES08 */}
+            <section className="rounded-lg border border-purple-500/20 bg-purple-500/10 overflow-hidden">
+              <div
+                className="px-4 py-2 text-purple-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-purple-500/10"
+                onClick={() => setSpecialItemsOpen(!specialItemsOpen)}
+              >
+                <div className="flex items-center gap-2">
+                  {specialItemsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  Itens Especiais (ES0?)
+                </div>
+              </div>
+              {specialItemsOpen && (
+                <div className="p-4">
+                  {Array.isArray(data?.meta?.specialItems) && data!.meta!.specialItems.length > 0 ? (
+                    <div className="bg-black/20 rounded border border-purple-500/10 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-purple-900/20 text-purple-200">
+                          <tr>
+                            <th className="text-left px-3 py-2 border-b border-purple-500/10">ITEM_BASE</th>
+                            <th className="text-left px-3 py-2 border-b border-purple-500/10">DESENHO</th>
+                            <th className="text-left px-3 py-2 border-b border-purple-500/10">DIMENSÃO LxAxP</th>
+                            <th className="text-left px-3 py-2 border-b border-purple-500/10">DESCRIÇÃO</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-zinc-200 font-mono text-xs">
+                          {data!.meta!.specialItems.map((item: any, i: number) => (
+                            <tr key={i} className="border-b border-purple-500/5 hover:bg-white/5">
+                              <td className="px-3 py-2">{item.itemBase}</td>
+                              <td className="px-3 py-2">{item.desenho || <span className="text-zinc-500 italic">vazio</span>}</td>
+                              <td className="px-3 py-2 truncate">{item.dimensao}</td>
+                              <td className="px-3 py-2 break-words whitespace-normal max-w-[200px]">{item.descricao || <span className="text-zinc-500 italic">vazio</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   ) : (
                     <div className="text-xs text-zinc-500 italic">
-                      Nenhum comentário encontrado para este pedido.
+                      nenhum item especial encontrado
                     </div>
                   )}
                 </div>
-              </section>
-            )}
+              )}
+            </section>
+
+            {/* ITENS MUXARABI (MX008) */}
+            <section className="rounded-lg border border-orange-500/20 bg-orange-500/10 overflow-hidden mt-1">
+              <div
+                className="px-4 py-2 text-orange-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-orange-500/10"
+                onClick={() => setMuxarabiOpen(!muxarabiOpen)}
+              >
+                <div className="flex items-center gap-2">
+                  {muxarabiOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  Itens Muxarabi (MX008)
+                </div>
+              </div>
+              {muxarabiOpen && (
+                <div className="p-4">
+                  {Array.isArray(data?.meta?.muxarabiItems) && data!.meta!.muxarabiItems.length > 0 ? (
+                    <div className="bg-black/20 rounded border border-orange-500/10 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-orange-900/20 text-orange-200">
+                          <tr>
+                            <th className="text-left px-3 py-2 border-b border-orange-500/10">ITEM_BASE</th>
+                            <th className="text-left px-3 py-2 border-b border-orange-500/10">DESENHO</th>
+                            <th className="text-left px-3 py-2 border-b border-orange-500/10">DESCRIÇÃO</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-zinc-200 font-mono text-xs">
+                          {data!.meta!.muxarabiItems.map((item: any, i: number) => (
+                            <tr key={i} className="border-b border-orange-500/5 hover:bg-white/5">
+                              <td className="px-3 py-2">{item.itemBase}</td>
+                              <td className="px-3 py-2">{item.desenho || <span className="text-zinc-500 italic">vazio</span>}</td>
+                              <td className="px-3 py-2 break-words whitespace-normal max-w-[250px]">{item.descricao || <span className="text-zinc-500 italic">vazio</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-500 italic">
+                      nenhum item muxarabi encontrado
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
 
             {/* ES08 (DUPLADO 37MM) - Dados complementares */}
             {Array.isArray(data?.meta?.es08Matches) && (data!.meta!.es08Matches!.length > 0) && (

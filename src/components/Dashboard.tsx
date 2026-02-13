@@ -346,6 +346,52 @@ export default function Dashboard() {
     }
   }
 
+  async function handleClearFolders() {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      const id = toast.custom((t) => (
+        <div className="bg-red-900/90 border border-red-700 rounded-lg p-4 text-white">
+          <div className="font-semibold mb-3">Deseja excluir os arquivos das pastas (OK, erro, logs)?</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+                resolve(true);
+              }}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
+            >
+              Sim, excluir
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t);
+                resolve(false);
+              }}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm font-medium"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity });
+    });
+
+    if (confirmed) {
+      const toastId = toast.loading("Excluindo arquivos das pastas...");
+      try {
+        const res = await (window as any).electron?.analyzer?.clearTargetFolders?.();
+        toast.dismiss(toastId);
+        if (res?.ok) {
+          toast.success(`Limpeza concluída! ${res.clearedCount} arquivo(s) removido(s).`);
+        } else {
+          toast.error(res?.message || "Erro ao limpar pastas.");
+        }
+      } catch (e: any) {
+        toast.dismiss(toastId);
+        toast.error(`Erro: ${String(e?.message || e)}`);
+      }
+    }
+  }
+
   async function exportReport() {
     const toastId = toast.loading("Exportando relatório...");
     try {
@@ -465,9 +511,9 @@ export default function Dashboard() {
           ) : (
             <Button onClick={stop} className="gap-2 bg-[#E74C3C] hover:bg-[#E74C3C]/90"><Pause className="h-4 w-4" /> Parar</Button>
           )}
-          <Button variant="outline" onClick={scan} className="gap-2 border-[#2C2C2C] hover:bg-[#2C2C2C]"><RefreshCw className="h-4 w-4" /> Reanalisar tudo</Button>
           <Button variant="outline" onClick={exportReport} className="gap-2 border-blue-700 hover:bg-blue-900/20 text-blue-400"><Download className="h-4 w-4" /> Exportar</Button>
           <Button variant="outline" onClick={clearReport} className="gap-2 border-amber-700 hover:bg-amber-900/20 text-amber-400"><AlertCircle className="h-4 w-4" /> Limpar</Button>
+          <Button variant="outline" onClick={handleClearFolders} className="gap-2 border-red-700 hover:bg-red-900/20 text-red-500"><XCircle className="h-4 w-4" /> Excluir arquivos</Button>
         </div>
       </div>
 
