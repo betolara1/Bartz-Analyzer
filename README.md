@@ -6,7 +6,23 @@ O design foi projetado para ser intuitivo e eficiente, focado na produtividade d
 
 ---
 
-## 🚀 Principais Funcionalidades
+## � Screenshots
+
+![Dashboard Principal](docs/img/bartz_analyzer.png)
+
+<p align="center">
+  <img src="docs/img/bartz_analyzer_2.png" width="48%" />
+  <img src="docs/img/bartz_analyzer_3.png" width="48%" />
+</p>
+
+<p align="center">
+  <img src="docs/img/bartz_analyzer_4.png" width="48%" />
+  <img src="docs/img/bartz_analyzer_5.png" width="48%" />
+</p>
+
+---
+
+## �🚀 Principais Funcionalidades
 
 ### 1. Monitoramento e Automação
 - **Monitoramento em Tempo Real**: Observa pastas (inclusive caminhos UNC de rede) usando `chokidar` com suporte a polling.
@@ -153,22 +169,6 @@ O sistema valida automaticamente:
 
 ---
 
-## 🖼️ Como adicionar imagens (Screenshots)
-
-Para enriquecer este README com imagens do programa rodando, siga este guia:
-
-1. **Capture a imagem**: Use `Win + Shift + S` no Windows para capturar a tela do programa.
-2. **Salve a imagem**: Salve o arquivo na pasta do projeto (recomendado criar uma pasta chamada `docs/images`).
-3. **Adicione ao Markdown**: Use a seguinte sintaxe no README:
-   ```markdown
-   ![Descrição da Imagem](caminho/para/imagem.png)
-   ```
-   *Exemplo:* `![Dashboard Principal](docs/images/dashboard.png)`
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
 - Quando o validador detectar tokens de "cor coringa" (ex.: `PAINEL_CG1_06`, etc.) o arquivo receberá a tag `COR CORINGA` e o drawer de detalhes mostrará um painel "Cor Coringa detectada".
 - O select nessa área mostra somente as cores coringa que foram realmente encontradas no XML (a lista é extraída do próprio arquivo durante a validação).
 - Para trocar:
@@ -242,5 +242,20 @@ Sinta-se à vontade para abrir PRs. Mantenha as mudanças pequenas e compatívei
 ## Licença
 
 MIT
+
+---
+
+## 📂 Apêndice: Manutenção da Documentação
+
+### Como adicionar novas imagens (Screenshots)
+
+Para manter este README atualizado com novas imagens:
+
+1. **Capture a imagem**: Use `Win + Shift + S` (Windows).
+2. **Salve a imagem**: Coloque o arquivo em `docs/img/`.
+3. **Link no Markdown**:
+   ```markdown
+   ![Título](docs/img/nome_da_imagem.png)
+   ```
 
   
