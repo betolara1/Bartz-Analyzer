@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
-import { X, FileJson, AlertTriangle, Search, CheckCircle, Check, Grid3X3, ChevronDown, ChevronRight } from "lucide-react";
+import { X, FileJson, AlertTriangle, Search, CheckCircle, Check, Grid3X3, ChevronDown, ChevronRight, FileText, Package, Zap, Database, Layers, Info, RefreshCw } from "lucide-react";
 
 type Row = {
   filename: string;
@@ -459,62 +459,84 @@ export default function FileDetailDrawer({
       >
         <div className="h-full flex flex-col">
           {/* HEADER */}
-          <SheetHeader className="px-5 py-4 border-b border-zinc-800">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0">
-                <SheetTitle className="truncate pr-10 text-white">
-                  {data?.filename || "-"}
-                </SheetTitle>
-                <SheetDescription className="text-xs text-zinc-400">
-                  Processado em {data?.timestamp || "-"}
-                </SheetDescription>
+          <SheetHeader className="px-6 py-6 bg-[#1B1B1B] border-b border-[#2C2C2C] relative overflow-hidden shrink-0">
+            {/* Background Glow */}
+            <div className={`absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none rounded-full blur-3xl ${data?.status === 'OK' ? 'bg-emerald-500' :
+              data?.status === 'ERRO' ? 'bg-rose-500' : 'bg-zinc-500'
+              }`} />
 
-                {/* tags */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(data?.tags || []).map((t, i) => (
-                    <Badge
-                      key={i}
-                      variant="outline"
-                      className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/10 text-[10px]"
-                    >
-                      {formatTag(t)}
-                    </Badge>
-                  ))}
-                </div>
+            <div className="flex items-start gap-4 relative z-10">
+              <div className={`p-3 rounded-xl bg-[#111] border border-[#232323] shadow-inner ${data?.status === 'OK' ? 'text-emerald-400' :
+                data?.status === 'ERRO' ? 'text-rose-400' : 'text-zinc-400'
+                }`}>
+                <FileJson className="h-6 w-6" />
               </div>
+              <div className="flex-1 min-w-0 pt-0.5">
+                <SheetTitle className="text-xl font-bold text-white tracking-tight leading-tight truncate pr-6">
+                  {data?.filename || "Arquivo sem nome"}
+                </SheetTitle>
+                <div className="mt-1 flex items-center gap-3">
+                  <SheetDescription className="text-xs text-[#A7A7A7] font-medium flex items-center gap-1.5">
+                    <Database className="h-3 w-3" /> Processado em {data?.timestamp || "-"}
+                  </SheetDescription>
+                  <div className="h-1 w-1 rounded-full bg-[#333]" />
+                  <div className="flex gap-1.5">
+                    <StatusChip status={data?.status} />
+                  </div>
+                </div>
 
-              {/* status */}
-              <div className="ml-auto flex items-start gap-2">
-                <StatusChip status={data?.status} />
+                {/* Tags Pill-Style */}
+                {(data?.tags || []).length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {(data?.tags || []).map((t, i) => (
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/5 text-[9px] font-bold tracking-widest px-2.5 py-0.5"
+                      >
+                        {formatTag(t)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </SheetHeader>
 
           {/* BODY */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#161616]">
             {/* ERROS */}
             {(data?.errors?.length ?? 0) > 0 && (
-              <section className="rounded-lg border border-rose-500/20 bg-rose-500/10">
-                <div className="px-4 py-2 text-rose-300 text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Erros ({data?.errors?.length})
+              <section className="rounded-xl border border-rose-500/20 bg-rose-500/5 overflow-hidden shadow-[0_4px_20px_rgba(244,63,94,0.05)]">
+                <div className="px-4 py-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-300 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Inconformidades Detectadas
+                  </div>
+                  <Badge variant="outline" className="bg-rose-500 text-white border-none text-[10px] h-5 px-2">
+                    {data?.errors?.length}
+                  </Badge>
                 </div>
-                <ul className="px-5 pb-3 space-y-1">
+                <ul className="divide-y divide-rose-500/10">
                   {data!.errors!.map((e, i) => {
                     const isMachineError = (e || "").toString().toUpperCase().includes("PROBLEMA NA GERAÇÃO DE MÁQUINAS");
-
                     return (
-                      <li key={i} className="text-rose-200 text-sm flex items-center justify-between gap-4 py-0.5">
-                        <span>• {e}</span>
-                        {isMachineError && (
-                          <button
-                            onClick={handleMoveToOk}
-                            className="shrink-0 px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-1 shadow-sm"
-                          >
-                            <Check className="h-3 w-3" />
-                            Mover p/ OK
-                          </button>
-                        )}
+                      <li key={i} className="px-5 py-3 group hover:bg-rose-500/5 transition-colors">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                            <span className="text-rose-100/90 text-sm leading-relaxed">{e}</span>
+                          </div>
+                          {isMachineError && (
+                            <button
+                              onClick={handleMoveToOk}
+                              className="shrink-0 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg hover:shadow-rose-900/40 active:scale-95 transition-all"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              Mover para OK
+                            </button>
+                          )}
+                        </div>
                       </li>
                     );
                   })}
@@ -524,15 +546,23 @@ export default function FileDetailDrawer({
 
             {/* AVISOS */}
             {(data?.warnings?.length ?? 0) > 0 && (
-              <section className="rounded-lg border border-amber-500/20 bg-amber-500/10">
-                <div className="px-4 py-2 text-amber-300 text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Avisos ({data?.warnings?.length})
+              <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 overflow-hidden shadow-[0_4px_20px_rgba(245,158,11,0.05)]">
+                <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    Avisos do Sistema
+                  </div>
+                  <Badge variant="outline" className="bg-amber-500 text-black border-none text-[10px] h-5 px-2">
+                    {data?.warnings?.length}
+                  </Badge>
                 </div>
-                <ul className="px-5 pb-3 space-y-1">
+                <ul className="divide-y divide-amber-500/10">
                   {data!.warnings!.map((w, i) => (
-                    <li key={i} className="text-amber-200 text-sm">
-                      • {w}
+                    <li key={i} className="px-5 py-3 group hover:bg-amber-500/5 transition-colors">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                        <span className="text-amber-100/90 text-sm leading-relaxed">{w}</span>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -541,56 +571,82 @@ export default function FileDetailDrawer({
 
             {/* MÁQUINAS (dedupadas) */}
             {machines.length > 0 && (
-              <div className="mt-1">
+              <section className="rounded-xl border border-[#232323] bg-[#1B1B1B] overflow-hidden shadow-sm transition-all duration-300 hover:border-[#2C2C2C]">
                 <div
-                  className="text-sm font-medium mb-2 opacity-80 flex items-center justify-between cursor-pointer hover:bg-white/5 p-1 rounded transition-colors"
+                  className="px-5 py-4 flex items-center justify-between cursor-pointer group"
                   onClick={() => setMachinesOpen(!machinesOpen)}
                 >
-                  <div className="flex items-center gap-2">
-                    {machinesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    Máquinas detectadas
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-[#3498DB]">
+                      <Grid3X3 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Máquinas Detectadas</h3>
+                      <p className="text-[10px] text-[#A7A7A7] font-medium uppercase tracking-widest">{machines.length} plugins identificados</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="h-2 w-2 rounded-full bg-[#3498DB] shadow-[0_0_8px_rgba(52,152,219,0.5)]" />
+                    <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${machinesOpen ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="h-4 w-4 text-[#666]" />
+                    </div>
                   </div>
                 </div>
                 {machinesOpen && (
-                  <div className="bg-[#151515] border border-[#2C2C2C] rounded-md overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-[#1F1F1F] text-[#A7A7A7]">
-                        <tr>
-                          <th className="text-left px-3 py-2">ID do Plugin</th>
-                          <th className="text-left px-3 py-2">Nome</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {machines.map((m, i) => (
-                          <tr key={`${m.id ?? i}`} className="border-t border-[#2C2C2C]">
-                            <td className="px-3 py-2 font-mono">{m.id || "-"}</td>
-                            <td className="px-3 py-2">{m.name || "—"}</td>
+                  <div className="px-5 pb-5 pt-2">
+                    <div className="rounded-lg overflow-hidden border border-[#232323] bg-[#111]">
+                      <table className="w-full text-xs">
+                        <thead className="bg-[#1B1B1B]">
+                          <tr>
+                            <th className="text-left px-4 py-2.5 text-[#666] uppercase font-bold tracking-widest text-[9px]">ID do Plugin</th>
+                            <th className="text-left px-4 py-2.5 text-[#666] uppercase font-bold tracking-widest text-[9px]">Nome amigável</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-[#232323]">
+                          {machines.map((m, i) => (
+                            <tr key={`${m.id ?? i}`} className="group/row hover:bg-white/[0.02] transition-colors">
+                              <td className="px-4 py-3 font-mono text-[#3498DB]">{m.id || "-"}</td>
+                              <td className="px-4 py-3 text-white font-medium">{m.name || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
-              </div>
+              </section>
             )}
-
 
             {/* CHAVE DE IMPORTAÇÃO */}
             {data?.meta?.importKey && (
-              <section className="rounded-lg border border-zinc-700 bg-zinc-800/20 overflow-hidden">
+              <section className="rounded-xl border border-[#232323] bg-[#1B1B1B] overflow-hidden shadow-sm transition-all duration-300 hover:border-[#2C2C2C]">
                 <div
-                  className="px-4 py-2 text-zinc-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-zinc-700"
+                  className="px-5 py-4 flex items-center justify-between cursor-pointer group"
                   onClick={() => setImportKeyOpen(!importKeyOpen)}
                 >
-                  <div className="flex items-center gap-2">
-                    {importKeyOpen ? <ChevronDown className="h-4 w-4 text-emerald-400" /> : <ChevronRight className="h-4 w-4 text-emerald-400" />}
-                    Chave de Importação
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-emerald-400">
+                      <Zap className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Chave de Importação</h3>
+                      <p className="text-[10px] text-[#A7A7A7] font-medium uppercase tracking-widest">Token de validação único</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${importKeyOpen ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="h-4 w-4 text-[#666]" />
+                    </div>
                   </div>
                 </div>
                 {importKeyOpen && (
-                  <div className="p-3">
-                    <div className="bg-black/40 p-2 rounded border border-zinc-700 font-mono text-[10px] break-all select-all text-emerald-300/90 leading-relaxed">
-                      {data.meta.importKey}
+                  <div className="px-5 pb-5 pt-2">
+                    <div className="p-4 rounded-lg bg-[#0a0a0a] border border-[#232323] relative">
+                      <div className="absolute top-2 right-2 text-emerald-400 opacity-20"><Zap className="h-8 w-8" /></div>
+                      <div className="font-mono text-[10px] break-all select-all text-emerald-300/80 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
+                        {data.meta.importKey}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -599,39 +655,56 @@ export default function FileDetailDrawer({
 
             {/* BUSCA DE PEDIDO (informações do PHP) */}
             {orderNum && (
-              <section className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 overflow-hidden">
+              <section className="rounded-xl border border-[#232323] bg-[#1B1B1B] overflow-hidden shadow-sm transition-all duration-300 hover:border-[#2C2C2C]">
                 <div
-                  className="px-4 py-2 text-indigo-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-indigo-500/10"
+                  className="px-5 py-4 flex items-center justify-between cursor-pointer group"
                   onClick={() => setOrderInfoOpen(!orderInfoOpen)}
                 >
-                  <div className="flex items-center gap-2">
-                    {orderInfoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${orderComments.some(c => c.txt_comentario?.trim()) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
-                    Informações do Pedido: <span className="text-white font-bold ml-1">{orderNum}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-[#3498DB]">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight">Informações do Pedido</h3>
+                      <p className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                        Pedido <span className="text-white">#{orderNum}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className={`h-2 w-2 rounded-full ${orderComments.some(c => c.txt_comentario?.trim()) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-[#333]'}`} />
+                    <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${orderInfoOpen ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="h-4 w-4 text-[#666]" />
+                    </div>
                   </div>
                 </div>
                 {orderInfoOpen && (
-                  <div className="p-4 space-y-3">
+                  <div className="px-5 pb-5 pt-2">
                     {orderLoading ? (
-                      <div className="text-xs text-zinc-400 animate-pulse">Buscando dados no sistema...</div>
+                      <div className="flex items-center justify-center py-8 space-x-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#3498DB] animate-bounce [animation-delay:-0.3s]"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#3498DB] animate-bounce [animation-delay:-0.15s]"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#3498DB] animate-bounce"></div>
+                      </div>
                     ) : orderComments.length > 0 ? (
                       <div className="space-y-4">
                         {orderComments.map((c, i) => (
-                          <div key={i} className="space-y-1">
+                          <div key={i} className="p-4 rounded-lg bg-[#111] border border-[#232323] space-y-2 group/comment hover:border-[#333] transition-colors">
                             {c.txt_titulo && (
-                              <div className="text-[10px] uppercase font-bold text-indigo-200 opacity-80">
+                              <div className="text-[9px] uppercase font-bold text-[#3498DB] tracking-widest mb-1 opacity-80 group-hover/comment:opacity-100 transition-opacity">
                                 {c.txt_titulo}
                               </div>
                             )}
-                            <div className="text-sm text-white leading-relaxed bg-black/20 p-2 rounded border border-indigo-500/5">
-                              {c.txt_comentario || "Sem comentário."}
+                            <div className="text-sm text-white/90 leading-relaxed font-medium">
+                              {c.txt_comentario || "Nenhum comentário registrado."}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-xs text-zinc-500 italic">
-                        Nenhum comentário encontrado para este pedido.
+                      <div className="flex flex-col items-center justify-center py-10 rounded-lg bg-[#111] border border-dashed border-[#232323] space-y-2 opacity-60">
+                        <AlertTriangle className="h-8 w-8 text-[#A7A7A7]" />
+                        <p className="text-sm italic text-[#555]">Nenhum comentário encontrado no servidor.</p>
                       </div>
                     )}
                   </div>
@@ -640,45 +713,57 @@ export default function FileDetailDrawer({
             )}
 
             {/* ITENS ESPECIAIS (ES0?) exceto ES08 */}
-            <section className="rounded-lg border border-purple-500/20 bg-purple-500/10 overflow-hidden">
+            <section className="rounded-xl border border-[#232323] bg-[#1B1B1B] overflow-hidden shadow-sm transition-all duration-300 hover:border-[#2C2C2C]">
               <div
-                className="px-4 py-2 text-purple-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-purple-500/10"
+                className="px-5 py-4 flex items-center justify-between cursor-pointer group"
                 onClick={() => setSpecialItemsOpen(!specialItemsOpen)}
               >
-                <div className="flex items-center gap-2">
-                  {specialItemsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${(Array.isArray(data?.meta?.specialItems) && data!.meta!.specialItems.length > 0) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
-                  Itens Especiais (ES0?)
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-purple-400">
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">Itens Especiais (ES0?)</h3>
+                    <p className="text-[10px] text-[#A7A7A7] font-medium uppercase tracking-widest">Detecção de parâmetros customizados</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`h-2 w-2 rounded-full ${(Array.isArray(data?.meta?.specialItems) && data!.meta!.specialItems.length > 0) ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]' : 'bg-[#333]'}`} />
+                  <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${specialItemsOpen ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-[#666]" />
+                  </div>
                 </div>
               </div>
               {specialItemsOpen && (
-                <div className="p-4">
+                <div className="px-5 pb-5 pt-2">
                   {Array.isArray(data?.meta?.specialItems) && data!.meta!.specialItems.length > 0 ? (
-                    <div className="bg-black/20 rounded border border-purple-500/10 overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-purple-900/20 text-purple-200">
+                    <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner">
+                      <table className="w-full text-xs">
+                        <thead className="bg-[#1B1B1B] text-[#666] border-b border-[#232323]">
                           <tr>
-                            <th className="text-left px-3 py-2 border-b border-purple-500/10">ITEM_BASE</th>
-                            <th className="text-left px-3 py-2 border-b border-purple-500/10">DESENHO</th>
-                            <th className="text-left px-3 py-2 border-b border-purple-500/10">DIMENSÃO LxAxP</th>
-                            <th className="text-left px-3 py-2 border-b border-purple-500/10">DESCRIÇÃO</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
                           </tr>
                         </thead>
-                        <tbody className="text-zinc-200 font-mono text-xs">
+                        <tbody className="divide-y divide-[#232323]">
                           {data!.meta!.specialItems.map((item: any, i: number) => (
-                            <tr key={i} className="border-b border-purple-500/5 hover:bg-white/5">
-                              <td className="px-3 py-2">{item.itemBase}</td>
-                              <td className="px-3 py-2">{item.desenho || <span className="text-zinc-500 italic">vazio</span>}</td>
-                              <td className="px-3 py-2 truncate">{item.dimensao}</td>
-                              <td className="px-3 py-2 break-words whitespace-normal max-w-[200px]">{item.descricao || <span className="text-zinc-500 italic">vazio</span>}</td>
+                            <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
+                              <td className="px-4 py-3 font-mono text-purple-400">{item.itemBase}</td>
+                              <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
+                              <td className="px-4 py-3 text-[#A7A7A7] truncate max-w-[100px]">{item.dimensao}</td>
+                              <td className="px-4 py-3 text-white/60 text-[11px] leading-tight max-w-[180px] break-words">
+                                {item.descricao || <span className="text-[#444] italic">vazio</span>}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   ) : (
-                    <div className="text-xs text-zinc-500 italic">
-                      nenhum item especial encontrado
+                    <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
+                      <p className="text-xs italic text-[#555]">Nenhum item especial ES0 detectado.</p>
                     </div>
                   )}
                 </div>
@@ -686,43 +771,55 @@ export default function FileDetailDrawer({
             </section>
 
             {/* ITENS MUXARABI (MX008) */}
-            <section className="rounded-lg border border-orange-500/20 bg-orange-500/10 overflow-hidden mt-1">
+            <section className="rounded-xl border border-[#232323] bg-[#1B1B1B] overflow-hidden shadow-sm transition-all duration-300 hover:border-[#2C2C2C]">
               <div
-                className="px-4 py-2 text-orange-300 text-sm font-medium flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-b border-orange-500/10"
+                className="px-5 py-4 flex items-center justify-between cursor-pointer group"
                 onClick={() => setMuxarabiOpen(!muxarabiOpen)}
               >
-                <div className="flex items-center gap-2">
-                  {muxarabiOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${(Array.isArray(data?.meta?.muxarabiItems) && data!.meta!.muxarabiItems.length > 0) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
-                  Itens Muxarabi (MX008)
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-orange-400">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">Itens Muxarabi (MX008)</h3>
+                    <p className="text-[10px] text-[#A7A7A7] font-medium uppercase tracking-widest">Validação de grades e furos</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`h-2 w-2 rounded-full ${(Array.isArray(data?.meta?.muxarabiItems) && data!.meta!.muxarabiItems.length > 0) ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]' : 'bg-[#333]'}`} />
+                  <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${muxarabiOpen ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-[#666]" />
+                  </div>
                 </div>
               </div>
               {muxarabiOpen && (
-                <div className="p-4">
+                <div className="px-5 pb-5 pt-2">
                   {Array.isArray(data?.meta?.muxarabiItems) && data!.meta!.muxarabiItems.length > 0 ? (
-                    <div className="bg-black/20 rounded border border-orange-500/10 overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-orange-900/20 text-orange-200">
+                    <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner">
+                      <table className="w-full text-xs">
+                        <thead className="bg-[#1B1B1B] text-[#666] border-b border-[#232323]">
                           <tr>
-                            <th className="text-left px-3 py-2 border-b border-orange-500/10">ITEM_BASE</th>
-                            <th className="text-left px-3 py-2 border-b border-orange-500/10">DESENHO</th>
-                            <th className="text-left px-3 py-2 border-b border-orange-500/10">DESCRIÇÃO</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
+                            <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
                           </tr>
                         </thead>
-                        <tbody className="text-zinc-200 font-mono text-xs">
+                        <tbody className="divide-y divide-[#232323]">
                           {data!.meta!.muxarabiItems.map((item: any, i: number) => (
-                            <tr key={i} className="border-b border-orange-500/5 hover:bg-white/5">
-                              <td className="px-3 py-2">{item.itemBase}</td>
-                              <td className="px-3 py-2">{item.desenho || <span className="text-zinc-500 italic">vazio</span>}</td>
-                              <td className="px-3 py-2 break-words whitespace-normal max-w-[250px]">{item.descricao || <span className="text-zinc-500 italic">vazio</span>}</td>
+                            <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="px-4 py-3 font-mono text-orange-400">{item.itemBase}</td>
+                              <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
+                              <td className="px-4 py-3 text-white/60 text-[11px] leading-tight break-words max-w-[250px]">
+                                {item.descricao || <span className="text-[#444] italic">vazio</span>}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   ) : (
-                    <div className="text-xs text-zinc-500 italic">
-                      nenhum item muxarabi encontrado
+                    <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
+                      <p className="text-xs italic text-[#555]">Nenhum item muxarabi detectado.</p>
                     </div>
                   )}
                 </div>
@@ -731,45 +828,64 @@ export default function FileDetailDrawer({
 
             {/* ES08 (DUPLADO 37MM) - Dados complementares */}
             {Array.isArray(data?.meta?.es08Matches) && (data!.meta!.es08Matches!.length > 0) && (
-              <div className="mt-1">
-                <div className="text-sm font-medium mb-2 opacity-80 text-rose-300">
-                  Itens ES08 - Duplado 37MM
-                </div>
-                <div className="space-y-3 overflow-x-auto pb-2">
-                  {(data?.meta?.es08Matches as any[]).map((item, i) => (
-                    <div key={i} className="bg-[#1a1a1a] border border-rose-500/30 rounded-md p-3 min-w-full">
-                      <div className="grid grid-cols-1 gap-2 text-sm">
-                        <div className="flex items-start gap-2 overflow-x-auto">
-                          <span className="text-zinc-400 whitespace-nowrap">ID:</span>
-                          <span className="text-white font-mono break-all">{item.id || "—"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-zinc-400 whitespace-nowrap">Referencia:</span>
-                          <span className="text-white break-all">{item.referencia || "—"}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-zinc-400 whitespace-nowrap">Desenho:</span>
-                          <span className="text-white break-all">{item.desenho || "—"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <section className="rounded-xl border border-rose-500/30 bg-rose-500/5 overflow-hidden shadow-[0_4px_20px_rgba(244,63,94,0.1)]">
+                <div className="px-4 py-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-300 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Itens ES08 - Duplado 37MM
+                  </div>
+                  <Badge variant="outline" className="bg-rose-500 text-white border-none text-[10px] h-5 px-2">
+                    {data?.meta?.es08Matches.length}
+                  </Badge>
                 </div>
 
-                {/* Buscar arquivo DXF (Múltiplos desenhos) */}
-                <div className="mt-3 pt-3 border-t border-rose-500/20">
-                  <div className="bg-[#1a1a1a] border border-[#2C2C2C] rounded-md p-3">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm font-medium text-rose-300">
-                        Busca de Desenho DXF
-                        {uniqueDrawings.length > 1 && <span className="ml-1 text-xs text-zinc-500">({uniqueDrawings.length} encontrados)</span>}
+                <div className="p-5 space-y-6">
+                  {/* Grid de Itens ES08 */}
+                  <div className="grid grid-cols-1 gap-3">
+                    {(data?.meta?.es08Matches as any[]).map((item, i) => (
+                      <div key={i} className="p-4 rounded-xl bg-black/40 border border-rose-500/10 group hover:border-rose-500/30 transition-all">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="text-[9px] uppercase font-bold text-rose-300 tracking-widest opacity-60">ID do Item</div>
+                          <span className="font-mono text-[10px] text-white bg-[#0a0a0a] px-2 py-0.5 rounded border border-white/5">{item.id || "—"}</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Database className="h-3 w-3 text-zinc-500" />
+                            <span className="text-xs text-zinc-400">Ref:</span>
+                            <span className="text-xs text-white/90 font-medium truncate">{item.referencia || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Layers className="h-3 w-3 text-zinc-500" />
+                            <span className="text-xs text-zinc-400">Dese:</span>
+                            <span className="text-xs text-white/90 font-medium truncate">{item.desenho || "—"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Buscar arquivo DXF (Múltiplos desenhos) */}
+                  <div className="pt-5 border-t border-rose-500/20">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                          <Search className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-tight">Busca de Desenho DXF</h4>
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase">{uniqueDrawings.length} arquivos detectados</p>
+                        </div>
                       </div>
                       <button
                         onClick={searchAllDrawings}
                         disabled={dxfSearching}
-                        className="px-2 py-1 rounded bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg active:scale-95"
                       >
-                        {dxfSearching ? "Buscando Todos..." : "Buscar Todos"}
+                        {dxfSearching ? (
+                          <span className="flex items-center gap-2">
+                            <RefreshCw className="h-3 w-3 animate-spin" /> Buscando...
+                          </span>
+                        ) : "Buscar Todos"}
                       </button>
                     </div>
 
@@ -781,673 +897,692 @@ export default function FileDetailDrawer({
                         const dxfData = result?.data;
 
                         return (
-                          <div key={drawing} className="border border-[#2C2C2C] rounded bg-[#1F1F1F] overflow-hidden">
-                            {/* Cabeçalho do Card */}
-                            <div className="px-3 py-2 bg-[#252525] border-b border-[#2C2C2C] flex items-center justify-between">
-                              <div className="font-mono text-xs text-zinc-300">{drawing}</div>
-                              <div className="text-xs">
+                          <div key={drawing} className="rounded-xl border border-[#232323] bg-[#111] overflow-hidden shadow-inner group/dxf">
+                            {/* Cabeçalho do Card DXF */}
+                            <div className="px-4 py-2.5 bg-[#1B1B1B] border-b border-[#232323] flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-3.5 w-3.5 text-zinc-500 group-hover/dxf:text-rose-400 transition-colors" />
+                                <div className="font-mono text-[10px] text-zinc-300 truncate">{drawing}</div>
+                              </div>
+                              <div className="text-[10px] uppercase font-bold tracking-widest">
                                 {!result ? (
-                                  <span className="text-zinc-500">Aguardando busca...</span>
+                                  <span className="text-[#444]">Pendente</span>
                                 ) : result.status === 'searching' ? (
-                                  <span className="text-yellow-500">🔍 Buscando...</span>
+                                  <span className="text-yellow-500 animate-pulse">Buscando</span>
                                 ) : result.status === 'found' ? (
-                                  <span className="text-green-400 font-bold">✓ Encontrado</span>
+                                  <span className="text-emerald-500">Localizado</span>
                                 ) : result.status === 'not_found' ? (
-                                  <span className="text-rose-400 font-bold">✗ Não encontrado</span>
+                                  <span className="text-rose-500">Não Encontrado</span>
                                 ) : (
-                                  <span className="text-red-400">Erro</span>
+                                  <span className="text-red-500">Falha</span>
                                 )}
                               </div>
                             </div>
 
-                            {/* Conteúdo do Resultado */}
+                            {/* Conteúdo do Resultado DXF */}
                             {result?.status === 'found' && dxfData && (
-                              <div className="p-3 text-xs space-y-2">
-                                <div>
-                                  <span className="text-zinc-500">Caminho:</span>
-                                  <div className="font-mono text-[10px] text-zinc-400 break-all select-all">
+                              <div className="p-4 space-y-4">
+                                <div className="p-3 bg-[#0a0a0a] rounded-lg border border-white/[0.03]">
+                                  <div className="text-[9px] uppercase font-bold text-zinc-500 mb-1 tracking-widest pl-1">Diretório do Arquivo</div>
+                                  <div className="font-mono text-[10px] text-zinc-400 break-all select-all leading-relaxed pr-1 underline underline-offset-4 decoration-rose-500/20">
                                     {dxfData.path}
                                   </div>
                                 </div>
 
                                 {dxfData.panelInfo && (
-                                  <div className="bg-blue-500/5 p-2 rounded border border-blue-500/10 mb-2">
-                                    {(Math.abs(parseFloat(dxfData.panelInfo.dimension)) === 18) ? (
-                                      <div className="text-green-400 font-medium flex items-center gap-2 py-1">
+                                  <div className={`p-3 rounded-lg border ${Math.abs(parseFloat(dxfData.panelInfo.dimension)) === 18 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-blue-500/5 border-blue-500/20'}`}>
+                                    {Math.abs(parseFloat(dxfData.panelInfo.dimension)) === 18 ? (
+                                      <div className="text-emerald-400 font-bold flex items-center gap-2 text-[10px] uppercase tracking-wide">
                                         <CheckCircle className="h-4 w-4" />
-                                        <span>Arquivo configurado para 18mm</span>
+                                        <span>Painel de 18mm Verificado</span>
                                       </div>
                                     ) : (
-                                      <>
-                                        <div className="text-blue-400 font-medium mb-1 text-[11px] uppercase">📋 Primeiro PAINEL:</div>
-                                        <div className="text-blue-300">
-                                          {dxfData.panelInfo.panelCode} <span className="font-mono text-blue-400">({dxfData.panelInfo.dimension})</span>
+                                      <div className="flex flex-col gap-1">
+                                        <div className="text-blue-400 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2">
+                                          <Info className="h-3.5 w-3.5" />
+                                          PAINEL PRINCIPAL:
                                         </div>
-                                      </>
+                                        <div className="text-white text-sm font-medium pl-5">
+                                          {dxfData.panelInfo.panelCode} <span className="font-mono text-blue-400/80 bg-blue-500/10 px-1.5 py-0.5 rounded ml-1">({dxfData.panelInfo.dimension})</span>
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
                                 )}
 
                                 {dxfData.fresaInfo && (
-                                  <div className="space-y-3">
+                                  <div className="grid grid-cols-2 gap-3">
                                     {/* SEÇÃO FRESAS */}
-                                    {dxfData.fresaInfo.fresa37List && dxfData.fresaInfo.fresa37List.length > 0 && (
-                                      <div className="bg-purple-500/5 p-2 rounded border border-purple-500/10">
-                                        <div className="text-purple-400 font-medium mb-1 text-[11px] uppercase flex items-center gap-1">
-                                          <span>🔧 FRESAS</span>
-                                          <span className="text-[9px] opacity-60">({dxfData.fresaInfo.fresa37List.length} itens)</span>
-                                        </div>
-                                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
-                                          {dxfData.fresaInfo.fresa37List.map((item: any, idx: number) => (
-                                            <div key={`fresa-${idx}`} className="bg-purple-900/20 p-1.5 rounded border border-purple-500/20">
-                                              <div className="flex justify-between items-center mb-1">
-                                                <span className="font-mono text-[9px] text-purple-300">ITEM #{item.index} (L{item.line})</span>
-                                              </div>
-                                              <div className="space-y-0.5 ml-1 text-[9px]">
-                                                <div className={item.hasNegative37 ? "text-green-300" : "text-zinc-500"}>
-                                                  {item.hasNegative37 ? "✓ MM -37" : "• MM -37"}
-                                                </div>
-                                                <div className={item.hasPositive37 ? "text-green-300" : "text-zinc-500"}>
-                                                  {item.hasPositive37 ? "✓ MM 37" : "• MM 37"}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2 text-[9px] font-bold text-purple-400 uppercase tracking-widest pl-1">
+                                        <Zap className="h-3 w-3" /> FRESAS <span className="opacity-40">({dxfData.fresaInfo.fresa37List?.length || 0})</span>
                                       </div>
-                                    )}
+                                      <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+                                        {dxfData.fresaInfo.fresa37List?.map((item: any, idx: number) => (
+                                          <div key={`fresa-${idx}`} className="bg-purple-500/5 border border-purple-500/10 p-2 rounded-lg flex items-center justify-between group/item">
+                                            <span className="text-[9px] font-mono text-purple-300">#{item.index} (L{item.line})</span>
+                                            <div className="flex gap-1">
+                                              {item.hasNegative37 && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" title="-37mm" />}
+                                              {item.hasPositive37 && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" title="37mm" />}
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {(!dxfData.fresaInfo.fresa37List || dxfData.fresaInfo.fresa37List.length === 0) && (
+                                          <div className="text-[9px] italic text-[#333] pl-1">Sem itens</div>
+                                        )}
+                                      </div>
+                                    </div>
 
                                     {/* SEÇÃO USINAGENS */}
-                                    {dxfData.fresaInfo.usinagem37List && dxfData.fresaInfo.usinagem37List.length > 0 && (
-                                      <div className="bg-blue-500/5 p-2 rounded border border-blue-500/10">
-                                        <div className="text-blue-400 font-medium mb-1 text-[11px] uppercase flex items-center gap-1">
-                                          <span>🛠️ USINAGENS</span>
-                                          <span className="text-[9px] opacity-60">({dxfData.fresaInfo.usinagem37List.length} itens)</span>
-                                        </div>
-                                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
-                                          {dxfData.fresaInfo.usinagem37List.map((item: any, idx: number) => (
-                                            <div key={`usinagem-${idx}`} className="bg-blue-900/20 p-1.5 rounded border border-blue-500/20">
-                                              <div className="flex justify-between items-center mb-1">
-                                                <span className="font-mono text-[9px] text-blue-300">ITEM #{item.index} (L{item.line})</span>
-                                              </div>
-                                              <div className="space-y-0.5 ml-1 text-[9px]">
-                                                <div className={item.hasNegative37 ? "text-green-300" : "text-zinc-500"}>
-                                                  {item.hasNegative37 ? "✓ MM -37" : "• MM -37"}
-                                                </div>
-                                                <div className={item.hasPositive37 ? "text-green-300" : "text-zinc-500"}>
-                                                  {item.hasPositive37 ? "✓ MM 37" : "• MM 37"}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2 text-[9px] font-bold text-blue-400 uppercase tracking-widest pl-1">
+                                        <Layers className="h-3 w-3" /> USINAGENS <span className="opacity-40">({dxfData.fresaInfo.usinagem37List?.length || 0})</span>
                                       </div>
-                                    )}
-
-                                    {/* Botão de Correção (Unificado) */}
-                                    {(
-                                      (dxfData.fresaInfo.count37 > 0 || dxfData.fresaInfo.usinagemCount37 > 0) ||
-                                      (dxfData.panelInfo?.dimension === '-37' || dxfData.panelInfo?.dimension === '37')
-                                    ) && (
-                                        <div className="mt-1">
-                                          <button
-                                            onClick={() => fixFresa37to18(drawing)}
-                                            disabled={isFixing}
-                                            className="w-full px-2 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:opacity-50 text-white font-semibold rounded text-xs transition flex items-center justify-center gap-2"
-                                          >
-                                            {isFixing ? (
-                                              <>⏳ Corrigindo...</>
-                                            ) : (
-                                              <>🔧 Corrigir TUDO (Fresa + Usinagem)</>
-                                            )}
-                                          </button>
-                                        </div>
-                                      )}
+                                      <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+                                        {dxfData.fresaInfo.usinagem37List?.map((item: any, idx: number) => (
+                                          <div key={`usinagem-${idx}`} className="bg-blue-500/5 border border-blue-500/10 p-2 rounded-lg flex items-center justify-between group/item">
+                                            <span className="text-[9px] font-mono text-blue-300">#{item.index} (L{item.line})</span>
+                                            <div className="flex gap-1">
+                                              {item.hasNegative37 && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" title="-37mm" />}
+                                              {item.hasPositive37 && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" title="37mm" />}
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {(!dxfData.fresaInfo.usinagem37List || dxfData.fresaInfo.usinagem37List.length === 0) && (
+                                          <div className="text-[9px] italic text-[#333] pl-1">Sem itens</div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
+
+                                {/* Botão de Correção (Unificado) */}
+                                {(
+                                  (dxfData.fresaInfo?.count37 > 0 || dxfData.fresaInfo?.usinagemCount37 > 0) ||
+                                  (dxfData.panelInfo?.dimension === '-37' || dxfData.panelInfo?.dimension === '37')
+                                ) && (
+                                    <button
+                                      onClick={() => fixFresa37to18(drawing)}
+                                      disabled={isFixing}
+                                      className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-900/50 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-3 shadow-lg shadow-rose-900/20 active:scale-95"
+                                    >
+                                      {isFixing ? (
+                                        <>
+                                          <RefreshCw className="h-4 w-4 animate-spin" />
+                                          Executando Correção Automática...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Zap className="h-4 w-4" />
+                                          Corrigir TUDO (Fresa + Usinagem + Painel)
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
                               </div>
                             )}
 
                             {/* Mensagem de Erro/Não encontrado */}
                             {result?.message && (
-                              <div className="p-3 text-xs text-rose-300 border-t border-rose-500/20 bg-rose-500/5">
+                              <div className="p-4 text-xs text-rose-300 bg-rose-500/10 border-t border-rose-500/20 flex items-center gap-3 italic">
+                                <AlertTriangle className="h-5 w-5 opacity-50 shrink-0" />
                                 {result.message}
                               </div>
                             )}
                           </div>
                         );
                       })}
-
                       {uniqueDrawings.length === 0 && (
-                        <div className="text-center text-zinc-500 text-xs py-4">
-                          Nenhum código de desenho encontrado nos metadados.
+                        <div className="text-center text-zinc-600 text-[10px] py-10 rounded-xl border border-dashed border-[#232323] uppercase font-bold tracking-widest">
+                          Nenhum desenho identificado
                         </div>
                       )}
                     </div>
-
-                    {/* MOVER PARA OK - Sempre visível se houver desenhos, com aviso se não estiver 100% */}
-                    {uniqueDrawings.length > 0 && (
-                      (() => {
-                        const allOk = uniqueDrawings.every(d => {
-                          const info = dxfResults[d]?.data;
-                          if (!info) return false;
-                          const isPanel18 = Math.abs(parseFloat(info.panelInfo?.dimension || '0')) === 18;
-                          const noFresa37 = (info.fresaInfo?.count37 || 0) === 0;
-                          const noUsinagem37 = (info.fresaInfo?.usinagemCount37 || 0) === 0;
-                          return isPanel18 && noFresa37 && noUsinagem37;
-                        });
-
-                        return (
-                          <div className={`mt-4 pt-4 border-t ${allOk ? 'border-emerald-500/30' : 'border-yellow-500/30'}`}>
-                            <div className="flex items-center justify-between">
-                              <div className={`${allOk ? 'text-emerald-400' : 'text-yellow-400'} text-sm font-medium`}>
-                                {allOk ? (
-                                  <>
-                                    <Check className="inline-block h-4 w-4 mr-2" />
-                                    Todos os desenhos corrigidos!
-                                  </>
-                                ) : (
-                                  <>
-                                    <AlertTriangle className="inline-block h-4 w-4 mr-2" />
-                                    Alguns desenhos ainda requerem atenção.
-                                  </>
-                                )}
-                              </div>
-                              <button
-                                onClick={handleMoveToOk}
-                                className={`px-3 py-2 ${allOk ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-yellow-600 hover:bg-yellow-700'} text-white rounded text-sm font-bold shadow-lg transition-all flex items-center gap-2`}
-                              >
-                                <span className="uppercase text-[10px]">Mover para OK</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })()
-                    )}
                   </div>
                 </div>
-              </div>
+              </section>
+            )}
+
+            {/* Redundant check removed */}
+
+            {/* MOVER PARA OK - Sempre visível se houver desenhos, com aviso se não estiver 100% */}
+            {uniqueDrawings.length > 0 && (
+              (() => {
+                const allOk = uniqueDrawings.every(d => {
+                  const info = dxfResults[d]?.data;
+                  if (!info) return false;
+                  const isPanel18 = Math.abs(parseFloat(info.panelInfo?.dimension || '0')) === 18;
+                  const noFresa37 = (info.fresaInfo?.count37 || 0) === 0;
+                  const noUsinagem37 = (info.fresaInfo?.usinagemCount37 || 0) === 0;
+                  return isPanel18 && noFresa37 && noUsinagem37;
+                });
+
+                return (
+                  <div className={`mt-6 pt-6 border-t ${allOk ? 'border-emerald-500/20' : 'border-amber-500/20'} flex items-center justify-between bg-black/20 -mx-5 px-5 py-4 rounded-b-xl`}>
+                    <div className="flex items-center gap-2">
+                      {allOk ? (
+                        <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                          <Check className="h-4 w-4 text-emerald-500" />
+                        </div>
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        <span className={`text-[11px] font-bold uppercase tracking-widest ${allOk ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {allOk ? 'Validação Concluída' : 'Atenção Necessária'}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 font-medium">
+                          {allOk ? 'Todos os desenhos estão em conformidade.' : 'Alguns desenhos requerem correção DXF.'}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleMoveToOk}
+                      className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 active:scale-95 ${allOk
+                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
+                        : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/20'
+                        }`}
+                    >
+                      Mover para OK
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })()
             )}
 
             {/* ERP SEARCH PANEL - visible if Coringa detected OR item without code */}
-            {((Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
-              <section className="rounded-lg border border-blue-500/20 bg-blue-500/10">
-                <div className="px-4 py-2 text-blue-300 text-sm font-medium flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  Busca de Produto (ERP)
-                </div>
-                <div className="px-4 pb-3 space-y-3">
-                  <div className="text-[11px] text-zinc-400">
-                    Use um dos campos abaixo para buscar diretamente no banco de dados do servidor.
+            {
+              ((Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
+                <section className="rounded-xl border border-blue-500/30 bg-blue-500/5 overflow-hidden shadow-[0_4px_20px_rgba(59,130,246,0.1)]">
+                  <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20 text-blue-300 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Conexão Direta ERP: Busca de Produto
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Input para Código */}
-                    <div>
-                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Código</label>
-                      <input
-                        placeholder="Ex: 10.01.0001"
-                        value={erpSearchCode}
-                        onChange={(e) => {
-                          setErpSearchCode(e.target.value);
-                          if (e.target.value) {
-                            setErpSearchDesc('');
-                            setErpSearchType('');
-                          }
-                        }}
-                        disabled={!!erpSearchDesc || !!erpSearchType}
-                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                      />
+                  <div className="p-5 space-y-4">
+                    <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-500/10 text-[11px] text-blue-200/70 leading-relaxed">
+                      Pesquise códigos originais no servidor para preencher campos coringa ou referências vazias.
                     </div>
 
-                    {/* Select para tipo de produto */}
-                    <div>
-                      <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Tipo</label>
-                      <select
-                        value={erpSearchType}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Código do Produto</label>
+                        <input
+                          placeholder="Ex: 10.01.0001"
+                          value={erpSearchCode}
+                          onChange={(e) => {
+                            setErpSearchCode(e.target.value);
+                            if (e.target.value) {
+                              setErpSearchDesc('');
+                              setErpSearchType('');
+                            }
+                          }}
+                          disabled={!!erpSearchDesc || !!erpSearchType}
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Tipo de Item</label>
+                        <select
+                          value={erpSearchType}
+                          onChange={(e) => {
+                            setErpSearchType(e.target.value);
+                            if (e.target.value) setErpSearchCode('');
+                          }}
+                          disabled={!!erpSearchCode}
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold"
+                        >
+                          <option value="">TODOS OS TIPOS</option>
+                          <option value="CHAPAS">CHAPAS</option>
+                          <option value="FITAS">FITAS</option>
+                          <option value="TAPAFURO">TAPAFURO</option>
+                          <option value="PAINEL">PAINEL</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Descrição (Cor, Acabamento, Espessura)</label>
+                      <input
+                        placeholder="Ex: BRANCO SUPREMO 18MM"
+                        value={erpSearchDesc}
                         onChange={(e) => {
-                          setErpSearchType(e.target.value);
+                          setErpSearchDesc(e.target.value);
                           if (e.target.value) setErpSearchCode('');
                         }}
                         disabled={!!erpSearchCode}
-                        className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                      >
-                        <option value="">TODOS</option>
-                        <option value="CHAPAS">CHAPAS</option>
-                        <option value="FITAS">FITAS</option>
-                        <option value="TAPAFURO">TAPAFURO</option>
-                        <option value="PAINEL">PAINEL</option>
-                      </select>
+                        className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all"
+                      />
                     </div>
-                  </div>
 
-                  {/* Input para Descrição */}
-                  <div>
-                    <label className="text-[10px] text-zinc-400 mb-1 block uppercase font-bold">Descrição (Cor, MM, etc)</label>
-                    <input
-                      placeholder="Ex: BRANCO SUPREMO"
-                      value={erpSearchDesc}
-                      onChange={(e) => {
-                        setErpSearchDesc(e.target.value);
-                        if (e.target.value) setErpSearchCode('');
-                      }}
-                      disabled={!!erpSearchCode}
-                      className="w-full bg-[#0a0a0a] border border-[#2C2C2C] text-white px-2 py-1.5 rounded text-sm focus:border-blue-500 outline-none disabled:opacity-30 transition-all"
-                    />
-                  </div>
+                    <button
+                      disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
+                      onClick={handleErpSearch}
+                      className="w-full px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
+                    >
+                      {erpSearching ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          Acessando Servidor...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4 w-4" />
+                          Executar Busca no ERP
+                        </>
+                      )}
+                    </button>
 
-                  {/* Botão de buscar */}
-                  <button
-                    disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
-                    onClick={handleErpSearch}
-                    className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors shadow-lg"
-                  >
-                    {erpSearching ? 'Buscando...' : 'Buscar no Servidor'}
-                  </button>
-
-                  {/* Resultados em Tabela */}
-                  {erpSearchResults.length > 0 && (
-                    <div className="mt-2 space-y-2">
-                      <div className="max-h-[300px] overflow-y-auto rounded border border-zinc-800 bg-[#0a0a0a]">
-                        <table className="w-full text-[11px]">
-                          <thead className="sticky top-0 bg-[#1a1a1a] text-zinc-400 border-b border-zinc-800">
-                            <tr>
-                              <th className="text-left px-2 py-1.5 font-bold uppercase">Código</th>
-                              <th className="text-left px-2 py-1.5 font-bold uppercase">Descrição</th>
-                              <th className="w-10">Preencher</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {erpSearchResults.map((prod, idx) => (
-                              <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
-                                <td className="px-2 py-2 font-mono text-blue-300">{prod.code}</td>
-                                <td className="px-2 py-2 text-zinc-300">{prod.description}</td>
-                                <td className="px-2 py-2">
-                                  <button
-                                    onClick={() => {
-                                      // Se tiver coringa matches, preenche o coringaTo
-                                      if (Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) {
-                                        setCoringaTo(prod.code);
-                                      }
-
-                                      // Se o painel de REFERENCIA vazia estiver visível, preenche o refFillValue
-                                      const showRefPanel = ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
-                                      if (showRefPanel) {
-                                        setRefFillValue(prod.code);
-                                      }
-
-                                      toast.success(`Código "${prod.code}" selecionado`);
-                                    }}
-                                    className="p-1 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 px-2 py-0.5 text-[10px] uppercase font-bold"
-                                  >
-                                    Usar Cod
-                                  </button>
-                                </td>
+                    {/* Resultados em Tabela Estilizada */}
+                    {erpSearchResults.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <div className="rounded-lg border border-[#232323] bg-[#0a0a0a] overflow-hidden shadow-inner">
+                          <table className="w-full text-[10px]">
+                            <thead className="bg-[#1B1B1B] text-[#666] border-b border-[#232323]">
+                              <tr>
+                                <th className="text-left px-3 py-2 font-bold uppercase tracking-widest">Cod</th>
+                                <th className="text-left px-3 py-2 font-bold uppercase tracking-widest">Descrição detalhada</th>
+                                <th className="w-16"></th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-[#151515]">
+                              {erpSearchResults.map((prod, idx) => (
+                                <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
+                                  <td className="px-3 py-2 font-mono text-blue-400 font-bold">{prod.code}</td>
+                                  <td className="px-3 py-2 text-white/70 font-medium">{prod.description}</td>
+                                  <td className="px-3 py-2 text-right">
+                                    <button
+                                      onClick={() => {
+                                        if (Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) {
+                                          setCoringaTo(prod.code);
+                                        }
+                                        const showRefPanel = ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
+                                        if (showRefPanel) {
+                                          setRefFillValue(prod.code);
+                                        }
+                                        toast.success(`Código "${prod.code}" selecionado`, {
+                                          description: "O valor foi copiado para os campos de substituição abaixo.",
+                                          icon: <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                        });
+                                      }}
+                                      className="p-1 px-2 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-[9px] font-bold uppercase tracking-tighter"
+                                    >
+                                      Copi
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+                    )}
+                  </div>
+                </section>
+              )
+            }
 
             {/* COR CORINGA - quick replace UI */}
-            {Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
-              <section className="rounded-lg border border-amber-500/20 bg-amber-500/10">
-                <div className="px-4 py-2 text-amber-300 text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Cor Coringa detectada
-                </div>
-                <div className="px-4 pb-3 space-y-3">
-                  <div className="text-sm text-zinc-200">Selecione a cor coringa encontrada (apenas as detectadas no XML):</div>
-
-                  {/* select (only detected matches) */}
-                  <div>
-                    <label className="text-xs text-zinc-300 mb-1 block">Coringa encontrada</label>
-                    <select
-                      value={coringaFrom ?? ""}
-                      disabled={!!lastReplace}
-                      onChange={(e) => setCoringaFrom(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50 outline-none"
-                    >
-                      {filteredCoringaMatches.map((m, i) => (
-                        <option key={i} value={m}>{m}</option>
-                      ))}
-                    </select>
+            {
+              Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
+                <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden shadow-[0_4px_20px_rgba(245,158,11,0.1)]">
+                  <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Cor Coringa Detectada
                   </div>
+                  <div className="p-5 space-y-4">
+                    <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-500/10 text-[11px] text-amber-200/70 leading-relaxed">
+                      Sigla genérica identificada no XML. Escolha a sigla original e o novo código para substituição definitiva.
+                    </div>
 
-                  {/* replacement input */}
-                  <div>
-                    <label className="text-xs text-zinc-300 mb-1 block">Substituir por</label>
-                    <input
-                      placeholder="Digite a cor/substituição..."
-                      value={coringaTo}
-                      disabled={!!lastReplace}
-                      onChange={(e) => setCoringaTo(e.target.value)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded focus:ring-amber-500 disabled:opacity-50 outline-none"
-                    />
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Sigla Encontrada</label>
+                        <select
+                          value={coringaFrom ?? ""}
+                          disabled={!!lastReplace}
+                          onChange={(e) => setCoringaFrom(e.target.value)}
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold"
+                        >
+                          {filteredCoringaMatches.map((m, i) => (
+                            <option key={i} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div className="flex gap-2">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
+                        <input
+                          placeholder="Digite o código..."
+                          value={coringaTo}
+                          disabled={!!lastReplace}
+                          onChange={(e) => setCoringaTo(e.target.value)}
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
                     <button
                       disabled={!coringaFrom || !coringaTo || isReplacing || !!lastReplace}
                       onClick={() => setConfirmCoringaOpen(true)}
-                      className="px-3 py-2 rounded bg-amber-500 text-black font-medium disabled:opacity-50 hover:bg-amber-400 transition-colors"
+                      className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
                     >
-                      Trocar
+                      {isReplacing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      Aplicar Substituição de Cor
                     </button>
-                  </div>
 
-                  {/* CG1 / CG2 bulk replace UI (only show if detected) */}
-                  {(hasCG1 || hasCG2) && (
-                    <div className="mt-3 border-t border-amber-600/20 pt-3">
-                      <div className="text-sm text-zinc-200 mb-2">Troca de Siglas de Cor</div>
-                      <div className={`grid gap-2 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        {hasCG1 && (
-                          <div className="space-y-2">
-                            <div>
-                              <label className="text-xs text-zinc-300 mb-1 block">CG1 →</label>
-                              <input
-                                value={cg1Replace}
-                                disabled={cg1Done}
-                                onChange={(e) => setCg1Replace(e.target.value)}
-                                placeholder="Ex: LA"
-                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50 outline-none"
-                              />
+                    {/* CG1 / CG2 bulk replace UI */}
+                    {(hasCG1 || hasCG2) && (
+                      <div className="mt-4 border-t border-amber-500/10 pt-4 space-y-4">
+                        <div className="text-[10px] text-amber-300 font-bold uppercase tracking-wider text-center opacity-60">
+                          Troca de Siglas Compartilhadas (Lote)
+                        </div>
+                        <div className={`grid gap-4 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                          {hasCG1 && (
+                            <div className="space-y-2">
+                              <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG1 →</label>
+                              <div className="flex gap-2">
+                                <input
+                                  value={cg1Replace}
+                                  disabled={cg1Done}
+                                  onChange={(e) => setCg1Replace(e.target.value)}
+                                  placeholder="Ex: LA"
+                                  className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono"
+                                />
+                                <button
+                                  disabled={!cg1Replace || cg1Done}
+                                  onClick={async () => {
+                                    if (!data) return;
+                                    const id = toast.loading('Trocando CG1...');
+                                    try {
+                                      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
+                                      if (res?.ok) {
+                                        toast.success('CG1 trocado com sucesso.');
+                                        if (onAction && data) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG1 para "${cg1Replace}"`);
+                                        setCg1Done(true);
+                                        await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                      }
+                                    } catch (e: any) { toast.error(String(e?.message || e)); }
+                                    finally { toast.dismiss(id); }
+                                  }}
+                                  className="px-2 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              disabled={!cg1Replace || cg1Done}
-                              onClick={async () => {
-                                if (!data) return;
-                                const id = toast.loading('Trocando CG1...');
-                                try {
-                                  const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
-                                  if (res?.ok) {
-                                    toast.success('CG1 trocado com sucesso.');
-                                    if (onAction && data) {
-                                      onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG1 para "${cg1Replace}"`);
-                                    }
-                                    setCg1Done(true);
-                                    await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
-                                  } else {
-                                    toast.error('Erro ao trocar CG1.');
-                                  }
-                                } catch (e: any) { toast.error(String(e?.message || e)); }
-                                finally { toast.dismiss(id); }
-                              }}
-                              className="w-full px-3 py-1.5 rounded bg-amber-600 text-white font-medium disabled:opacity-50 text-xs"
-                            >
-                              Trocar Sigla CG1
-                            </button>
-                          </div>
-                        )}
-                        {hasCG2 && (
-                          <div className="space-y-2">
-                            <div>
-                              <label className="text-xs text-zinc-300 mb-1 block">CG2 →</label>
-                              <input
-                                value={cg2Replace}
-                                disabled={cg2Done}
-                                onChange={(e) => setCg2Replace(e.target.value)}
-                                placeholder="Ex: MO"
-                                className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded disabled:opacity-50 outline-none"
-                              />
+                          )}
+                          {hasCG2 && (
+                            <div className="space-y-2">
+                              <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG2 →</label>
+                              <div className="flex gap-2">
+                                <input
+                                  value={cg2Replace}
+                                  disabled={cg2Done}
+                                  onChange={(e) => setCg2Replace(e.target.value)}
+                                  placeholder="Ex: MO"
+                                  className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono"
+                                />
+                                <button
+                                  disabled={!cg2Replace || cg2Done}
+                                  onClick={async () => {
+                                    if (!data) return;
+                                    const id = toast.loading('Trocando CG2...');
+                                    try {
+                                      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
+                                      if (res?.ok) {
+                                        toast.success('CG2 trocado com sucesso.');
+                                        if (onAction && data) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG2 para "${cg2Replace}"`);
+                                        setCg2Done(true);
+                                        await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                      }
+                                    } catch (e: any) { toast.error(String(e?.message || e)); }
+                                    finally { toast.dismiss(id); }
+                                  }}
+                                  className="px-2 bg-amber-800/20 text-amber-700 border border-amber-800/30 rounded-lg hover:bg-amber-800 hover:text-white transition-all"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              disabled={!cg2Replace || cg2Done}
-                              onClick={async () => {
-                                if (!data) return;
-                                const id = toast.loading('Trocando CG2...');
-                                try {
-                                  const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
-                                  if (res?.ok) {
-                                    toast.success('CG2 trocado com sucesso.');
-                                    if (onAction && data) {
-                                      onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG2 para "${cg2Replace}"`);
-                                    }
-                                    setCg2Done(true);
-                                    await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
-                                  } else {
-                                    toast.error('Erro ao trocar CG2.');
-                                  }
-                                } catch (e: any) { toast.error(String(e?.message || e)); }
-                                finally { toast.dismiss(id); }
-                              }}
-                              className="w-full px-3 py-1.5 rounded bg-amber-800 text-white font-medium disabled:opacity-50 text-xs"
-                            >
-                              Trocar Sigla CG2
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+                    )}
+                  </div>
+                </section>
+              )
+            }
 
             {/* REFERENCIA empty fill UI */}
-            {((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
-              <section className="rounded-lg border border-rose-500/20 bg-rose-500/10">
-                <div className="px-4 py-2 text-rose-300 text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Itens com REFERENCIA vazia
-                </div>
-                <div className="px-4 pb-3 space-y-3">
-                  <div className="text-xs text-zinc-300 mb-2">Selecione o ID e digite o código para preencher REFERENCIA:</div>
-                  <div className="mb-3">
-                    <label className="text-xs text-zinc-300 mb-1 block">Selecionar ID</label>
-                    <select
-                      value={selectedRefSingle ?? ''}
-                      onChange={(e) => setSelectedRefSingle(e.target.value || null)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2 outline-none text-xs"
-                    >
-                      <option value="">-- selecionar --</option>
-                      {((data?.meta?.referenciaEmpty || []) as any[]).filter(r => !!r.id).map((r, i) => {
-                        const key = `${r.id}|${r.descricao || ''}`;
-                        return (
-                          <option key={i} value={key}>
-                            {r.id} {r.descricao ? `(${r.descricao.slice(0, 30)}${r.descricao.length > 30 ? '...' : ''})` : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
+            {
+              ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
+                <section className="rounded-xl border border-rose-500/30 bg-rose-500/5 overflow-hidden shadow-[0_4px_20px_rgba(244,63,94,0.1)]">
+                  <div className="px-4 py-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-300 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Itens com Referência Pendente
                   </div>
+                  <div className="p-5 space-y-5">
+                    <div className="p-3 bg-rose-900/20 rounded-lg border border-rose-500/10 text-[11px] text-rose-200/70 leading-relaxed">
+                      Selecione o item detectado sem código e informe o valor correto (obtido na busca ERP acima).
+                    </div>
 
-                  {/* Exibir descrição do item selecionado */}
-                  {selectedRefSingle && (() => {
-                    const item = (data?.meta?.referenciaEmpty as any[])?.find(r => `${r.id}|${r.descricao || ''}` === selectedRefSingle);
-                    if (!item) return null;
-                    return (
-                      <div className="mb-3 p-2 bg-rose-500/5 border border-rose-500/10 rounded space-y-2">
-                        <div>
-                          <div className="text-[10px] text-rose-300 font-bold uppercase mb-0.5 opacity-70">Descrição do Item</div>
-                          <div className="text-xs text-white italic">"{item.descricao || '—'}"</div>
-                        </div>
-                        {item.caminhoItemCatalog && (
-                          <div>
-                            <div className="text-[10px] text-rose-300 font-bold uppercase mb-0.5 opacity-70">Caminho do Item (Catálogo)</div>
-                            <div className="text-xs text-zinc-300 font-mono break-all">{item.caminhoItemCatalog}</div>
-                          </div>
-                        )}
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Selecionar Item do XML</label>
+                        <select
+                          value={selectedRefSingle ?? ''}
+                          onChange={(e) => setSelectedRefSingle(e.target.value || null)}
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs outline-none focus:border-rose-500 transition-all font-bold"
+                        >
+                          <option value="">-- SELECIONE O COMPONENTE --</option>
+                          {((data?.meta?.referenciaEmpty || []) as any[]).filter(r => !!r.id).map((r, i) => {
+                            const key = `${r.id}|${r.descricao || ''}`;
+                            return (
+                              <option key={i} value={key}>
+                                ID: {r.id} {r.descricao ? `| ${r.descricao.slice(0, 35)}...` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
                       </div>
-                    );
-                  })()}
 
-                  <div>
-                    <label className="text-xs text-zinc-300 mb-1 block">Código REFERENCIA</label>
+                      {/* Detalhes do Item Selecionado */}
+                      {selectedRefSingle && (() => {
+                        const item = (data?.meta?.referenciaEmpty as any[])?.find(r => `${r.id}|${r.descricao || ''}` === selectedRefSingle);
+                        if (!item) return null;
+                        return (
+                          <div className="p-4 rounded-xl bg-black/40 border border-rose-500/10 space-y-4 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity"><Package className="h-12 w-12 text-rose-500" /></div>
+                            <div className="relative z-10">
+                              <div className="text-[9px] text-rose-300 font-bold uppercase mb-1.5 opacity-60 tracking-tighter">Descrição Completa</div>
+                              <div className="text-xs text-white/90 italic font-medium leading-relaxed">"{item.descricao || '—'}"</div>
+                            </div>
+                            {item.caminhoItemCatalog && (
+                              <div className="relative z-10">
+                                <div className="text-[9px] text-rose-300 font-bold uppercase mb-1.5 opacity-60 tracking-tighter">Localização no Catálogo</div>
+                                <div className="text-[10px] text-zinc-400 font-mono break-all leading-tight bg-[#0a0a0a] p-2 rounded-lg border border-white/[0.03]">
+                                  {item.caminhoItemCatalog}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
-                    <input
-                      value={refFillValue}
-                      onChange={(e) => setRefFillValue(e.target.value)}
-                      placeholder="Ex: ABC123"
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2 outline-none"
-                    />
-                  </div>
-                  <div className="flex gap-2">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Novo Código de Referência (ERP)</label>
+                        <input
+                          value={refFillValue}
+                          onChange={(e) => setRefFillValue(e.target.value)}
+                          placeholder="Ex: 10.01.2023"
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-rose-500 transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
                     <button
                       disabled={!selectedRefSingle || !refFillValue}
                       onClick={() => setConfirmRefOpen(true)}
-                      className="px-3 py-2 rounded bg-rose-500 text-black font-medium disabled:opacity-50 flex-1 hover:bg-rose-400 transition-colors"
+                      className="w-full px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
                     >
-                      Preencher REFERENCIA
+                      <CheckCircle className="h-4 w-4" />
+                      Confirmar Preenchimento
                     </button>
                   </div>
+                </section>
+              )}
+
+            {/* CONFIRMAÇÃO - Trocar Cor Coringa */}
+            <AlertDialog open={confirmCoringaOpen} onOpenChange={setConfirmCoringaOpen}>
+              <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
+                <AlertDialogTitle className="text-white">Confirmar troca de cor coringa?</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-300">
+                  Você está prestes a substituir <span className="font-mono font-bold text-amber-300">{coringaFrom}</span> por <span className="font-mono font-bold text-amber-300">{coringaTo}</span>.
+                  <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
+                </AlertDialogDescription>
+                <div className="flex gap-2 justify-end">
+                  <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      if (!data || !coringaFrom) return;
+                      setConfirmCoringaOpen(false);
+                      setIsReplacing(true);
+                      const id = toast.loading('Substituindo cor...');
+                      try {
+                        const res = await (window as any).electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, coringaTo);
+                        if (res?.ok) {
+                          toast.success(`Substituídos ${res.replaced || 0} ocorrência(s)`);
+                          if (onAction && data) {
+                            onAction(data.fullpath, `[Manual] Coringa: substituído "${coringaFrom}" por "${coringaTo}"`);
+                          }
+                          setLastReplace({ backupPath: res.backupPath, from: coringaFrom, to: coringaTo, replaced: res.replaced });
+                        } else {
+                          toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                        }
+                      } catch (e: any) {
+                        toast.error(String(e?.message || e));
+                      } finally {
+                        toast.dismiss(id);
+                        setIsReplacing(false);
+                      }
+                    }}
+                    className="bg-amber-500 text-black hover:bg-amber-600"
+                  >
+                    Confirmar
+                  </AlertDialogAction>
                 </div>
-              </section>
-            )}
+              </AlertDialogContent>
+            </AlertDialog >
+
+            {/* CONFIRMAÇÃO - Trocar CG1/CG2 */}
+            <AlertDialog open={confirmCgOpen} onOpenChange={setConfirmCgOpen}>
+              <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
+                <AlertDialogTitle className="text-white">Confirmar troca em lote (CG1/CG2)?</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-300">
+                  Você está prestes a substituir:
+                  <ul className="mt-2 ml-4 space-y-1 text-xs">
+                    {cg1Replace && <li>• <span className="font-mono">CG1</span> → <span className="font-mono font-bold text-amber-300">{cg1Replace}</span></li>}
+                    {cg2Replace && <li>• <span className="font-mono">CG2</span> → <span className="font-mono font-bold text-amber-300">{cg2Replace}</span></li>}
+                  </ul>
+                  <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
+                </AlertDialogDescription>
+                <div className="flex gap-2 justify-end">
+                  <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      if (!data) return;
+                      setConfirmCgOpen(false);
+                      const map: any = {};
+                      if (cg1Replace) map['CG1'] = cg1Replace;
+                      if (cg2Replace) map['CG2'] = cg2Replace;
+                      const id = toast.loading('Aplicando trocas CG1/CG2...');
+                      try {
+                        const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
+                        if (res?.ok) {
+                          toast.success(`Substituições aplicadas (total: ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)})`);
+                          setLastReplace({ backupPath: res.backupPath, map: map, counts: res.counts });
+                        } else {
+                          toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                        }
+                      } catch (e: any) {
+                        toast.error(String(e?.message || e));
+                      } finally {
+                        toast.dismiss(id);
+                      }
+                    }}
+                    className="bg-amber-500 text-black hover:bg-amber-600"
+                  >
+                    Confirmar
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog >
+
+            {/* CONFIRMAÇÃO - Preencher REFERENCIA */}
+            <AlertDialog open={confirmRefOpen} onOpenChange={setConfirmRefOpen}>
+              <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
+                <AlertDialogTitle className="text-white">Confirmar preenchimento de REFERENCIA?</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-300">
+                  {(() => {
+                    const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
+                    const selDesc = selDescParts.join('|');
+                    return (
+                      <>
+                        Você está prestes a preencher REFERENCIA do item:
+                        <div className="mt-2 p-2 bg-white/5 rounded border border-white/10">
+                          <div className="font-bold text-rose-300">ID: {selId}</div>
+                          {selDesc && <div className="text-xs italic text-zinc-400">"{selDesc}"</div>}
+                        </div>
+                        <div className="mt-2">
+                          Novo código: <span className="font-mono font-bold text-rose-300">{refFillValue}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                  <div className="mt-2 text-[10px] opacity-50 italic">Será criado um backup do arquivo original.</div>
+                </AlertDialogDescription>
+                <div className="flex gap-2 justify-end">
+                  <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      if (!data || !selectedRefSingle) return;
+                      setConfirmRefOpen(false);
+                      const id = toast.loading('Trocando REFERENCIA...');
+                      try {
+                        const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
+                        const selDesc = selDescParts.join('|');
+                        const replacements = [{ id: selId, descricao: selDesc, value: refFillValue }];
+                        const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
+                        if (res?.ok) {
+                          toast.success(`Preenchidas ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)} ocorrência(s)`);
+                          if (onAction && data) {
+                            onAction(data.fullpath, `[Manual] Referência: preenchido ID "${selectedRefSingle}" com valor "${refFillValue}"`);
+                          }
+                          setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
+                          setRefFillValue('');
+                          setSelectedRefSingle(null);
+                        } else {
+                          toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
+                        }
+                      } catch (e: any) {
+                        toast.error(String(e?.message || e));
+                      } finally {
+                        toast.dismiss(id);
+                      }
+                    }}
+                    className="bg-rose-500 text-black hover:bg-rose-600"
+                  >
+                    Confirmar
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </SheetContent>
-
-      {/* CONFIRMAÇÃO - Trocar Cor Coringa */}
-      <AlertDialog open={confirmCoringaOpen} onOpenChange={setConfirmCoringaOpen}>
-        <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
-          <AlertDialogTitle className="text-white">Confirmar troca de cor coringa?</AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-300">
-            Você está prestes a substituir <span className="font-mono font-bold text-amber-300">{coringaFrom}</span> por <span className="font-mono font-bold text-amber-300">{coringaTo}</span>.
-            <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
-          </AlertDialogDescription>
-          <div className="flex gap-2 justify-end">
-            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!data || !coringaFrom) return;
-                setConfirmCoringaOpen(false);
-                setIsReplacing(true);
-                const id = toast.loading('Substituindo cor...');
-                try {
-                  const res = await (window as any).electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, coringaTo);
-                  if (res?.ok) {
-                    toast.success(`Substituídos ${res.replaced || 0} ocorrência(s)`);
-                    if (onAction && data) {
-                      onAction(data.fullpath, `[Manual] Coringa: substituído "${coringaFrom}" por "${coringaTo}"`);
-                    }
-                    setLastReplace({ backupPath: res.backupPath, from: coringaFrom, to: coringaTo, replaced: res.replaced });
-                  } else {
-                    toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
-                  }
-                } catch (e: any) {
-                  toast.error(String(e?.message || e));
-                } finally {
-                  toast.dismiss(id);
-                  setIsReplacing(false);
-                }
-              }}
-              className="bg-amber-500 text-black hover:bg-amber-600"
-            >
-              Confirmar
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* CONFIRMAÇÃO - Trocar CG1/CG2 */}
-      <AlertDialog open={confirmCgOpen} onOpenChange={setConfirmCgOpen}>
-        <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
-          <AlertDialogTitle className="text-white">Confirmar troca em lote (CG1/CG2)?</AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-300">
-            Você está prestes a substituir:
-            <ul className="mt-2 ml-4 space-y-1 text-xs">
-              {cg1Replace && <li>• <span className="font-mono">CG1</span> → <span className="font-mono font-bold text-amber-300">{cg1Replace}</span></li>}
-              {cg2Replace && <li>• <span className="font-mono">CG2</span> → <span className="font-mono font-bold text-amber-300">{cg2Replace}</span></li>}
-            </ul>
-            <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
-          </AlertDialogDescription>
-          <div className="flex gap-2 justify-end">
-            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!data) return;
-                setConfirmCgOpen(false);
-                const map: any = {};
-                if (cg1Replace) map['CG1'] = cg1Replace;
-                if (cg2Replace) map['CG2'] = cg2Replace;
-                const id = toast.loading('Aplicando trocas CG1/CG2...');
-                try {
-                  const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
-                  if (res?.ok) {
-                    toast.success(`Substituições aplicadas (total: ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)})`);
-                    setLastReplace({ backupPath: res.backupPath, map: map, counts: res.counts });
-                  } else {
-                    toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
-                  }
-                } catch (e: any) {
-                  toast.error(String(e?.message || e));
-                } finally {
-                  toast.dismiss(id);
-                }
-              }}
-              className="bg-amber-500 text-black hover:bg-amber-600"
-            >
-              Confirmar
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* CONFIRMAÇÃO - Preencher REFERENCIA */}
-      <AlertDialog open={confirmRefOpen} onOpenChange={setConfirmRefOpen}>
-        <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
-          <AlertDialogTitle className="text-white">Confirmar preenchimento de REFERENCIA?</AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-300">
-            {(() => {
-              const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
-              const selDesc = selDescParts.join('|');
-              return (
-                <>
-                  Você está prestes a preencher REFERENCIA do item:
-                  <div className="mt-2 p-2 bg-white/5 rounded border border-white/10">
-                    <div className="font-bold text-rose-300">ID: {selId}</div>
-                    {selDesc && <div className="text-xs italic text-zinc-400">"{selDesc}"</div>}
-                  </div>
-                  <div className="mt-2">
-                    Novo código: <span className="font-mono font-bold text-rose-300">{refFillValue}</span>
-                  </div>
-                </>
-              );
-            })()}
-            <div className="mt-2 text-[10px] opacity-50 italic">Será criado um backup do arquivo original.</div>
-          </AlertDialogDescription>
-          <div className="flex gap-2 justify-end">
-            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!data || !selectedRefSingle) return;
-                setConfirmRefOpen(false);
-                const id = toast.loading('Trocando REFERENCIA...');
-                try {
-                  const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
-                  const selDesc = selDescParts.join('|');
-                  const replacements = [{ id: selId, descricao: selDesc, value: refFillValue }];
-                  const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
-                  if (res?.ok) {
-                    toast.success(`Preenchidas ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)} ocorrência(s)`);
-                    if (onAction && data) {
-                      onAction(data.fullpath, `[Manual] Referência: preenchido ID "${selectedRefSingle}" com valor "${refFillValue}"`);
-                    }
-                    setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
-                    setRefFillValue('');
-                    setSelectedRefSingle(null);
-                  } else {
-                    toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
-                  }
-                } catch (e: any) {
-                  toast.error(String(e?.message || e));
-                } finally {
-                  toast.dismiss(id);
-                }
-              }}
-              className="bg-rose-500 text-black hover:bg-rose-600"
-            >
-              Confirmar
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
     </Sheet>
   );
 }

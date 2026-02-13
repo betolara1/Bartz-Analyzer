@@ -14,6 +14,14 @@ import {
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import FileDetailDrawer from "./FileDetailDrawer";
 
 // tipos
@@ -123,6 +131,10 @@ export default function Dashboard() {
   // drawer de detalhes
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailData, setDetailData] = useState<Row | null>(null);
+
+  // confirmações
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [confirmExcluirOpen, setConfirmExcluirOpen] = useState(false);
 
   const mounted = useRef(true);
   const isConnected = !!(window as any).electron?.analyzer;
@@ -313,87 +325,38 @@ export default function Dashboard() {
   async function scan() { await (window as any).electron?.analyzer?.scanOnce?.(); }
 
   async function clearReport() {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      const id = toast.custom((t) => (
-        <div className="bg-amber-900/90 border border-amber-700 rounded-lg p-4 text-white">
-          <div className="font-semibold mb-3">Tem certeza que deseja limpar o Relatório de Atividade?</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                toast.dismiss(t);
-                resolve(true);
-              }}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
-            >
-              Sim, limpar
-            </button>
-            <button
-              onClick={() => {
-                toast.dismiss(t);
-                resolve(false);
-              }}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm font-medium"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ), { duration: Infinity });
-    });
+    setConfirmClearOpen(true);
+  }
 
-    if (confirmed) {
-      setRows([]);
-      setSearch("");
-      setFilter("all");
-      setDetailOpen(false);
-      setDetailData(null);
-      toast.success("Relatório de Atividade limpo com sucesso!");
-    }
+  async function executeClearReport() {
+    setConfirmClearOpen(false);
+    setRows([]);
+    setSearch("");
+    setFilter("all");
+    setDetailOpen(false);
+    setDetailData(null);
+    toast.success("Relatório de Atividade limpo com sucesso!");
   }
 
   async function handleClearFolders() {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      const id = toast.custom((t) => (
-        <div className="bg-red-900/90 border border-red-700 rounded-lg p-4 text-white">
-          <div className="font-semibold mb-3">Deseja excluir os arquivos das pastas (OK, erro, logs)?</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                toast.dismiss(t);
-                resolve(true);
-              }}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
-            >
-              Sim, excluir
-            </button>
-            <button
-              onClick={() => {
-                toast.dismiss(t);
-                resolve(false);
-              }}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm font-medium"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ), { duration: Infinity });
-    });
+    setConfirmExcluirOpen(true);
+  }
 
-    if (confirmed) {
-      const toastId = toast.loading("Excluindo arquivos das pastas...");
-      try {
-        const res = await (window as any).electron?.analyzer?.clearTargetFolders?.();
-        toast.dismiss(toastId);
-        if (res?.ok) {
-          toast.success(`Limpeza concluída! ${res.clearedCount} arquivo(s) removido(s).`);
-        } else {
-          toast.error(res?.message || "Erro ao limpar pastas.");
-        }
-      } catch (e: any) {
-        toast.dismiss(toastId);
-        toast.error(`Erro: ${String(e?.message || e)}`);
+  async function executeClearFolders() {
+    setConfirmExcluirOpen(false);
+    const id = toast.loading("Excluindo arquivos...");
+    try {
+      const res = await (window as any).electron?.analyzer?.clearFolders?.();
+      if (res?.ok) {
+        toast.success(`Arquivos removidos com sucesso: ${res.count || 0}`);
+        scan();
+      } else {
+        toast.error(`Falha ao remover: ${res?.message || "erro desconhecido"}`);
       }
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message}`);
+    } finally {
+      toast.dismiss(id);
     }
   }
 
@@ -884,8 +847,8 @@ export default function Dashboard() {
                     <TableCell className="pl-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`h-2.5 w-2.5 rounded-full shrink-0 transition-shadow duration-300 ${file.status === 'OK' ? 'bg-[#27AE60] shadow-[0_0_8px_rgba(39,174,96,0.5)]' :
-                            file.status === 'ERRO' ? 'bg-[#E74C3C] shadow-[0_0_8px_rgba(231,76,60,0.5)]' :
-                              'bg-[#F39C12] shadow-[0_0_8px_rgba(243,156,18,0.5)]'
+                          file.status === 'ERRO' ? 'bg-[#E74C3C] shadow-[0_0_8px_rgba(231,76,60,0.5)]' :
+                            'bg-[#F39C12] shadow-[0_0_8px_rgba(243,156,18,0.5)]'
                           }`} />
                         <div className="flex flex-col">
                           <span className="font-mono text-sm text-white group-hover/row:text-[#3498DB] transition-colors truncate max-w-[280px]">
@@ -995,6 +958,43 @@ export default function Dashboard() {
         onFileMoved={handleFileMoved}
         onAction={handleManualAction}
       />
+
+      {/* CONFIRMAÇÕES */}
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
+          <AlertDialogTitle className="text-white">Confirmação de Limpeza</AlertDialogTitle>
+          <AlertDialogDescription className="text-zinc-300">
+            Tem certeza que deseja limpar o Relatório de Atividade? Essa ação não pode ser desfeita.
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end mt-4">
+            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeClearReport}
+              className="bg-amber-600 text-white hover:bg-amber-500"
+            >
+              Sim, limpar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmExcluirOpen} onOpenChange={setConfirmExcluirOpen}>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
+          <AlertDialogTitle className="text-white">Confirmação de Exclusão</AlertDialogTitle>
+          <AlertDialogDescription className="text-zinc-300">
+            Deseja excluir fisicamente os arquivos das pastas (OK, erro, logs)? Esta ação removerá os arquivos do disco permanentemente.
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end mt-4">
+            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeClearFolders}
+              className="bg-rose-600 text-white hover:bg-rose-500"
+            >
+              Sim, excluir
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* toasts */}
       <Toaster richColors position="bottom-left" closeButton />
