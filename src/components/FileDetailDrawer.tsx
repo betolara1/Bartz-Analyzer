@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { StatusChip, type Status } from "./StatusChip";
-import { X, FileJson, AlertTriangle, Search, CheckCircle, Check, Grid3X3, ChevronDown, ChevronRight, FileText, Package, Zap, Database, Layers, Info, RefreshCw } from "lucide-react";
+import { X, FileJson, AlertTriangle, Search, CheckCircle, Check, Grid3X3, ChevronDown, ChevronRight, FileText, Package, Zap, Database, Layers, Info, RefreshCw, Copy } from "lucide-react";
 
 type Row = {
   filename: string;
@@ -643,8 +643,22 @@ export default function FileDetailDrawer({
                 {importKeyOpen && (
                   <div className="px-5 pb-5 pt-2">
                     <div className="p-4 rounded-lg bg-[#0a0a0a] border border-[#232323] relative">
-                      <div className="absolute top-2 right-2 text-emerald-400 opacity-20"><Zap className="h-8 w-8" /></div>
-                      <div className="font-mono text-[10px] break-all select-all text-emerald-300/80 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
+                      <div className="absolute top-2 right-2 flex gap-1 items-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(data?.meta?.importKey || "");
+                            toast.success("Chave copiada!");
+                          }}
+                          className="p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-emerald-400/70 hover:text-emerald-400 transition-colors group/copy relative"
+                          title="Copiar chave"
+                        >
+                          <Copy className="h-4 w-4" />
+                          <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-[10px] text-white rounded opacity-0 group-hover/copy:opacity-100 pointer-events-none transition-opacity whitespace-nowrap border border-zinc-700">Copiar</span>
+                        </button>
+                        <Zap className="h-8 w-8 text-emerald-400 opacity-20" />
+                      </div>
+                      <div className="font-mono text-[10px] break-all select-all text-emerald-300/80 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar pr-10">
                         {data.meta.importKey}
                       </div>
                     </div>
