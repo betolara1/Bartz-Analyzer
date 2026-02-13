@@ -842,7 +842,8 @@ export default function Dashboard() {
                 const autoFixed = (file.autoFixes || []).length > 0;
                 return (
                   <TableRow key={file.fullpath} className="border-[#2C2C2C] hover:bg-[#2C2C2C]/30">
-                    <TableCell className="font-mono text-sm max-w-60 truncate">
+                    <TableCell className="font-mono text-sm max-w-60 truncate flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full shrink-0 ${file.status === 'OK' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : file.status === 'ERRO' ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]' : 'bg-zinc-500'}`} />
                       {file.filename}
                     </TableCell>
 

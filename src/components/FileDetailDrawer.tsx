@@ -606,6 +606,7 @@ export default function FileDetailDrawer({
                 >
                   <div className="flex items-center gap-2">
                     {orderInfoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${orderComments.some(c => c.txt_comentario?.trim()) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
                     Informações do Pedido: <span className="text-white font-bold ml-1">{orderNum}</span>
                   </div>
                 </div>
@@ -646,6 +647,7 @@ export default function FileDetailDrawer({
               >
                 <div className="flex items-center gap-2">
                   {specialItemsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${(Array.isArray(data?.meta?.specialItems) && data!.meta!.specialItems.length > 0) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
                   Itens Especiais (ES0?)
                 </div>
               </div>
@@ -691,6 +693,7 @@ export default function FileDetailDrawer({
               >
                 <div className="flex items-center gap-2">
                   {muxarabiOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${(Array.isArray(data?.meta?.muxarabiItems) && data!.meta!.muxarabiItems.length > 0) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
                   Itens Muxarabi (MX008)
                 </div>
               </div>
@@ -1240,19 +1243,24 @@ export default function FileDetailDrawer({
                     <select
                       value={selectedRefSingle ?? ''}
                       onChange={(e) => setSelectedRefSingle(e.target.value || null)}
-                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2 outline-none"
+                      className="w-full bg-[#151515] border border-[#2C2C2C] text-white px-2 py-2 rounded mb-2 outline-none text-xs"
                     >
                       <option value="">-- selecionar --</option>
-                      {((data?.meta?.referenciaEmpty || []) as any[]).filter(r => !!r.id).map((r, i) => (
-                        <option key={i} value={r.id}>{r.id}</option>
-                      ))}
+                      {((data?.meta?.referenciaEmpty || []) as any[]).filter(r => !!r.id).map((r, i) => {
+                        const key = `${r.id}|${r.descricao || ''}`;
+                        return (
+                          <option key={i} value={key}>
+                            {r.id} {r.descricao ? `(${r.descricao.slice(0, 30)}${r.descricao.length > 30 ? '...' : ''})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   {/* Exibir descrição do item selecionado */}
                   {selectedRefSingle && (() => {
-                    const item = (data?.meta?.referenciaEmpty as any[])?.find(r => r.id === selectedRefSingle);
-                    if (!item?.descricao) return null;
+                    const item = (data?.meta?.referenciaEmpty as any[])?.find(r => `${r.id}|${r.descricao || ''}` === selectedRefSingle);
+                    if (!item) return null;
                     return (
                       <div className="mb-3 p-2 bg-rose-500/5 border border-rose-500/10 rounded space-y-2">
                         <div>
@@ -1386,8 +1394,23 @@ export default function FileDetailDrawer({
         <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
           <AlertDialogTitle className="text-white">Confirmar preenchimento de REFERENCIA?</AlertDialogTitle>
           <AlertDialogDescription className="text-zinc-300">
-            Você está prestes a preencher REFERENCIA do item <span className="font-mono font-bold text-rose-300">{selectedRefSingle}</span> with <span className="font-mono font-bold text-rose-300">{refFillValue}</span>.
-            <div className="mt-2 text-xs">Será criado um backup do arquivo original.</div>
+            {(() => {
+              const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
+              const selDesc = selDescParts.join('|');
+              return (
+                <>
+                  Você está prestes a preencher REFERENCIA do item:
+                  <div className="mt-2 p-2 bg-white/5 rounded border border-white/10">
+                    <div className="font-bold text-rose-300">ID: {selId}</div>
+                    {selDesc && <div className="text-xs italic text-zinc-400">"{selDesc}"</div>}
+                  </div>
+                  <div className="mt-2">
+                    Novo código: <span className="font-mono font-bold text-rose-300">{refFillValue}</span>
+                  </div>
+                </>
+              );
+            })()}
+            <div className="mt-2 text-[10px] opacity-50 italic">Será criado um backup do arquivo original.</div>
           </AlertDialogDescription>
           <div className="flex gap-2 justify-end">
             <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
@@ -1397,7 +1420,9 @@ export default function FileDetailDrawer({
                 setConfirmRefOpen(false);
                 const id = toast.loading('Trocando REFERENCIA...');
                 try {
-                  const replacements = [{ id: selectedRefSingle, value: refFillValue }];
+                  const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
+                  const selDesc = selDescParts.join('|');
+                  const replacements = [{ id: selId, descricao: selDesc, value: refFillValue }];
                   const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
                   if (res?.ok) {
                     toast.success(`Preenchidas ${Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0)} ocorrência(s)`);

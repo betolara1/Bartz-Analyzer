@@ -165,10 +165,10 @@ async function validateXml(fileFullPath, cfg = {}) {
     }
     if (refEmptyMatches.length) {
       payload.meta = payload.meta || {};
-      // dedupe by id or snippet
+      // dedupe by id + descricao to allow same ID with different descriptions
       const map = new Map();
       for (const r of refEmptyMatches) {
-        const key = r.id ? `id:${r.id}` : `sn:${r.snippet}`;
+        const key = `${r.id || ''}|${r.descricao || ''}`;
         if (!map.has(key)) map.set(key, r);
       }
       payload.meta.referenciaEmpty = Array.from(map.values());
@@ -934,6 +934,13 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
       let c = 0;
       const originalRaw = raw; // Guardar para debug
       raw = raw.replace(itemRegex, (itemMatch) => {
+        // Se foi passada uma descrição, verifica se bate (para lidar com duplicados de ID)
+        if (rep.descricao) {
+          const mDesc = itemMatch.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+          const currentDesc = mDesc ? mDesc[1] : "";
+          if (currentDesc !== rep.descricao) return itemMatch;
+        }
+
         // Passo 2: Substituir REFERENCIA dentro dessa tag ITEM específica
         // APENAS se estiver vazia ou não existir
         let updated = itemMatch;
