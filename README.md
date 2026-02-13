@@ -23,6 +23,7 @@ O sistema categoriza os arquivos automaticamente:
 - **COR CORINGA**: Detecta tokens de cores que precisam de substituição.
 - **CURVO**: Identifica módulos curvos (`LR00xx`).
 - **DUPLADO 37MM**: Alerta para itens com `ITEM_BASE="ES08"`.
+- **SEM CÓDIGO**: Identifica itens que não possuem `REFERENCIA` nem `ITEM_BASE`.
 
 ### 3. Integração com ERP e Dados Externos
 - **Busca de Produtos ERP**: Interface para consultar códigos, descrições e tipos de produtos diretamente no banco de dados do servidor.
@@ -139,12 +140,34 @@ O sistema valida automaticamente:
 - É possível filtrar arquivos por esta categoria na tabela principal
 - O drawer de detalhes mostra claramente quais itens contêm o duplado 37MM
 
-**Como verificar:**
-- Abra o drawer de um arquivo com esta tag
-- Na seção de "Erros", verá "ITEM DUPLADO 37MM"
-- Os IDs dos itens afetados estão disponíveis nos metadados do arquivo
+### 7. Interface Visual e Indicadores
+- **Indicadores de Status (Bolinhas)**:
+  - **Dashboard**: Cada arquivo na lista possui uma bolinha indicadora:
+    - 🟢 **Verde**: Status **OK**.
+    - 🔴 **Vermelho**: Status **ERRO**.
+    - ⚪ **Cinza**: Outros status.
+  - **Drawer de Detalhes**: Indicadores de presença de conteúdo:
+    - 🟢 **Verde**: Informações/Itens encontrados.
+    - 🔴 **Vermelho**: Seção vazia ou sem comentários reais.
+- **Auto-fix Vibrante**: A coluna de Auto-fix agora utiliza um ícone de check estilizado com brilho verde para indicar correções aplicadas.
 
-### Cor Coringa (detecção e ajuste manual)
+---
+
+## 🖼️ Como adicionar imagens (Screenshots)
+
+Para enriquecer este README com imagens do programa rodando, siga este guia:
+
+1. **Capture a imagem**: Use `Win + Shift + S` no Windows para capturar a tela do programa.
+2. **Salve a imagem**: Salve o arquivo na pasta do projeto (recomendado criar uma pasta chamada `docs/images`).
+3. **Adicione ao Markdown**: Use a seguinte sintaxe no README:
+   ```markdown
+   ![Descrição da Imagem](caminho/para/imagem.png)
+   ```
+   *Exemplo:* `![Dashboard Principal](docs/images/dashboard.png)`
+
+---
+
+## 🛠️ Tecnologias Utilizadas
 
 - Quando o validador detectar tokens de "cor coringa" (ex.: `PAINEL_CG1_06`, etc.) o arquivo receberá a tag `COR CORINGA` e o drawer de detalhes mostrará um painel "Cor Coringa detectada".
 - O select nessa área mostra somente as cores coringa que foram realmente encontradas no XML (a lista é extraída do próprio arquivo durante a validação).

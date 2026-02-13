@@ -83,6 +83,7 @@ function formatTag(tag: string) {
   if (t === "preco-zero" || t === "preço zero") return "PREÇO ZERO";
   if (t === "curvo") return "CURVO";
   if (t === "duplado37mm" || t === "duplado 37mm") return "DUPLADO 37MM";
+  if (t === "sem_codigo" || t === "sem codigo") return "SEM CÓDIGO";
   return t.toUpperCase();
 }
 // helper para “Curvo” (fora do toRow!)
@@ -95,7 +96,7 @@ export default function Dashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] =
-    useState<"all" | "ok" | "erro" | "ferragens" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "autofix">("all");
+    useState<"all" | "ok" | "erro" | "ferragens" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "autofix" | "sem_codigo">("all");
 
   // controle do watcher
   const [monitoring, setMonitoring] = useState(false);
@@ -234,7 +235,8 @@ export default function Dashboard() {
     const cor = rows.filter((r) => (r.tags || []).includes("coringa")).length;
     const curvo = rows.filter(hasCurvo).length;
     const dup37 = rows.filter((r) => (r.tags || []).includes("duplado37mm")).length;
-    return { ok, erro, onlyFerr, mux, auto, cor, curvo, dup37 };
+    const semCod = rows.filter((r) => (r.tags || []).includes("sem_codigo")).length;
+    return { ok, erro, onlyFerr, mux, auto, cor, curvo, dup37, semCod };
   }, [rows]);
 
   const kpis = [
@@ -245,6 +247,7 @@ export default function Dashboard() {
     { key: "muxarabi", title: "Muxarabi", value: resumo.mux, icon: <Grid3X3 className="h-5 w-5" />, color: "#9B59B6" },
     { key: "coringa", title: "Cor Coringa", value: resumo.cor, icon: <Grid3X3 className="h-5 w-5" />, color: "#E67E22" },
     { key: "duplado37mm", title: "Duplado 37MM", value: resumo.dup37, icon: <AlertTriangle className="h-5 w-5" />, color: "#C0392B" },
+    { key: "sem_codigo", title: "Sem Código", value: resumo.semCod, icon: <AlertCircle className="h-5 w-5" />, color: "#E74C3C" },
     { key: "autofix", title: "Auto-fixed", value: resumo.auto, icon: <Zap className="h-5 w-5" />, color: "#1ABC9C" },
     { key: "curvo", title: "Curvo", value: resumo.curvo, icon: <Grid3X3 className="h-5 w-5" />, color: "#ee5700ff" },
   ] as const;
@@ -259,6 +262,7 @@ export default function Dashboard() {
       if (filter === "muxarabi") return (r.tags || []).includes("muxarabi");
       if (filter === "coringa") return (r.tags || []).includes("coringa");
       if (filter === "duplado37mm") return (r.tags || []).includes("duplado37mm");
+      if (filter === "sem_codigo") return (r.tags || []).includes("sem_codigo");
       if (filter === "autofix") return (r.autoFixes || []).length > 0;
       if (filter === "curvo") return hasCurvo(r);
       return true;

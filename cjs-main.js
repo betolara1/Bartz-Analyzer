@@ -126,7 +126,10 @@ async function validateXml(fileFullPath, cfg = {}) {
       break;
     }
   }
-  if (hasMissingCode) payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
+  if (hasMissingCode) {
+    payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
+    payload.tags.push("sem_codigo");
+  }
 
   if (/\bQUANTIDADE\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM QUANTIDADE" });
   if (/\bPRECO_TOTAL\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM PREÇO" });
