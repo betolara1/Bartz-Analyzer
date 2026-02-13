@@ -10,7 +10,7 @@ import { ErrorBadge } from "./ErrorBadge";
 import {
   CheckCircle, XCircle, Package, Grid3X3, Zap, Filter,
   Play, Pause, RefreshCw, Calendar, Save,
-  AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download,
+  AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import FileDetailDrawer from "./FileDetailDrawer";
@@ -858,7 +858,13 @@ export default function Dashboard() {
                     </TableCell>
 
                     <TableCell className="text-center">
-                      {autoFixed ? "✓" : "—"}
+                      {autoFixed ? (
+                        <div className="flex justify-center">
+                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          </div>
+                        </div>
+                      ) : "—"}
                     </TableCell>
 
                     <TableCell>
