@@ -147,12 +147,20 @@ async function validateXml(fileFullPath, cfg = {}) {
       const baseIsMissing = hasEmptyBase || hasNoBase;
 
       if (refIsMissing && baseIsMissing) {
-        const snippet = ((itemTag || '').trim()).slice(0, 400);
-        const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
-        const descMatch = snippet.match(/\bDESCRICAO\s*=\s*"([^"]+)"/i);
+        const idMatch = itemTag.match(/\bID\s*=\s*"([^"]+)"/i);
+        const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]+)"/i);
+        const caminhoMatch = itemTag.match(/\bCAMINHOITEMCATALOG\s*=\s*"([^"]+)"/i);
+
         const id = idMatch ? idMatch[1] : null;
         const descricao = descMatch ? descMatch[1] : null;
-        refEmptyMatches.push({ id, descricao, snippet });
+        const caminhoItemCatalog = caminhoMatch ? caminhoMatch[1] : null;
+
+        refEmptyMatches.push({
+          id,
+          descricao,
+          caminhoItemCatalog,
+          snippet: itemTag.slice(0, 500) // snippet ainda útil para debug/key
+        });
       }
     }
     if (refEmptyMatches.length) {

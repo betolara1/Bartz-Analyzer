@@ -1254,9 +1254,17 @@ export default function FileDetailDrawer({
                     const item = (data?.meta?.referenciaEmpty as any[])?.find(r => r.id === selectedRefSingle);
                     if (!item?.descricao) return null;
                     return (
-                      <div className="mb-3 p-2 bg-rose-500/5 border border-rose-500/10 rounded">
-                        <div className="text-[10px] text-rose-300 font-bold uppercase mb-0.5 opacity-70">Descrição do Item</div>
-                        <div className="text-xs text-white italic">"{item.descricao}"</div>
+                      <div className="mb-3 p-2 bg-rose-500/5 border border-rose-500/10 rounded space-y-2">
+                        <div>
+                          <div className="text-[10px] text-rose-300 font-bold uppercase mb-0.5 opacity-70">Descrição do Item</div>
+                          <div className="text-xs text-white italic">"{item.descricao || '—'}"</div>
+                        </div>
+                        {item.caminhoItemCatalog && (
+                          <div>
+                            <div className="text-[10px] text-rose-300 font-bold uppercase mb-0.5 opacity-70">Caminho do Item (Catálogo)</div>
+                            <div className="text-xs text-zinc-300 font-mono break-all">{item.caminhoItemCatalog}</div>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
