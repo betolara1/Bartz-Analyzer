@@ -10,7 +10,8 @@ import { ErrorBadge } from "./ErrorBadge";
 import {
   CheckCircle, XCircle, Package, Grid3X3, Zap, Filter,
   Play, Pause, RefreshCw, Calendar, Save,
-  AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check
+  AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
+  ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import FileDetailDrawer from "./FileDetailDrawer";
@@ -525,270 +526,276 @@ export default function Dashboard() {
       <div className="px-6 mt-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Coluna 1 - Caminhos de Rede */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-[#A7A7A7] mb-1">Caminhos de Rede</h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* ENTRADA */}
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="entrada" className="text-white text-sm">Pasta de Entrada</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="entrada"
-                    value={cfg.entrada}
-                    onChange={(e) => setPaths({ entrada: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button
-                    variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("entrada")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
-                </div>
-                {testResults["entrada"] === true && (
-                  <p className="text-[#27AE60] text-xs">acesso confirmado</p>
-                )}
-                {testResults["entrada"] === false && (
-                  <p className="text-[#E74C3C] text-xs">erro / sem acesso</p>
-                )}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-[#A7A7A7]">Caminhos de Rede</h3>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${monitoring ? "bg-[#27AE60]" : "bg-[#E74C3C]"}`} />
+                <span className="text-xs text-[#A7A7A7]">{monitoring ? "Monitoramento Ativo" : "Monitoramento Parado"}</span>
               </div>
+            </div>
 
-              {/* EXPORTACAO */}
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="exportacao" className="text-white text-sm">Pasta de Exportação</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="exportacao"
-                    value={cfg.exportacao}
-                    onChange={(e) => setPaths({ exportacao: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button
-                    variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("exportacao")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
+            <div className="grid grid-cols-1 gap-6">
+              {/* Grupo 1: Origem & Destino */}
+              <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-4 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-[#2C2C2C] pb-2 mb-2">
+                  <ArrowRightLeft className="h-4 w-4 text-[#3498DB]" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#3498DB]">Origem & Destino</span>
                 </div>
-                {testResults["exportacao"] === true && (
-                  <p className="text-[#27AE60] text-xs">acesso confirmado</p>
-                )}
-                {testResults["exportacao"] === false && (
-                  <p className="text-[#E74C3C] text-xs">erro / sem acesso</p>
-                )}
-              </div>
 
-              {/* OK */}
-              <div className="space-y-2">
-                <Label htmlFor="ok" className="text-white text-sm">Pasta Final - OK</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="ok"
-                    value={cfg.ok}
-                    onChange={(e) => setPaths({ ok: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("ok")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* ENTRADA */}
+                  <div className="space-y-2">
+                    <Label htmlFor="entrada" className="text-[#A7A7A7] text-xs">Pasta de Entrada</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="entrada"
+                        value={cfg.entrada}
+                        onChange={(e) => setPaths({ entrada: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1 focus:border-[#3498DB]"
+                        placeholder="\\servidor\share\entrada"
+                      />
+                      <Button
+                        variant="outline" size="sm" title="Escolher pasta"
+                        onClick={() => pickFolder("entrada")}
+                        className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {testResults["entrada"] === true && <p className="text-[#27AE60] text-[10px] flex items-center gap-1"><Check className="h-3 w-3" /> acesso confirmado</p>}
+                    {testResults["entrada"] === false && <p className="text-[#E74C3C] text-[10px] flex items-center gap-1"><XCircle className="h-3 w-3" /> erro / sem acesso</p>}
+                  </div>
+
+                  {/* EXPORTACAO */}
+                  <div className="space-y-2">
+                    <Label htmlFor="exportacao" className="text-[#A7A7A7] text-xs">Pasta de Exportação</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="exportacao"
+                        value={cfg.exportacao}
+                        onChange={(e) => setPaths({ exportacao: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1 focus:border-[#3498DB]"
+                        placeholder="\\servidor\share\exportacao"
+                      />
+                      <Button
+                        variant="outline" size="sm" title="Escolher pasta"
+                        onClick={() => pickFolder("exportacao")}
+                        className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {testResults["exportacao"] === true && <p className="text-[#27AE60] text-[10px] flex items-center gap-1"><Check className="h-3 w-3" /> acesso confirmado</p>}
+                    {testResults["exportacao"] === false && <p className="text-[#E74C3C] text-[10px] flex items-center gap-1"><XCircle className="h-3 w-3" /> erro / sem acesso</p>}
+                  </div>
                 </div>
               </div>
 
-              {/* ERRO */}
-              <div className="space-y-2">
-                <Label htmlFor="erro" className="text-white text-sm">Pasta Final - Erro</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="erro"
-                    value={cfg.erro}
-                    onChange={(e) => setPaths({ erro: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("erro")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
+              {/* Grupo 2: Resultados */}
+              <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-4 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-[#2C2C2C] pb-2 mb-2">
+                  <CheckCircle2 className="h-4 w-4 text-[#27AE60]" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#27AE60]">Resultados & Desenhos</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* OK */}
+                  <div className="space-y-2">
+                    <Label htmlFor="ok" className="text-[#A7A7A7] text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3 text-[#27AE60]" /> Pasta Final - OK</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="ok"
+                        value={cfg.ok}
+                        onChange={(e) => setPaths({ ok: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("ok")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* ERRO */}
+                  <div className="space-y-2">
+                    <Label htmlFor="erro" className="text-[#A7A7A7] text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-[#E74C3C]" /> Pasta Final - Erro</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="erro"
+                        value={cfg.erro}
+                        onChange={(e) => setPaths({ erro: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("erro")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* DRAWINGS */}
+                  <div className="space-y-2">
+                    <Label htmlFor="drawings" className="text-[#A7A7A7] text-xs flex items-center gap-1"><FileText className="h-3 w-3 text-[#F1C40F]" /> Pasta de Desenhos</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="drawings"
+                        value={cfg.drawings}
+                        onChange={(e) => setPaths({ drawings: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("drawings")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* DRAWINGS */}
-              <div className="space-y-2">
-                <Label htmlFor="drawings" className="text-white text-sm">Pasta de Desenhos</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="drawings"
-                    value={cfg.drawings}
-                    onChange={(e) => setPaths({ drawings: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("drawings")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
+              {/* Grupo 3: Registros */}
+              <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-4 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-[#2C2C2C] pb-2 mb-2">
+                  <ListTodo className="h-4 w-4 text-[#9B59B6]" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#9B59B6]">Registros (Logs)</span>
                 </div>
-              </div>
 
-              {/* LOGS ERRORS */}
-              <div className="space-y-2">
-                <Label htmlFor="logsErrors" className="text-white text-sm">Logs - Errors</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="logsErrors"
-                    value={cfg.logsErrors}
-                    onChange={(e) => setPaths({ logsErrors: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("logsErrors")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* LOGS ERRORS */}
+                  <div className="space-y-2">
+                    <Label htmlFor="logsErrors" className="text-[#A7A7A7] text-xs">Logs - Errors</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="logsErrors"
+                        value={cfg.logsErrors}
+                        onChange={(e) => setPaths({ logsErrors: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("logsErrors")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
 
-              {/* LOGS PROCESSED */}
-              <div className="space-y-2">
-                <Label htmlFor="logsProcessed" className="text-white text-sm">Logs - Processed</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="logsProcessed"
-                    value={cfg.logsProcessed}
-                    onChange={(e) => setPaths({ logsProcessed: e.target.value })}
-                    className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
-                    placeholder="\\\\servidor\\share\\pasta"
-                  />
-                  <Button variant="outline" size="sm" title="Escolher pasta"
-                    onClick={() => pickFolder("logsProcessed")}
-                    className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
+                  {/* LOGS PROCESSED */}
+                  <div className="space-y-2">
+                    <Label htmlFor="logsProcessed" className="text-[#A7A7A7] text-xs">Logs - Processed</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="logsProcessed"
+                        value={cfg.logsProcessed}
+                        onChange={(e) => setPaths({ logsProcessed: e.target.value })}
+                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("logsProcessed")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={testAllAccess} className="gap-2 border-[#2C2C2C]">
-                Testar acesso (todos)
-              </Button>
-              <Button variant="outline" onClick={savePaths} className="gap-2 border-[#2C2C2C]">
-                <Save className="h-4 w-4" /> Salvar como padrão
-              </Button>
-              {!monitoring ? (
-                <Button onClick={start} className="gap-2 bg-[#27AE60] hover:bg-[#27AE60]/90">
-                  <Play className="h-4 w-4" /> Iniciar com esses paths
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={testAllAccess} className="gap-2 border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-xs h-9">
+                  <RefreshCw className="h-3.5 w-3.5" /> Testar acesso
                 </Button>
-              ) : (
-                <Button onClick={stop} className="gap-2 bg-[#E74C3C] hover:bg-[#E74C3C]/90">
-                  <Pause className="h-4 w-4" /> Parar
+                <Button variant="outline" onClick={savePaths} className="gap-2 border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-xs h-9">
+                  <Save className="h-3.5 w-3.5" /> Salvar padrão
                 </Button>
-              )}
-            </div>
+              </div>
 
-            {/* Toggle Auto-fix */}
-            <div className="flex items-center gap-3 mt-2">
-              <label className="text-sm text-[#A7A7A7] flex items-center gap-2 cursor-pointer select-none opacity-70">
-                <input
-                  type="checkbox"
-                  checked={true}
-                  readOnly
-                  className="accent-[#27AE60]"
-                />
-                <span className="text-white">
-                  Auto-fix (trocar preço 0→0.10 • quantidade 0→1)
-                </span>
-              </label>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-[#A7A7A7] flex items-center gap-2 cursor-pointer select-none border border-[#2C2C2C] rounded-md px-3 h-9 bg-[#1B1B1B]">
+                  <input
+                    type="checkbox"
+                    checked={true}
+                    readOnly
+                    className="accent-[#27AE60] h-3.5 w-3.5"
+                  />
+                  <span>Auto-fix Ativo</span>
+                </label>
+
+                {!monitoring ? (
+                  <Button onClick={start} className="gap-2 bg-[#27AE60] hover:bg-[#27AE60]/90 h-9 px-4 text-xs font-semibold">
+                    <Play className="h-3.5 w-3.5" /> Iniciar Monitoramento
+                  </Button>
+                ) : (
+                  <Button onClick={stop} className="gap-2 bg-[#E74C3C] hover:bg-[#E74C3C]/90 h-9 px-4 text-xs font-semibold">
+                    <Pause className="h-3.5 w-3.5" /> Parar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Coluna 2 - Relatório de Atividade */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-sm font-medium text-[#A7A7A7] mb-1">Relatório de Atividade</h3>
 
-            <div className="bg-[#111111] rounded-lg border border-[#2C2C2C] p-4 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
-                <span className="text-sm font-medium text-white">Arquivos Processados Hoje</span>
+            <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-6 space-y-6 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#A7A7A7]">Resultados do Dia</span>
+                </div>
+                <Badge variant="outline" className="text-[10px] border-[#2C2C2C] text-[#A7A7A7]">
+                  Hoje, {new Date().toLocaleDateString('pt-BR')}
+                </Badge>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-medium text-[#27AE60]">{okFiles}</div>
-                  <div className="text-xs text-[#A7A7A7]">Corretos</div>
+                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                  <CheckCircle2 className="h-5 w-5 text-[#27AE60] opacity-80" />
+                  <div className="text-2xl font-bold text-[#27AE60]">{okFiles}</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Corretos</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-medium text-[#E74C3C]">{errorFiles}</div>
-                  <div className="text-xs text-[#A7A7A7]">Com Erro</div>
+                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                  <XCircle className="h-5 w-5 text-[#E74C3C] opacity-80" />
+                  <div className="text-2xl font-bold text-[#E74C3C]">{errorFiles}</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Com Erro</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-medium text-[#F39C12]">{ferragensFiles}</div>
-                  <div className="text-xs text-[#A7A7A7]">Ferragens</div>
+                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                  <Package className="h-5 w-5 text-[#F39C12] opacity-80" />
+                  <div className="text-2xl font-bold text-[#F39C12]">{ferragensFiles}</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Ferragens</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-medium text-[#3498DB]">{autoFixedFiles}</div>
-                  <div className="text-xs text-[#A7A7A7]">Auto-fix</div>
+                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                  <Zap className="h-5 w-5 text-[#1ABC9C] opacity-80" />
+                  <div className="text-2xl font-bold text-[#1ABC9C]">{autoFixedFiles}</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Auto-fix</div>
                 </div>
               </div>
 
-              <hr className="border-[#2C2C2C]" />
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase tracking-wider text-[#A7A7A7] font-semibold flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" /> Taxa de Sucesso
+                      </span>
+                      <span className="text-2xl font-bold text-white">
+                        {totalFiles > 0 ? Math.round(((okFiles + ferragensFiles) / totalFiles) * 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase tracking-wider text-[#A7A7A7] font-semibold">Total Processado</span>
+                      <div className="text-lg font-medium text-white">{totalFiles} <span className="text-xs text-[#A7A7A7]">XMLs</span></div>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden border border-[#232323]">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#27AE60] to-[#2ECC71] transition-all duration-500"
+                      style={{ width: `${totalFiles > 0 ? ((okFiles + ferragensFiles) / totalFiles) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-[#A7A7A7]">Total processado</span>
-                  <span className="text-sm font-medium text-white">{totalFiles} arquivos</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-[#A7A7A7]">Taxa de sucesso</span>
-                  <span className="text-sm font-medium text-[#27AE60]">
-                    {totalFiles > 0 ? Math.round(((okFiles + ferragensFiles) / totalFiles) * 100) : 0}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-[#A7A7A7]">Última atividade</span>
-                  <span className="text-sm font-medium text-white">{lastActivity}</span>
+                <div className="flex items-center justify-between text-[11px] text-[#A7A7A7] bg-[#111111] p-2 rounded border border-[#232323]">
+                  <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> Última atividade</span>
+                  <span className="text-white font-medium">{lastActivity}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#111111] rounded-lg border border-[#2C2C2C] p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="h-4 w-4 text-[#F39C12]" />
-                <span className="text-sm font-medium text-white">Status do Sistema</span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-[#A7A7A7]">Monitoramento</span>
-                  <div className="flex items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full ${monitoring ? "bg-[#27AE60]" : "bg-[#E74C3C]"}`} />
-                    <span className="text-sm font-medium text-white">{monitoring ? "Ativo" : "Parado"}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-[#A7A7A7]">Conexão</span>
-                  <div className="flex items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-[#27AE60]" : "bg-[#F39C12]"}`} />
-                    <span className="text-sm font-medium text-white">{isConnected ? "Electron" : "Dev Mode"}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -796,48 +803,76 @@ export default function Dashboard() {
       {/* KPIs + Tabela */}
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">
-          {kpis.map((k: any) => (
-            <button
-              key={k.key}
-              onClick={() => setFilter(k.key)}
-              className={`text-left bg-[#1B1B1B] border rounded-xl p-4 transition ${filter === k.key ? "border-[#F1C40F] shadow-[0_0_0_2px_rgba(241,196,15,0.2)]" : "border-[#2C2C2C]"}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="opacity-80 text-sm">{k.title}</div>
-                <div style={{ color: k.color }}>{k.icon}</div>
-              </div>
-              <div className="text-2xl font-semibold mt-1">{k.value}</div>
-            </button>
-          ))}
+          {kpis.map((k: any) => {
+            const isActive = filter === k.key;
+            return (
+              <button
+                key={k.key}
+                onClick={() => setFilter(k.key)}
+                className={`group text-left bg-[#1B1B1B] border rounded-xl p-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
+                  ? "border-opacity-100 shadow-[0_0_20px_rgba(0,0,0,0.4)]"
+                  : "border-[#2C2C2C] hover:border-white/20 hover:-translate-y-1"
+                  }`}
+                style={{
+                  borderColor: isActive ? k.color : '#2C2C2C',
+                  boxShadow: isActive ? `0 0 15px ${k.color}33, inset 0 0 10px ${k.color}11` : ''
+                }}
+              >
+                {isActive && (
+                  <div
+                    className="absolute top-0 right-0 w-16 h-16 opacity-10 pointer-events-none"
+                    style={{ background: `radial-gradient(circle at center, ${k.color} 0%, transparent 70%)` }}
+                  />
+                )}
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`p-2 rounded-lg bg-[#111] border border-[#232323] transition-colors duration-300 ${isActive ? 'bg-opacity-50' : 'group-hover:bg-[#222]'}`} style={{ color: k.color }}>
+                    {React.cloneElement(k.icon as React.ReactElement, { className: "h-4 w-4" })}
+                  </div>
+                  {isActive && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 8px ${k.color}` }} />}
+                </div>
+                <div className="space-y-0.5">
+                  <div className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isActive ? 'text-white' : 'text-[#A7A7A7]'}`}>
+                    {k.title}
+                  </div>
+                  <div className="text-2xl font-bold tracking-tight text-white">{k.value}</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Input
-              placeholder="Buscar arquivo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-3 w-80 bg-[#1B1B1B] border-[#2C2C2C]"
-            />
-            <div className="flex items-center gap-2 text-[#A7A7A7]">
-              <Calendar className="h-4 w-4" /> <span className="text-sm">Últimas 24h</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2">
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <Input
+                placeholder="Buscar arquivo..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 w-80 bg-[#161616] border-[#2C2C2C] text-sm focus:border-[#3498DB] focus:ring-1 focus:ring-[#3498DB]/20 transition-all"
+              />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#A7A7A7] group-focus-within:text-[#3498DB] transition-colors" />
+            </div>
+            <div className="flex items-center gap-2 text-[#A7A7A7] bg-[#1B1B1B] px-3 py-1.5 rounded-lg border border-[#2C2C2C]">
+              <Calendar className="h-3.5 w-3.5" /> <span className="text-xs font-medium">Últimas 24h</span>
             </div>
           </div>
-          <div className="text-sm text-[#A7A7A7]">Mostrando {filtered.length} de {rows.length} arquivos</div>
+          <div className="text-[11px] uppercase tracking-wider font-bold text-[#666] bg-[#161616] px-3 py-1 rounded-full border border-[#232323]">
+            Mostrando <span className="text-white">{filtered.length}</span> de <span className="text-white">{rows.length}</span> arquivos
+          </div>
         </div>
 
-        <div className="bg-[#1B1B1B] border border-[#2C2C2C] rounded-lg overflow-hidden">
+        <div className="bg-[#161616] border border-[#232323] rounded-xl overflow-hidden shadow-2xl">
           <Table>
-            <TableHeader>
-              <TableRow className="border-[#2C2C2C] hover:bg-[#2C2C2C]/50">
-                <TableHead className="text-[#A7A7A7]">Arquivo</TableHead>
-                <TableHead className="text-[#A7A7A7]">Status</TableHead>
-                <TableHead className="text-[#A7A7A7]">Erros</TableHead>
-                <TableHead className="text-[#A7A7A7] text-center">Auto-fix</TableHead>
-                <TableHead className="text-[#A7A7A7]">Avisos</TableHead>
-                <TableHead className="text-[#A7A7A7]">Tags</TableHead>
-                <TableHead className="text-[#A7A7A7] whitespace-nowrap">Data/Hora</TableHead>
-                <TableHead className="text-[#A7A7A7] text-center">Ações</TableHead>
+            <TableHeader className="bg-[#1B1B1B]/50">
+              <TableRow className="border-[#232323] hover:bg-transparent">
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest pl-6">Arquivo</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Inconformidades (Erros)</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest text-center">Auto-fix</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Avisos do Sistema</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Tags</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest whitespace-nowrap">Data / Hora</TableHead>
+                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest text-center pr-6">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -845,10 +880,19 @@ export default function Dashboard() {
               {filtered.map((file) => {
                 const autoFixed = (file.autoFixes || []).length > 0;
                 return (
-                  <TableRow key={file.fullpath} className="border-[#2C2C2C] hover:bg-[#2C2C2C]/30">
-                    <TableCell className="font-mono text-sm max-w-60 truncate flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full shrink-0 ${file.status === 'OK' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : file.status === 'ERRO' ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]' : 'bg-zinc-500'}`} />
-                      {file.filename}
+                  <TableRow key={file.fullpath} className="border-[#232323] hover:bg-white/[0.02] transition-colors group/row">
+                    <TableCell className="pl-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2.5 w-2.5 rounded-full shrink-0 transition-shadow duration-300 ${file.status === 'OK' ? 'bg-[#27AE60] shadow-[0_0_8px_rgba(39,174,96,0.5)]' :
+                            file.status === 'ERRO' ? 'bg-[#E74C3C] shadow-[0_0_8px_rgba(231,76,60,0.5)]' :
+                              'bg-[#F39C12] shadow-[0_0_8px_rgba(243,156,18,0.5)]'
+                          }`} />
+                        <div className="flex flex-col">
+                          <span className="font-mono text-sm text-white group-hover/row:text-[#3498DB] transition-colors truncate max-w-[280px]">
+                            {file.filename}
+                          </span>
+                        </div>
+                      </div>
                     </TableCell>
 
                     <TableCell>
@@ -856,75 +900,82 @@ export default function Dashboard() {
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-60">
-                        {(file.errors || []).map((e, i) => <ErrorBadge key={i} error={e} />)}
+                      <div className="flex flex-wrap gap-1.5 max-w-60">
+                        {(file.errors || []).length > 0 ? (
+                          (file.errors || []).map((e, i) => <ErrorBadge key={i} error={e} />)
+                        ) : (
+                          <span className="text-[#444] text-[10px]">—</span>
+                        )}
                       </div>
                     </TableCell>
 
                     <TableCell className="text-center">
                       {autoFixed ? (
                         <div className="flex justify-center">
-                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                            <Check className="h-3 w-3 text-emerald-400" />
+                          <div className="h-6 w-6 rounded-lg bg-[#1ABC9C]/10 border border-[#1ABC9C]/20 flex items-center justify-center shadow-[0_0_15px_rgba(26,188,156,0.1)] group-hover/row:border-[#1ABC9C]/40 transition-all">
+                            <Zap className="h-3.5 w-3.5 text-[#1ABC9C]" />
                           </div>
                         </div>
-                      ) : "—"}
+                      ) : (
+                        <span className="text-[#444]">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {(file.warnings || []).map((w, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className="text-[#F39C12] border-[#F39C12]/20 bg-[#F39C12]/10 text-[10px]"
-                          >
-                            {typeof w === "string" ? w.toUpperCase() : "AVISO"}
-                          </Badge>
-                        ))}
+                      <div className="flex flex-wrap gap-1.5">
+                        {(file.warnings || []).length > 0 ? (
+                          (file.warnings || []).map((w, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-[#F39C12] border-[#F39C12]/20 bg-[#F39C12]/5 text-[9px] font-bold uppercase py-0 px-2 h-5"
+                            >
+                              {typeof w === "string" ? w.toUpperCase() : "AVISO"}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-[#444] text-[10px]">—</span>
+                        )}
                       </div>
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-32">
-                        {(file.tags || []).map((t, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/10 text-[10px]"
-                          >
-                            {formatTag(t)}
-                          </Badge>
-                        ))}
+                      <div className="flex flex-wrap gap-1.5 max-w-32">
+                        {(file.tags || []).length > 0 ? (
+                          (file.tags || []).map((t, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/5 text-[9px] font-bold uppercase py-0 px-2 h-5"
+                            >
+                              {formatTag(t)}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-[#444] text-[10px]">—</span>
+                        )}
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-[#A7A7A7] text-sm whitespace-nowrap">
+                    <TableCell className="text-[#888] text-[11px] font-medium whitespace-nowrap">
                       {file.timestamp || "-"}
                     </TableCell>
 
-                    <TableCell className="text-center">
-                      <div className="inline-flex gap-1">
+                    <TableCell className="text-center pr-6 py-4">
+                      <div className="inline-flex gap-2 p-1.5 bg-[#111] rounded-lg border border-[#232323] transition-colors group-hover/row:border-[#2C2C2C]">
                         <button
                           title="Ver detalhes"
                           onClick={() => handleFileDetail(file)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded hover:bg-white/5"
+                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-[#222] hover:text-[#3498DB] transition-all text-[#A7A7A7]"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button
                           title="Abrir na pasta"
                           onClick={() => handleOpenFolder(file.fullpath)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded hover:bg-white/5"
+                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-[#222] hover:text-[#F1C40F] transition-all text-[#A7A7A7]"
                         >
                           <FolderOpen className="h-4 w-4" />
-                        </button>
-                        <button
-                          title="Reprocessar"
-                          onClick={() => reprocessOne(file.fullpath)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded hover:bg-white/5"
-                        >
-                          <RefreshCw className="h-4 w-4" />
                         </button>
                       </div>
                     </TableCell>
