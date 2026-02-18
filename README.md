@@ -110,7 +110,7 @@ O projeto contém as configurações padrão para empacotamento com Electron + V
 
 ```powershell
 npm run build
-npm run dist
+npm run dist:win
 ```
 
 (Atenção: os nomes exatos dos scripts podem variar; verifique `package.json`.)
@@ -235,27 +235,3 @@ O sistema organiza automaticamente os arquivos:
 - Logs de erro do processo de validação são gravados nas pastas configuradas em *Logs - Errors* e *Logs - Processed* (se configuradas).
 - **Importante**: Quando você faz alterações (Cor Coringa ou Preencher REFERENCIA), sempre será criado um backup automático do arquivo original. Use "Desfazer última troca" para reverter.
 
-## Contribuições
-
-Sinta-se à vontade para abrir PRs. Mantenha as mudanças pequenas e compatíveis com o estilo do projeto.
-
-## Licença
-
-MIT
-
----
-
-## 📂 Apêndice: Manutenção da Documentação
-
-### Como adicionar novas imagens (Screenshots)
-
-Para manter este README atualizado com novas imagens:
-
-1. **Capture a imagem**: Use `Win + Shift + S` (Windows).
-2. **Salve a imagem**: Coloque o arquivo em `docs/img/`.
-3. **Link no Markdown**:
-   ```markdown
-   ![Título](docs/img/nome_da_imagem.png)
-   ```
-
-  

@@ -21,6 +21,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "csv/**/*",
       "cjs-main.js",
       "preload.js",
       "package.json"
