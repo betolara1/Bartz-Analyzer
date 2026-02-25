@@ -527,7 +527,7 @@ function FileDetailDrawer({
                             <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
                             <span className="text-rose-100/90 text-sm leading-relaxed">{e}</span>
                           </div>
-                          {isMachineError && (
+                          {isMachineError && data?.errors?.length === 1 && (
                             <button
                               onClick={handleMoveToOk}
                               className="shrink-0 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg hover:shadow-rose-900/40 active:scale-95 transition-all"
