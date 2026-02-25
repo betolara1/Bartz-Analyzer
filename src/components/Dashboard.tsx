@@ -360,6 +360,13 @@ export default function Dashboard() {
       const res = await (window as any).electron?.analyzer?.clearTargetFolders?.();
       if (res?.ok) {
         toast.success(`Arquivos removidos com sucesso: ${res.count || 0}`);
+        // Limpar o relatório de atividade junto com a exclusão física
+        setRows([]);
+        setSearch("");
+        setFilter("all");
+        setCurrentPage(1);
+        setDetailOpen(false);
+        setDetailData(null);
         scan();
       } else {
         toast.error(`Falha ao remover: ${res?.message || "erro desconhecido"}`);
