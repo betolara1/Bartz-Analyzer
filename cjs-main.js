@@ -1121,37 +1121,50 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
         url = `http://192.168.1.10:8081/api/erp/search-code?q=${encodeURIComponent(codeTerm)}`;
       } else if (searchTerm) {
         url = `http://192.168.1.10:8081/api/erp/search-desc?q=${encodeURIComponent(searchTerm)}`;
-      } else if (type && typePrefixes[type]) {
-        // Se apenas tipo, tentamos buscar pelo prefixo no find-by-code
-        url = `http://192.168.1.10:8081/api/erp/find-by-code?code=${encodeURIComponent(typePrefixes[type])}`;
       }
+      // Removida a busca automática apenas por prefixo (ex: 10.01.) pois causa timeout no servidor
 
       if (url) {
         console.log(`[ERP API] Solicitando: ${url}`);
-        const response = await fetch(url);
-        if (response.ok) {
-          const data = await response.json();
-          let erpResults = Array.isArray(data) ? data : (data ? [data] : []);
 
-          // Filtragem rigorosa por prefixos
-          erpResults = erpResults.filter(item => {
-            const itemCode = (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString();
+        // Adicionando timeout de 15 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-            // Se um tipo específico foi selecionado
-            if (type && typePrefixes[type]) {
-              return itemCode.startsWith(typePrefixes[type]);
-            }
-            // Se "TODOS" (vazio)
-            return allowedPrefixes.some(p => itemCode.startsWith(p));
+        try {
+          const response = await fetch(url, {
+            headers: { 'X-API-KEY': 'bartznewmoveisapi' },
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
 
-          // Adicionar ao pool global
-          erpResults.forEach(item => {
-            allResults.push({
-              code: item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '?',
-              description: item.description || item.DESCRICAO || item.item_description || 'Sem descrição'
+          if (response.ok) {
+            const data = await response.json();
+            let erpResults = Array.isArray(data) ? data : (data ? [data] : []);
+
+            // Filtragem rigorosa por prefixos
+            erpResults = erpResults.filter(item => {
+              const itemCode = (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString();
+
+              // Se um tipo específico foi selecionado
+              if (type && typePrefixes[type]) {
+                return itemCode.startsWith(typePrefixes[type]);
+              }
+              // Se "TODOS" (vazio)
+              return allowedPrefixes.some(p => itemCode.startsWith(p));
             });
-          });
+
+            // Adicionar ao pool global
+            erpResults.forEach(item => {
+              allResults.push({
+                code: (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString(),
+                description: (item.description || item.DESCRICAO || item.item_description || item.descItem || item.nomeItem || item.descricao || '').toString()
+              });
+            });
+          }
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          console.error(`[ERP API] Erro na requisição ${url}:`, fetchError.name === 'AbortError' ? 'Timeout' : fetchError.message);
         }
       }
     }
