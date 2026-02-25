@@ -1,5 +1,5 @@
 // src/components/Dashboard.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -11,7 +11,7 @@ import {
   CheckCircle, XCircle, Package, Grid3X3, Zap, Filter,
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
-  ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity
+  ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import {
@@ -107,6 +107,9 @@ export default function Dashboard() {
   const [filter, setFilter] =
     useState<"all" | "ok" | "erro" | "ferragens" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "autofix" | "sem_codigo">("all");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   // controle do watcher
   const [monitoring, setMonitoring] = useState(false);
   const [watchRoot, setWatchRoot] = useState<string | null>(null);
@@ -135,6 +138,7 @@ export default function Dashboard() {
   // confirmações
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmExcluirOpen, setConfirmExcluirOpen] = useState(false);
+  const [confirmBulkMoveOpen, setConfirmBulkMoveOpen] = useState(false);
 
   const mounted = useRef(true);
   const isConnected = !!(window as any).electron?.analyzer;
@@ -252,7 +256,7 @@ export default function Dashboard() {
     return { ok, erro, onlyFerr, mux, auto, cor, curvo, dup37, semCod };
   }, [rows]);
 
-  const kpis = [
+  const kpis = useMemo(() => [
     { key: "all", title: "Todos", value: rows.length, icon: <Filter className="h-5 w-5" />, color: "#3498DB" },
     { key: "ok", title: "Corretos", value: resumo.ok, icon: <CheckCircle className="h-5 w-5" />, color: "#27AE60" },
     { key: "erro", title: "Inconformidades", value: resumo.erro, icon: <XCircle className="h-5 w-5" />, color: "#E74C3C" },
@@ -263,23 +267,29 @@ export default function Dashboard() {
     { key: "sem_codigo", title: "Sem Código", value: resumo.semCod, icon: <AlertCircle className="h-5 w-5" />, color: "#E74C3C" },
     { key: "autofix", title: "Auto-fixed", value: resumo.auto, icon: <Zap className="h-5 w-5" />, color: "#1ABC9C" },
     { key: "curvo", title: "Curvo", value: resumo.curvo, icon: <Grid3X3 className="h-5 w-5" />, color: "#ee5700ff" },
-  ] as const;
+  ] as const, [rows.length, resumo]);
 
-  const filtered = rows
-    .filter((r) => r.filename.toLowerCase().includes(search.toLowerCase()))
-    .filter((r) => {
-      if (filter === "all") return true;
-      if (filter === "ok") return r.status === "OK";
-      if (filter === "erro") return r.status === "ERRO";
-      if (filter === "ferragens") return r.status === "FERRAGENS-ONLY" || (r.tags || []).includes("ferragens");
-      if (filter === "muxarabi") return (r.tags || []).includes("muxarabi");
-      if (filter === "coringa") return (r.tags || []).includes("coringa");
-      if (filter === "duplado37mm") return (r.tags || []).includes("duplado37mm");
-      if (filter === "sem_codigo") return (r.tags || []).includes("sem_codigo");
-      if (filter === "autofix") return (r.autoFixes || []).length > 0;
-      if (filter === "curvo") return hasCurvo(r);
-      return true;
-    });
+  const filtered = useMemo(() => {
+    const term = search.toLowerCase();
+    return rows
+      .filter((r) => r.filename.toLowerCase().includes(term))
+      .filter((r) => {
+        if (filter === "all") return true;
+        if (filter === "ok") return r.status === "OK";
+        if (filter === "erro") return r.status === "ERRO";
+        if (filter === "ferragens") return r.status === "FERRAGENS-ONLY" || (r.tags || []).includes("ferragens");
+        if (filter === "muxarabi") return (r.tags || []).includes("muxarabi");
+        if (filter === "coringa") return (r.tags || []).includes("coringa");
+        if (filter === "duplado37mm") return (r.tags || []).includes("duplado37mm");
+        if (filter === "sem_codigo") return (r.tags || []).includes("sem_codigo");
+        if (filter === "autofix") return (r.autoFixes || []).length > 0;
+        if (filter === "curvo") return hasCurvo(r);
+        return true;
+      });
+  }, [rows, search, filter]);
+
+  const totalPages = useMemo(() => Math.ceil(filtered.length / itemsPerPage), [filtered.length]);
+  const paginatedData = useMemo(() => filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filtered, currentPage]);
 
   // ===== helpers/ações =====
   function setPaths(patch: Partial<typeof cfg>) { setCfg(prev => ({ ...prev, ...patch })); }
@@ -333,6 +343,7 @@ export default function Dashboard() {
     setRows([]);
     setSearch("");
     setFilter("all");
+    setCurrentPage(1);
     setDetailOpen(false);
     setDetailData(null);
     toast.success("Relatório de Atividade limpo com sucesso!");
@@ -346,7 +357,7 @@ export default function Dashboard() {
     setConfirmExcluirOpen(false);
     const id = toast.loading("Excluindo arquivos...");
     try {
-      const res = await (window as any).electron?.analyzer?.clearFolders?.();
+      const res = await (window as any).electron?.analyzer?.clearTargetFolders?.();
       if (res?.ok) {
         toast.success(`Arquivos removidos com sucesso: ${res.count || 0}`);
         scan();
@@ -391,7 +402,7 @@ export default function Dashboard() {
     }
   }
 
-  async function handleOpenFolder(fullPath: string) {
+  const handleOpenFolder = useCallback(async (fullPath: string) => {
     try {
       const ok = await (window as any).electron?.analyzer?.openInFolder?.(fullPath);
       if (ok) toast.info("Abrindo pasta do arquivo…");
@@ -399,9 +410,9 @@ export default function Dashboard() {
     } catch (e: any) {
       toast.error(`Falha ao abrir pasta: ${String(e?.message || e)}`);
     }
-  }
+  }, []);
 
-  async function reprocessOne(fullPath: string) {
+  const reprocessOne = useCallback(async (fullPath: string) => {
     const id = toast.loading("Processando arquivo…");
     try {
       const ok = await (window as any).electron?.analyzer?.reprocessOne?.(fullPath);
@@ -412,9 +423,9 @@ export default function Dashboard() {
     } finally {
       toast.dismiss(id);
     }
-  }
+  }, []);
 
-  async function handleManualAction(fullpath: string, action: string) {
+  const handleManualAction = useCallback(async (fullpath: string, action: string) => {
     setRows((prev) => {
       const idx = prev.findIndex(r => r.fullpath === fullpath);
       if (idx < 0) return prev;
@@ -423,18 +434,17 @@ export default function Dashboard() {
       const timePrefix = new Date().toLocaleTimeString('pt-BR');
       row.history = [...(row.history || []), `[${timePrefix}] ${action}`];
       copy[idx] = row;
-      // Se for o arquivo que está aberto no detalhe, atualiza ele também
       setDetailData(prevData => (prevData && prevData.fullpath === fullpath ? row : prevData));
       return copy;
     });
-  }
+  }, []);
 
-  function handleFileDetail(file: Row) {
+  const handleFileDetail = useCallback((file: Row) => {
     setDetailData(file);
     setDetailOpen(true);
-  }
+  }, []);
 
-  function handleFileMoved(oldPath: string, newPath: string) {
+  const handleFileMoved = useCallback((oldPath: string, newPath: string) => {
     setRows(prev => {
       const copy = [...prev];
       const idx = copy.findIndex(r => r.fullpath === oldPath);
@@ -445,21 +455,64 @@ export default function Dashboard() {
           filename: newPath.split(/[\\/]/).pop() || copy[idx].filename,
           status: "OK",
           errors: [],
-          // Remove tag de erro se existir
           tags: (copy[idx].tags || []).filter(t => t.toLowerCase() !== "duplado 37mm" && t.toLowerCase() !== "duplado37mm"),
         };
       }
       return copy;
     });
-  }
+  }, []);
+
+  // Arquivos elegíveis para bulk move: APENAS "PROBLEMA NA GERAÇÃO DE MÁQUINAS" como único erro
+  const bulkMoveEligible = useMemo(() =>
+    rows.filter(r =>
+      r.status === "ERRO" &&
+      (r.errors || []).length === 1 &&
+      (r.errors || [])[0]?.toUpperCase().includes("PROBLEMA NA GERAÇÃO DE MÁQUINAS")
+    ), [rows]);
+
+  const executeBulkMoveToOk = useCallback(async () => {
+    setConfirmBulkMoveOpen(false);
+    const total = bulkMoveEligible.length;
+    if (total === 0) return;
+    const id = toast.loading(`Movendo ${total} arquivo(s) para OK...`);
+    let success = 0;
+    let fail = 0;
+    for (const file of bulkMoveEligible) {
+      try {
+        const res = await (window as any).electron?.analyzer?.moveToOk?.(file.fullpath);
+        if (res?.ok) {
+          success++;
+          if (res.destPath) {
+            setRows(prev => {
+              const copy = [...prev];
+              const idx = copy.findIndex(r => r.fullpath === file.fullpath);
+              if (idx !== -1) {
+                copy[idx] = { ...copy[idx], fullpath: res.destPath, filename: res.destPath.split(/[\\\/]/).pop() || copy[idx].filename, status: "OK", errors: [] };
+              }
+              return copy;
+            });
+          }
+        } else {
+          fail++;
+        }
+      } catch {
+        fail++;
+      }
+    }
+    toast.dismiss(id);
+    if (success > 0) toast.success(`${success} arquivo(s) movido(s) para OK com sucesso!`);
+    if (fail > 0) toast.error(`${fail} arquivo(s) falharam ao mover.`);
+  }, [bulkMoveEligible]);
 
   // métricas p/ card lateral
-  const totalFiles = rows.length;
-  const okFiles = rows.filter(r => r.status === "OK").length;
-  const errorFiles = rows.filter(r => r.status === "ERRO").length;
-  const ferragensFiles = rows.filter(r => r.status === "FERRAGENS-ONLY" || (r.tags || []).includes("ferragens")).length;
-  const autoFixedFiles = rows.filter(r => (r.autoFixes || []).length > 0).length;
-  const lastActivity = rows[0]?.timestamp ?? "--:--";
+  const { totalFiles, okFiles, errorFiles, ferragensFiles, autoFixedFiles, lastActivity } = useMemo(() => ({
+    totalFiles: rows.length,
+    okFiles: rows.filter(r => r.status === "OK").length,
+    errorFiles: rows.filter(r => r.status === "ERRO").length,
+    ferragensFiles: rows.filter(r => r.status === "FERRAGENS-ONLY" || (r.tags || []).includes("ferragens")).length,
+    autoFixedFiles: rows.filter(r => (r.autoFixes || []).length > 0).length,
+    lastActivity: rows[0]?.timestamp ?? "--:--",
+  }), [rows]);
 
   // ---- UI ----
   return (
@@ -771,7 +824,7 @@ export default function Dashboard() {
             return (
               <button
                 key={k.key}
-                onClick={() => setFilter(k.key)}
+                onClick={() => { setFilter(k.key); setCurrentPage(1); }}
                 className={`group text-left bg-[#1B1B1B] border rounded-xl p-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
                   ? "border-opacity-100 shadow-[0_0_20px_rgba(0,0,0,0.4)]"
                   : "border-[#2C2C2C] hover:border-white/20 hover:-translate-y-1"
@@ -810,7 +863,7 @@ export default function Dashboard() {
               <Input
                 placeholder="Buscar arquivo..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 className="pl-9 w-80 bg-[#161616] border-[#2C2C2C] text-sm focus:border-[#3498DB] focus:ring-1 focus:ring-[#3498DB]/20 transition-all"
               />
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#A7A7A7] group-focus-within:text-[#3498DB] transition-colors" />
@@ -819,8 +872,21 @@ export default function Dashboard() {
               <Calendar className="h-3.5 w-3.5" /> <span className="text-xs font-medium">Últimas 24h</span>
             </div>
           </div>
-          <div className="text-[11px] uppercase tracking-wider font-bold text-[#666] bg-[#161616] px-3 py-1 rounded-full border border-[#232323]">
-            Mostrando <span className="text-white">{filtered.length}</span> de <span className="text-white">{rows.length}</span> arquivos
+          <div className="flex items-center gap-3">
+            {bulkMoveEligible.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmBulkMoveOpen(true)}
+                className="gap-2 border-emerald-700 hover:bg-emerald-900/20 text-emerald-400 text-[11px] h-7"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Enviar 'PROBLEMA NA GERAÇÃO DE MÁQUINAS' para OK? ({bulkMoveEligible.length})
+              </Button>
+            )}
+            <div className="text-[11px] uppercase tracking-wider font-bold text-[#666] bg-[#161616] px-3 py-1 rounded-full border border-[#232323]">
+              Mostrando <span className="text-white">{filtered.length}</span> de <span className="text-white">{rows.length}</span> arquivos
+            </div>
           </div>
         </div>
 
@@ -840,7 +906,7 @@ export default function Dashboard() {
             </TableHeader>
 
             <TableBody>
-              {filtered.map((file) => {
+              {paginatedData.map((file) => {
                 const autoFixed = (file.autoFixes || []).length > 0;
                 return (
                   <TableRow key={file.fullpath} className="border-[#232323] hover:bg-white/[0.02] transition-colors group/row">
@@ -948,6 +1014,32 @@ export default function Dashboard() {
             </TableBody>
           </Table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 text-sm text-[#A7A7A7]">
+            <div>Página {currentPage} de {totalPages}</div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-[#A7A7A7] disabled:opacity-50"
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-[#A7A7A7] disabled:opacity-50"
+              >
+                Próxima
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Drawer de detalhes */}
@@ -991,6 +1083,26 @@ export default function Dashboard() {
               className="bg-rose-600 text-white hover:bg-rose-500"
             >
               Sim, excluir
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmBulkMoveOpen} onOpenChange={setConfirmBulkMoveOpen}>
+        <AlertDialogContent className="bg-[#1a1a1a] border border-emerald-500/30">
+          <AlertDialogTitle className="text-white">Enviar Erros de Máquinas para OK</AlertDialogTitle>
+          <AlertDialogDescription className="text-zinc-300">
+            Deseja mover <strong className="text-white">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-white">apenas</strong> o erro "PROBLEMA NA GERAÇÃO DE MÁQUINAS" para a pasta OK?
+            <br /><br />
+            <span className="text-zinc-500 text-xs">Arquivos com outros erros além desse não serão movidos.</span>
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end mt-4">
+            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeBulkMoveToOk}
+              className="bg-emerald-600 text-white hover:bg-emerald-500"
+            >
+              Sim, enviar para OK
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

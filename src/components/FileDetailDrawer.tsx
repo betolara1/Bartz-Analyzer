@@ -36,7 +36,7 @@ type Row = {
   };
 };
 
-export default function FileDetailDrawer({
+function FileDetailDrawer({
   open,
   onOpenChange,
   data,
@@ -1613,3 +1613,5 @@ function formatTag(tag: string) {
   if (t === "duplado37mm" || t === "duplado 37mm") return "DUPLADO 37MM";
   return t.toUpperCase();
 }
+
+export default React.memo(FileDetailDrawer);
