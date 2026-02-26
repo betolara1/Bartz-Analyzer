@@ -755,8 +755,8 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
 
           if (match) {
             allResults.push({
-              code: cols[0].trim(),
-              description: cols[1].trim()
+              code: (cols[0] || '').trim(),
+              description: (cols[1] || '').trim()
             });
           }
         }
@@ -800,11 +800,15 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
             erpResults = erpResults.filter(item => {
               const itemCode = (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString();
 
-              // Se um tipo específico foi selecionado
+              // 1. Filtrar por formato rigoroso: apenas xx.xx.xxxx (exatamente 2 pontos)
+              const dotCount = (itemCode.match(/\./g) || []).length;
+              if (dotCount !== 2) return false;
+
+              // 2. Se um tipo específico foi selecionado
               if (type && typePrefixes[type]) {
                 return itemCode.startsWith(typePrefixes[type]);
               }
-              // Se "TODOS" (vazio)
+              // 3. Se "TODOS" (vazio)
               return allowedPrefixes.some(p => itemCode.startsWith(p));
             });
 
