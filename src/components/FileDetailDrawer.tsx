@@ -61,6 +61,7 @@ function FileDetailDrawer({
   const [orderInfoOpen, setOrderInfoOpen] = React.useState(false);
   const [specialItemsOpen, setSpecialItemsOpen] = React.useState(false);
   const [muxarabiOpen, setMuxarabiOpen] = React.useState(false);
+  const [errorsOpen, setErrorsOpen] = React.useState(true);
 
   // Estados para diálogos de confirmação
   const [confirmCoringaOpen, setConfirmCoringaOpen] = React.useState(false);
@@ -503,40 +504,56 @@ function FileDetailDrawer({
           <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#161616]">
             {/* ERROS */}
             {(data?.errors?.length ?? 0) > 0 && (
-              <section className="rounded-xl border border-rose-500/20 bg-rose-500/5 overflow-hidden shadow-[0_4px_20px_rgba(244,63,94,0.05)]">
-                <div className="px-4 py-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-300 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    Inconformidades Detectadas
+              <section className="rounded-xl border border-rose-500/20 bg-rose-500/5 overflow-hidden shadow-[0_4px_20px_rgba(244,63,94,0.05)] transition-all duration-300">
+                <div
+                  className="px-5 py-4 flex items-center justify-between cursor-pointer group"
+                  onClick={() => setErrorsOpen(!errorsOpen)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-tight leading-none">Inconformidades Detectadas</h3>
+                      <p className="text-[10px] text-rose-300/60 font-medium uppercase tracking-widest mt-1">
+                        {data?.errors?.length} pendência(s) crítica(s)
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant="outline" className="bg-rose-500 text-white border-none text-[10px] h-5 px-2">
-                    {data?.errors?.length}
-                  </Badge>
+                  <div className="flex items-center gap-4">
+                    <div className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] animate-pulse" />
+                    <div className={`p-2 rounded-full bg-rose-500/5 border border-rose-500/10 transition-transform duration-300 ${errorsOpen ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="h-4 w-4 text-rose-400/50" />
+                    </div>
+                  </div>
                 </div>
-                <ul className="divide-y divide-rose-500/10">
-                  {data!.errors!.map((e, i) => {
-                    const isMachineError = (e || "").toString().toUpperCase().includes("PROBLEMA NA GERAÇÃO DE MÁQUINAS");
-                    return (
-                      <li key={i} className="px-5 py-3 group hover:bg-rose-500/5 transition-colors">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-start gap-3">
-                            <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
-                            <span className="text-rose-100/90 text-sm leading-relaxed">{e}</span>
+
+                {errorsOpen && (
+                  <ul className="divide-y divide-rose-500/10 border-t border-rose-500/10">
+                    {data!.errors!.map((e, i) => {
+                      const isMachineError = (e || "").toString().toUpperCase().includes("PROBLEMA NA GERAÇÃO DE MÁQUINAS");
+                      return (
+                        <li key={i} className="px-5 py-3 group hover:bg-rose-500/5 transition-colors">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
+                              <span className="text-rose-100/90 text-sm leading-relaxed">{e}</span>
+                            </div>
+                            {isMachineError && data?.errors?.length === 1 && data?.status !== 'OK' && (
+                              <button
+                                onClick={handleMoveToOk}
+                                className="shrink-0 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg hover:shadow-rose-900/40 active:scale-95"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                Mover para OK
+                              </button>
+                            )}
                           </div>
-                          {isMachineError && data?.errors?.length === 1 && data?.status !== 'OK' && (
-                            <button
-                              onClick={handleMoveToOk}
-                              className="shrink-0 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg hover:shadow-rose-900/40 active:scale-95 transition-all"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              Mover para OK
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </section>
             )}
 
