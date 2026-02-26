@@ -126,10 +126,6 @@ export default function Dashboard() {
     enableAutoFix: true,
   });
   const pickFolderOptions = ["entrada", "exportacao", "ok", "erro", "logsErrors", "logsProcessed", "drawings"] as const;
-  const [probe, setProbe] = useState<any>({});
-
-  // resultado de teste (todos)
-  const [testResults, setTestResults] = useState<Record<string, boolean | null>>({});
 
   // drawer de detalhes
   const [detailOpen, setDetailOpen] = useState(false);
@@ -305,28 +301,8 @@ export default function Dashboard() {
     } catch { }
   }
 
-  // testar acesso de TODOS os paths
-  async function testAllAccess() {
-    try {
-      setTestResults({ entrada: null, exportacao: null, ok: null, erro: null, logsErrors: null, logsProcessed: null, drawings: null });
 
-      const res = await (window as any).electron?.settings?.testPaths?.(cfg);
-      setProbe(res || {});
-      setTestResults({
-        entrada: !!res?.entrada?.write,
-        exportacao: !!res?.exportacao?.write,
-        ok: !!res?.ok?.write,
-        erro: !!res?.erro?.write,
-        logsErrors: !!res?.logsErrors?.write,
-        logsProcessed: !!res?.logsProcessed?.write,
-        drawings: !!res?.drawings?.write,
-      });
-    } catch {
-      setTestResults({ entrada: false, exportacao: false, ok: false, erro: false, logsErrors: false, logsProcessed: false, drawings: false });
-    }
-  }
-
-  async function savePaths() { await (window as any).electron?.settings?.save?.(cfg); await testAllAccess(); }
+  async function savePaths() { await (window as any).electron?.settings?.save?.(cfg); }
   async function start() {
     const ok = await (window as any).electron?.analyzer?.start?.(cfg);
     if (!ok) toast.error("Confira os caminhos e permissões.");
@@ -586,8 +562,6 @@ export default function Dashboard() {
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
-                    {testResults["entrada"] === true && <p className="text-[#27AE60] text-[10px] flex items-center gap-1"><Check className="h-3 w-3" /> acesso confirmado</p>}
-                    {testResults["entrada"] === false && <p className="text-[#E74C3C] text-[10px] flex items-center gap-1"><XCircle className="h-3 w-3" /> erro / sem acesso</p>}
                   </div>
 
                   {/* EXPORTACAO */}
@@ -609,8 +583,6 @@ export default function Dashboard() {
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
-                    {testResults["exportacao"] === true && <p className="text-[#27AE60] text-[10px] flex items-center gap-1"><Check className="h-3 w-3" /> acesso confirmado</p>}
-                    {testResults["exportacao"] === false && <p className="text-[#E74C3C] text-[10px] flex items-center gap-1"><XCircle className="h-3 w-3" /> erro / sem acesso</p>}
                   </div>
                 </div>
               </div>
@@ -718,9 +690,6 @@ export default function Dashboard() {
 
             <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={testAllAccess} className="gap-2 border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-xs h-9">
-                  <RefreshCw className="h-3.5 w-3.5" /> Testar acesso
-                </Button>
                 <Button variant="outline" onClick={savePaths} className="gap-2 border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-xs h-9">
                   <Save className="h-3.5 w-3.5" /> Salvar padrão
                 </Button>

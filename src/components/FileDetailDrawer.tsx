@@ -66,6 +66,7 @@ function FileDetailDrawer({
   const [confirmCoringaOpen, setConfirmCoringaOpen] = React.useState(false);
   const [confirmCgOpen, setConfirmCgOpen] = React.useState(false);
   const [confirmRefOpen, setConfirmRefOpen] = React.useState(false);
+  const [confirmMoveOpen, setConfirmMoveOpen] = React.useState(false);
 
   // --- helpers locais ---
   const truncateText = (s: string, max = 4000) =>
@@ -93,14 +94,9 @@ function FileDetailDrawer({
   }, [data]);
 
 
-  // detect if any coringa matches contain CG1 or CG2
-  // detect if any coringa matches contain CG1 or CG2
-  const hasCG1 = React.useMemo(() => {
-    return !!((data?.meta?.coringaMatches || []) as string[]).find(m => /cg1/i.test(String(m)));
-  }, [data]);
-  const hasCG2 = React.useMemo(() => {
-    return !!((data?.meta?.coringaMatches || []) as string[]).find(m => /cg2/i.test(String(m)));
-  }, [data]);
+  // detect if any coringa matches contain CG1 or CG2 (now using persistent meta from backend)
+  const hasCG1 = !!data?.meta?.cg1_detected;
+  const hasCG2 = !!data?.meta?.cg2_detected;
   const [cg1Replace, setCg1Replace] = React.useState('');
   const [cg2Replace, setCg2Replace] = React.useState('');
   const [refFillValue, setRefFillValue] = React.useState('');
@@ -527,7 +523,7 @@ function FileDetailDrawer({
                             <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
                             <span className="text-rose-100/90 text-sm leading-relaxed">{e}</span>
                           </div>
-                          {isMachineError && data?.errors?.length === 1 && (
+                          {isMachineError && data?.errors?.length === 1 && data?.status !== 'OK' && (
                             <button
                               onClick={handleMoveToOk}
                               className="shrink-0 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg hover:shadow-rose-900/40 active:scale-95 transition-all"
@@ -710,7 +706,14 @@ function FileDetailDrawer({
                               </div>
                             )}
                             <div className="text-sm text-white/90 leading-relaxed font-medium">
-                              {c.txt_comentario || "Nenhum comentário registrado."}
+                              {(c.txt_comentario || "Nenhum comentário registrado.")
+                                .split(/<br\s*\/?>/gi)
+                                .map((line: string, idx: number) => (
+                                  <React.Fragment key={idx}>
+                                    {line}
+                                    {idx < (c.txt_comentario || "").split(/<br\s*\/?>/gi).length - 1 && <br />}
+                                  </React.Fragment>
+                                ))}
                             </div>
                           </div>
                         ))}
@@ -1060,52 +1063,61 @@ function FileDetailDrawer({
             {/* Redundant check removed */}
 
             {/* MOVER PARA OK - Sempre visível se houver desenhos, com aviso se não estiver 100% */}
-            {uniqueDrawings.length > 0 && (
-              (() => {
-                const allOk = uniqueDrawings.every(d => {
-                  const info = dxfResults[d]?.data;
-                  if (!info) return false;
-                  const isPanel18 = Math.abs(parseFloat(info.panelInfo?.dimension || '0')) === 18;
-                  const noFresa37 = (info.fresaInfo?.count37 || 0) === 0;
-                  const noUsinagem37 = (info.fresaInfo?.usinagemCount37 || 0) === 0;
-                  return isPanel18 && noFresa37 && noUsinagem37;
-                });
+            {uniqueDrawings.length > 0 &&
+              data?.status !== 'OK' &&
+              !(Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) &&
+              !hasCG1 && !hasCG2 && (
+                (() => {
+                  const allOk = uniqueDrawings.every(d => {
+                    const info = dxfResults[d]?.data;
+                    if (!info) return false;
+                    const isPanel18 = Math.abs(parseFloat(info.panelInfo?.dimension || '0')) === 18;
+                    const noFresa37 = (info.fresaInfo?.count37 || 0) === 0;
+                    const noUsinagem37 = (info.fresaInfo?.usinagemCount37 || 0) === 0;
+                    return isPanel18 && noFresa37 && noUsinagem37;
+                  });
 
-                return (
-                  <div className={`mt-6 pt-6 border-t ${allOk ? 'border-emerald-500/20' : 'border-amber-500/20'} flex items-center justify-between bg-black/20 -mx-5 px-5 py-4 rounded-b-xl`}>
-                    <div className="flex items-center gap-2">
-                      {allOk ? (
-                        <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                          <Check className="h-4 w-4 text-emerald-500" />
+                  return (
+                    <div className={`mt-6 pt-6 border-t ${allOk ? 'border-emerald-500/20' : 'border-amber-500/20'} flex items-center justify-between bg-black/20 -mx-5 px-5 py-4 rounded-b-xl`}>
+                      <div className="flex items-center gap-2">
+                        {allOk ? (
+                          <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                            <Check className="h-4 w-4 text-emerald-500" />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          </div>
+                        )}
+                        <div className="flex flex-col">
+                          <span className={`text-[11px] font-bold uppercase tracking-widest ${allOk ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {allOk ? 'Validação Concluída' : 'Atenção Necessária'}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 font-medium">
+                            {allOk ? 'Todos os desenhos estão em conformidade.' : 'Alguns desenhos requerem correção DXF.'}
+                          </span>
                         </div>
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                          <AlertTriangle className="h-4 w-4 text-amber-500" />
-                        </div>
-                      )}
-                      <div className="flex flex-col">
-                        <span className={`text-[11px] font-bold uppercase tracking-widest ${allOk ? 'text-emerald-400' : 'text-amber-400'}`}>
-                          {allOk ? 'Validação Concluída' : 'Atenção Necessária'}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 font-medium">
-                          {allOk ? 'Todos os desenhos estão em conformidade.' : 'Alguns desenhos requerem correção DXF.'}
-                        </span>
                       </div>
+                      <button
+                        onClick={() => {
+                          if (allOk) {
+                            handleMoveToOk();
+                          } else {
+                            setConfirmMoveOpen(true);
+                          }
+                        }}
+                        className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 active:scale-95 ${allOk
+                          ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
+                          : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/20'
+                          }`}
+                      >
+                        Mover para OK
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={handleMoveToOk}
-                      className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 active:scale-95 ${allOk
-                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
-                        : 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/20'
-                        }`}
-                    >
-                      Mover para OK
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                );
-              })()
-            )}
+                  );
+                })()
+              )}
 
             {/* ERP SEARCH PANEL - visible if Coringa detected OR item without code */}
             {
@@ -1240,52 +1252,64 @@ function FileDetailDrawer({
 
             {/* COR CORINGA - quick replace UI */}
             {
-              Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) && (
+              (Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) || hasCG1 || hasCG2) && (
                 <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden shadow-[0_4px_20px_rgba(245,158,11,0.1)]">
                   <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4" />
                     Cor Coringa Detectada
                   </div>
                   <div className="p-5 space-y-4">
-                    <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-500/10 text-[11px] text-amber-200/70 leading-relaxed">
-                      Sigla genérica identificada no XML. Escolha a sigla original e o novo código para substituição definitiva.
-                    </div>
+                    {/* Only show color replacement if there are matches left */}
+                    {Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0 ? (
+                      <>
+                        <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-500/10 text-[11px] text-amber-200/70 leading-relaxed">
+                          Sigla genérica identificada no XML. Escolha a sigla original e o novo código para substituição definitiva.
+                        </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Sigla Encontrada</label>
-                        <select
-                          value={coringaFrom ?? ""}
-                          disabled={!!lastReplace}
-                          onChange={(e) => setCoringaFrom(e.target.value)}
-                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold"
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Sigla Encontrada</label>
+                            <select
+                              value={coringaFrom ?? ""}
+                              disabled={!!lastReplace}
+                              onChange={(e) => setCoringaFrom(e.target.value)}
+                              className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold"
+                            >
+                              {filteredCoringaMatches.map((m, i) => (
+                                <option key={i} value={m}>{m}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
+                            <input
+                              placeholder="Digite o código..."
+                              value={coringaTo}
+                              disabled={!!lastReplace}
+                              onChange={(e) => setCoringaTo(e.target.value)}
+                              className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={!coringaFrom || !coringaTo || isReplacing || !!lastReplace}
+                          onClick={() => setConfirmCoringaOpen(true)}
+                          className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
                         >
-                          {filteredCoringaMatches.map((m, i) => (
-                            <option key={i} value={m}>{m}</option>
-                          ))}
-                        </select>
+                          {isReplacing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                          Aplicar Substituição de Cor
+                        </button>
+                      </>
+                    ) : (
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
+                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                        <div className="text-[11px] text-emerald-200">
+                          Substituições de cores individuais concluídas. <span className="font-bold">Pendência: Troca de Siglas (Lote) abaixo.</span>
+                        </div>
                       </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
-                        <input
-                          placeholder="Digite o código..."
-                          value={coringaTo}
-                          disabled={!!lastReplace}
-                          onChange={(e) => setCoringaTo(e.target.value)}
-                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      disabled={!coringaFrom || !coringaTo || isReplacing || !!lastReplace}
-                      onClick={() => setConfirmCoringaOpen(true)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
-                    >
-                      {isReplacing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Aplicar Substituição de Cor
-                    </button>
+                    )}
 
                     {/* CG1 / CG2 bulk replace UI */}
                     {(hasCG1 || hasCG2) && (
@@ -1590,6 +1614,29 @@ function FileDetailDrawer({
                     className="bg-rose-500 text-black hover:bg-rose-600"
                   >
                     Confirmar
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* CONFIRMAÇÃO - Mover para OK com pendências DXF */}
+            <AlertDialog open={confirmMoveOpen} onOpenChange={setConfirmMoveOpen}>
+              <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
+                <AlertDialogTitle className="text-white">Ainda há desenhos duplados. Gostaria de mover para ok?</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-300 text-sm">
+                  Existem pendências de correção DXF identificadas nestes itens duplados (ES08).
+                  Se você mover agora, as correções automáticas não serão aplicadas.
+                </AlertDialogDescription>
+                <div className="flex gap-2 justify-end">
+                  <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      setConfirmMoveOpen(false);
+                      handleMoveToOk();
+                    }}
+                    className="bg-amber-500 text-black hover:bg-amber-600"
+                  >
+                    Confirmar e Mover
                   </AlertDialogAction>
                 </div>
               </AlertDialogContent>

@@ -38,7 +38,6 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     drawings: "",
   });
 
-  const [test, setTest] = useState<Record<string, { ok: boolean; exists: boolean; write: boolean }>>({});
 
   useEffect(() => {
     (async () => {
@@ -56,20 +55,6 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     alert("Configurações salvas!");
   }
 
-  async function handleTestar() {
-    const r = await window.api?.testAccess(form);
-    setTest(r || {});
-  }
-
-  const Badge = ({ ok, exists, write }: { ok?: boolean; exists?: boolean; write?: boolean }) => (
-    <div className="text-xs opacity-80">
-      <span className={`px-2 py-0.5 rounded ${ok ? 'bg-emerald-900 text-emerald-200' : 'bg-red-900 text-red-200'}`}>
-        {ok ? 'OK' : 'ERRO'}
-      </span>{" "}
-      <span className="ml-2">exist: {exists ? '✓' : '×'}</span>
-      <span className="ml-2">write: {write ? '✓' : '×'}</span>
-    </div>
-  );
 
   const Row = (props: { label: string; field: keyof Paths; placeholder?: string }) => (
     <div className="space-y-1">
@@ -81,7 +66,6 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
           placeholder={props.placeholder}
           className="bg-[#151515] border-[#2C2C2C] w-[680px]"
         />
-        <Badge {...(test[props.field] || {})} />
       </div>
     </div>
   );
@@ -105,7 +89,6 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
 
         <div className="flex gap-3 pt-2">
           <Button onClick={handleSalvar} className="bg-yellow-600 hover:bg-yellow-500">Salvar</Button>
-          <Button variant="outline" onClick={handleTestar}>Testar acesso</Button>
         </div>
       </div>
     </div>
