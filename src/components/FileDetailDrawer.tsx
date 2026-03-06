@@ -63,6 +63,8 @@ function FileDetailDrawer({
   const [specialItemsOpen, setSpecialItemsOpen] = React.useState(false);
   const [muxarabiOpen, setMuxarabiOpen] = React.useState(false);
   const [errorsOpen, setErrorsOpen] = React.useState(true);
+  const [erpSearchOpen, setErpSearchOpen] = React.useState(true);
+  const [coringaOpen, setCoringaOpen] = React.useState(true);
 
   // Estados para diálogos de confirmação
   const [confirmCoringaOpen, setConfirmCoringaOpen] = React.useState(false);
@@ -1138,130 +1140,154 @@ function FileDetailDrawer({
             {/* ERP SEARCH PANEL - visible if Coringa detected OR item without code */}
             {
               ((Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"))) && (
-                <section className="rounded-xl border border-blue-500/30 bg-blue-500/5 overflow-hidden shadow-[0_4px_20px_rgba(59,130,246,0.1)]">
-                  <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20 text-blue-300 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    Conexão Direta ERP: Busca de Produto
-                  </div>
-                  <div className="p-5 space-y-4">
-                    <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-500/10 text-[11px] text-blue-200/70 leading-relaxed">
-                      Pesquise códigos originais no servidor para preencher campos coringa ou referências vazias.
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Código do Produto</label>
-                        <input
-                          placeholder="Ex: 10.01.0001"
-                          value={erpSearchCode}
-                          onChange={(e) => {
-                            setErpSearchCode(e.target.value);
-                            if (e.target.value) {
-                              setErpSearchDesc('');
-                              setErpSearchType('');
-                            }
-                          }}
-                          disabled={!!erpSearchDesc || !!erpSearchType}
-                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all font-mono"
-                        />
+                <section className="rounded-xl border border-blue-500/30 bg-blue-500/5 overflow-hidden shadow-[0_4px_20px_rgba(59,130,246,0.1)] transition-all duration-300">
+                  <div
+                    className="px-5 py-4 flex items-center justify-between cursor-pointer group"
+                    onClick={() => setErpSearchOpen(!erpSearchOpen)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                        <Search className="h-4 w-4" />
                       </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white tracking-tight leading-none">Conexão Direta ERP: Busca de Produto</h3>
+                        <p className="text-[10px] text-blue-300/60 font-medium uppercase tracking-widest mt-1">
+                          Pesquisa no servidor por códigos originais
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] animate-pulse" />
+                      <div className={`p-2 rounded-full bg-blue-500/5 border border-blue-500/10 transition-transform duration-300 ${erpSearchOpen ? 'rotate-180' : ''}`}>
+                        <ChevronDown className="h-4 w-4 text-blue-400/50" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {erpSearchOpen && (
+                    <div className="p-5 space-y-4 border-t border-blue-500/10">
+                      <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-500/10 text-[11px] text-blue-200/70 leading-relaxed">
+                        Pesquise códigos originais no servidor para preencher campos coringa ou referências vazias.
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Código do Produto</label>
+                          <input
+                            placeholder="Ex: 10.01.0001"
+                            value={erpSearchCode}
+                            onChange={(e) => {
+                              setErpSearchCode(e.target.value);
+                              if (e.target.value) {
+                                setErpSearchDesc('');
+                                setErpSearchType('');
+                              }
+                            }}
+                            disabled={!!erpSearchDesc || !!erpSearchType}
+                            className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Tipo de Item</label>
+                          <select
+                            value={erpSearchType}
+                            onChange={(e) => {
+                              setErpSearchType(e.target.value);
+                              if (e.target.value) setErpSearchCode('');
+                            }}
+                            disabled={!!erpSearchCode}
+                            className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold"
+                          >
+                            <option value="">TODOS OS TIPOS</option>
+                            <option value="CHAPAS">CHAPAS</option>
+                            <option value="FITAS">FITAS</option>
+                            <option value="TAPAFURO">TAPAFURO</option>
+                            <option value="PAINEL">PAINEL</option>
+                          </select>
+                        </div>
+                      </div>
+
                       <div className="space-y-1.5">
-                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Tipo de Item</label>
-                        <select
-                          value={erpSearchType}
+                        <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Descrição (Cor, Acabamento, Espessura)</label>
+                        <input
+                          placeholder="Ex: BRANCO SUPREMO 18MM"
+                          value={erpSearchDesc}
                           onChange={(e) => {
-                            setErpSearchType(e.target.value);
+                            setErpSearchDesc(e.target.value);
                             if (e.target.value) setErpSearchCode('');
                           }}
                           disabled={!!erpSearchCode}
-                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold"
-                        >
-                          <option value="">TODOS OS TIPOS</option>
-                          <option value="CHAPAS">CHAPAS</option>
-                          <option value="FITAS">FITAS</option>
-                          <option value="TAPAFURO">TAPAFURO</option>
-                          <option value="PAINEL">PAINEL</option>
-                        </select>
+                          className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all"
+                        />
                       </div>
-                    </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Descrição (Cor, Acabamento, Espessura)</label>
-                      <input
-                        placeholder="Ex: BRANCO SUPREMO 18MM"
-                        value={erpSearchDesc}
-                        onChange={(e) => {
-                          setErpSearchDesc(e.target.value);
-                          if (e.target.value) setErpSearchCode('');
-                        }}
-                        disabled={!!erpSearchCode}
-                        className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all"
-                      />
-                    </div>
+                      <button
+                        disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
+                        onClick={handleErpSearch}
+                        className="w-full px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
+                      >
+                        {erpSearching ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            Acessando Servidor...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="h-4 w-4" />
+                            Executar Busca no ERP
+                          </>
+                        )}
+                      </button>
 
-                    <button
-                      disabled={erpSearching || (!erpSearchCode && !erpSearchDesc && !erpSearchType)}
-                      onClick={handleErpSearch}
-                      className="w-full px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
-                    >
-                      {erpSearching ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                          Acessando Servidor...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="h-4 w-4" />
-                          Executar Busca no ERP
-                        </>
-                      )}
-                    </button>
-
-                    {/* Resultados em Tabela Estilizada */}
-                    {erpSearchResults.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        <div className="rounded-lg border border-[#232323] bg-[#0a0a0a] overflow-hidden shadow-inner">
-                          <table className="w-full text-[10px]">
-                            <thead className="bg-[#1B1B1B] text-[#666] border-b border-[#232323]">
-                              <tr>
-                                <th className="text-left px-3 py-2 font-bold uppercase tracking-widest">Cod</th>
-                                <th className="text-left px-3 py-2 font-bold uppercase tracking-widest">Descrição detalhada</th>
-                                <th className="w-16"></th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#151515]">
-                              {erpSearchResults.map((prod, idx) => (
-                                <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
-                                  <td className="px-3 py-2 font-mono text-blue-400 font-bold">{prod.code}</td>
-                                  <td className="px-3 py-2 text-white/70 font-medium">{prod.description}</td>
-                                  <td className="px-3 py-2 text-right">
-                                    <button
-                                      onClick={() => {
-                                        if (Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) {
-                                          setCoringaTo(prod.code);
-                                        }
-                                        const showRefPanel = ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
-                                        if (showRefPanel) {
-                                          setRefFillValue(prod.code);
-                                        }
-                                        toast.success(`Código "${prod.code}" selecionado`, {
-                                          description: "O valor foi copiado para os campos de substituição abaixo.",
-                                          icon: <CheckCircle className="h-4 w-4 text-emerald-500" />
-                                        });
-                                      }}
-                                      className="p-1 px-2 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-[9px] font-bold uppercase tracking-tighter"
-                                    >
-                                      Copi
-                                    </button>
-                                  </td>
+                      {/* Resultados em Tabela Estilizada */}
+                      {erpSearchResults.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          <div className="rounded-lg border border-[#232323] bg-[#0a0a0a] overflow-hidden shadow-inner">
+                            <table className="w-full text-[10px]">
+                              <thead className="bg-[#1B1B1B] text-[#666] border-b border-[#232323]">
+                                <tr>
+                                  <th className="text-left px-3 py-2 font-bold uppercase tracking-widest">Cod</th>
+                                  <th className="text-left px-3 py-2 font-bold uppercase tracking-widest">Descrição detalhada</th>
+                                  <th className="w-16"></th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody className="divide-y divide-[#151515]">
+                                {erpSearchResults.map((prod, idx) => (
+                                  <tr key={idx} className="hover:bg-blue-500/5 transition-colors group">
+                                    <td className="px-3 py-2 font-mono text-blue-400 font-bold">{prod.code}</td>
+                                    <td className="px-3 py-2 text-white/70 font-medium">
+                                      {prod.description}
+                                      {prod.thickness && <span className="text-zinc-500 ml-1.5">- {prod.thickness} mm</span>}
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
+                                      <button
+                                        onClick={() => {
+                                          if (Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) {
+                                            setCoringaTo(prod.code);
+                                          }
+                                          const showRefPanel = ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
+                                          if (showRefPanel) {
+                                            setRefFillValue(prod.code);
+                                          }
+                                          toast.success(`Código "${prod.code}" selecionado`, {
+                                            description: "O valor foi copiado para os campos de substituição abaixo.",
+                                            icon: <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                          });
+                                        }}
+                                        className="p-1 px-2 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-[9px] font-bold uppercase tracking-tighter"
+                                      >
+                                        Copi
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </section>
               )
             }
@@ -1269,151 +1295,178 @@ function FileDetailDrawer({
             {/* COR CORINGA - quick replace UI */}
             {
               (Array.isArray(data?.meta?.coringaMatches) && (data!.meta!.coringaMatches!.length > 0) || hasCG1 || hasCG2) && (
-                <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden shadow-[0_4px_20px_rgba(245,158,11,0.1)]">
-                  <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    Cor Coringa Detectada
-                  </div>
-                  <div className="p-5 space-y-4">
-                    {/* Only show color replacement if there are matches left */}
-                    {Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0 ? (
-                      <>
-                        <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-500/10 text-[11px] text-amber-200/70 leading-relaxed">
-                          Sigla genérica identificada no XML. Escolha a sigla original e o novo código para substituição definitiva.
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Sigla Encontrada</label>
-                            <select
-                              value={coringaFrom ?? ""}
-                              disabled={!!lastReplace}
-                              onChange={(e) => setCoringaFrom(e.target.value)}
-                              className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold"
-                            >
-                              {filteredCoringaMatches.map((m, i) => (
-                                <option key={i} value={m}>{m}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
-                            <input
-                              placeholder="Digite o código..."
-                              value={coringaTo}
-                              disabled={!!lastReplace}
-                              onChange={(e) => setCoringaTo(e.target.value)}
-                              className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        <button
-                          disabled={!coringaFrom || !coringaTo || isReplacing || !!lastReplace}
-                          onClick={() => setConfirmCoringaOpen(true)}
-                          className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
-                        >
-                          {isReplacing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                          Aplicar Substituição de Cor
-                        </button>
-                      </>
-                    ) : (
-                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
-                        <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        <div className="text-[11px] text-emerald-200">
-                          Substituições de cores individuais concluídas. <span className="font-bold">Pendência: Troca de Siglas (Lote) abaixo.</span>
-                        </div>
+                <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden shadow-[0_4px_20px_rgba(245,158,11,0.1)] transition-all duration-300">
+                  <div
+                    className="px-5 py-4 flex items-center justify-between cursor-pointer group"
+                    onClick={() => setCoringaOpen(!coringaOpen)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                        <AlertTriangle className="h-4 w-4" />
                       </div>
-                    )}
-
-                    {/* CG1 / CG2 bulk replace UI */}
-                    {(hasCG1 || hasCG2) && (() => {
-                      const hasIndividualCoringas = Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0;
-                      return (
-                        <div className="mt-4 border-t border-amber-500/10 pt-4 space-y-4">
-                          <div className={`text-[10px] text-amber-300 font-bold uppercase tracking-wider text-center ${hasIndividualCoringas ? 'opacity-30' : 'opacity-60'}`}>
-                            Troca de Siglas Compartilhadas (Lote)
-                          </div>
-                          <div className={`grid gap-4 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'} ${hasIndividualCoringas ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                            {hasCG1 && (
-                              <div className="space-y-2">
-                                <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG1 →</label>
-                                <div className="flex gap-2">
-                                  <input
-                                    value={cg1Replace}
-                                    disabled={cg1Done || hasIndividualCoringas}
-                                    onChange={(e) => setCg1Replace(e.target.value)}
-                                    placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : "Ex: LA"}
-                                    className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
-                                  />
-                                  <button
-                                    disabled={!cg1Replace || cg1Done || hasIndividualCoringas}
-                                    onClick={async () => {
-                                      if (!data) return;
-                                      const id = toast.loading('Trocando CG1...');
-                                      try {
-                                        const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
-                                        if (res?.ok) {
-                                          toast.success('CG1 trocado com sucesso.');
-                                          if (onAction && data) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG1 para "${cg1Replace}"`);
-                                          setCg1Done(true);
-                                          await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
-                                        }
-                                      } catch (e: any) { toast.error(String(e?.message || e)); }
-                                      finally { toast.dismiss(id); }
-                                    }}
-                                    className="px-2 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                            {hasCG2 && (
-                              <div className="space-y-2">
-                                <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG2 →</label>
-                                <div className="flex gap-2">
-                                  <input
-                                    value={cg2Replace}
-                                    disabled={cg2Done || hasIndividualCoringas}
-                                    onChange={(e) => setCg2Replace(e.target.value)}
-                                    placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : "Ex: MO"}
-                                    className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
-                                  />
-                                  <button
-                                    disabled={!cg2Replace || cg2Done || hasIndividualCoringas}
-                                    onClick={async () => {
-                                      if (!data) return;
-                                      const id = toast.loading('Trocando CG2...');
-                                      try {
-                                        const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
-                                        if (res?.ok) {
-                                          toast.success('CG2 trocado com sucesso.');
-                                          if (onAction && data) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG2 para "${cg2Replace}"`);
-                                          setCg2Done(true);
-                                          await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
-                                        }
-                                      } catch (e: any) { toast.error(String(e?.message || e)); }
-                                      finally { toast.dismiss(id); }
-                                    }}
-                                    className="px-2 bg-amber-800/20 text-amber-700 border border-amber-800/30 rounded-lg hover:bg-amber-800 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          {hasIndividualCoringas && (
-                            <div className="text-[9px] text-amber-500/50 italic text-center animate-pulse">
-                              Aguardando a substituição de todas as cores individuais...
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
+                      <div>
+                        <h3 className="text-sm font-bold text-white tracking-tight leading-none">Cor Coringa Detectada</h3>
+                        <p className="text-[10px] text-amber-300/60 font-medium uppercase tracking-widest mt-1">
+                          Substituição de siglas genéricas identificadas
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />
+                      <div className={`p-2 rounded-full bg-amber-500/5 border border-amber-500/10 transition-transform duration-300 ${coringaOpen ? 'rotate-180' : ''}`}>
+                        <ChevronDown className="h-4 w-4 text-amber-400/50" />
+                      </div>
+                    </div>
                   </div>
+
+                  {coringaOpen && (
+                    <div className="p-5 space-y-4 border-t border-amber-500/10">
+                      {/* Only show color replacement if there are matches left */}
+                      {Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0 ? (
+                        <>
+                          <div className="p-3 bg-amber-900/20 rounded-lg border border-amber-500/10 text-[11px] text-amber-200/70 leading-relaxed">
+                            Sigla genérica identificada no XML. Escolha a sigla original e o novo código para substituição definitiva.
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Sigla Encontrada</label>
+                              <select
+                                value={coringaFrom ?? ""}
+                                disabled={!!lastReplace}
+                                onChange={(e) => setCoringaFrom(e.target.value)}
+                                className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold"
+                              >
+                                {filteredCoringaMatches.map((m, i) => (
+                                  <option key={i} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
+                              <input
+                                placeholder="Digite o código..."
+                                value={coringaTo}
+                                disabled={!!lastReplace}
+                                onChange={(e) => setCoringaTo(e.target.value)}
+                                className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            disabled={!coringaFrom || !coringaTo || isReplacing || !!lastReplace}
+                            onClick={() => setConfirmCoringaOpen(true)}
+                            className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-lg shadow-amber-900/20 flex items-center justify-center gap-2 active:scale-[0.98]"
+                          >
+                            {isReplacing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            Aplicar Substituição de Cor
+                          </button>
+                        </>
+                      ) : (
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
+                          <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          <div className="text-[11px] text-emerald-200">
+                            Substituições de cores individuais concluídas. <span className="font-bold">Pendência: Troca de Siglas (Lote) abaixo.</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CG1 / CG2 bulk replace UI */}
+                      {(hasCG1 || hasCG2) && (() => {
+                        const hasIndividualCoringas = Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0;
+                        return (
+                          <div className="mt-4 border-t border-amber-500/10 pt-4 space-y-4">
+                            <div className={`text-[10px] text-amber-300 font-bold uppercase tracking-wider text-center ${hasIndividualCoringas ? 'opacity-30' : 'opacity-60'}`}>
+                              Troca de Siglas Compartilhadas (Lote)
+                            </div>
+                            <div className={`grid gap-4 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'} ${hasIndividualCoringas ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                              {hasCG1 && (
+                                <div className="space-y-2">
+                                  <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG1 →</label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={cg1Replace}
+                                      disabled={cg1Done || hasIndividualCoringas}
+                                      onChange={(e) => {
+                                        const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+                                        setCg1Replace(val);
+                                      }}
+                                      placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : "Ex: LA"}
+                                      className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
+                                    />
+                                    <button
+                                      disabled={!cg1Replace || cg1Done || hasIndividualCoringas}
+                                      onClick={async () => {
+                                        if (!data) return;
+                                        const id = toast.loading('Trocando CG1...');
+                                        try {
+                                          const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
+                                          if (res?.ok) {
+                                            toast.success('CG1 trocado com sucesso.');
+                                            if (onAction && data) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG1 para "${cg1Replace}"`);
+                                            setCg1Done(true);
+                                            await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                          }
+                                        } catch (e: any) { toast.error(String(e?.message || e)); }
+                                        finally { toast.dismiss(id); }
+                                      }}
+                                      className="px-2 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              {hasCG2 && (
+                                <div className="space-y-2">
+                                  <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG2 →</label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={cg2Replace}
+                                      disabled={cg2Done || hasIndividualCoringas}
+                                      onChange={(e) => {
+                                        const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+                                        setCg2Replace(val);
+                                      }}
+                                      placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : "Ex: MO"}
+                                      className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
+                                    />
+                                    <button
+                                      disabled={!cg2Replace || cg2Done || hasIndividualCoringas}
+                                      onClick={async () => {
+                                        if (!data) return;
+                                        const id = toast.loading('Trocando CG2...');
+                                        try {
+                                          const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
+                                          if (res?.ok) {
+                                            toast.success('CG2 trocado com sucesso.');
+                                            if (onAction && data) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG2 para "${cg2Replace}"`);
+                                            setCg2Done(true);
+                                            await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                          }
+                                        } catch (e: any) { toast.error(String(e?.message || e)); }
+                                        finally { toast.dismiss(id); }
+                                      }}
+                                      className="px-2 bg-amber-800/20 text-amber-700 border border-amber-800/30 rounded-lg hover:bg-amber-800 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {hasIndividualCoringas && (
+                              <div className="text-[9px] text-amber-500/50 italic text-center animate-pulse">
+                                Aguardando a substituição de todas as cores individuais...
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </section>
               )
             }

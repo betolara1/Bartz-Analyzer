@@ -8,7 +8,7 @@ const fs = require("fs");
 const fsp = fs.promises;
 const chokidar = require("chokidar");
 const fse = require("fs-extra");
-const { validateXmlContent } = require("./src/lib/xml-logic.js");
+const { validateXmlContent } = require(path.join(__dirname, "src", "lib", "xml-logic.js"));
 
 let win = null;
 let watcher = null;
@@ -727,8 +727,8 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
     // 1. BUSCA EM CSV (Se type === 'PAINEL' ou 'TODOS')
     // ==========================================================
     if (type === 'PAINEL' || !type) {
-      console.log('[Analyzer] Buscando no CSV local (PAINEL.csv)...');
-      const csvPath = path.join(__dirname, 'csv', 'PAINEL.csv');
+      console.log('[Analyzer] Buscando no CSV de painéis (\\\\192.168.1.10\\Promob\\codigos_paineis.csv)...');
+      const csvPath = '\\\\192.168.1.10\\Promob\\codigos_paineis.csv';
 
       if (await fse.pathExists(csvPath)) {
         const content = await fsp.readFile(csvPath, 'utf8');
@@ -756,7 +756,8 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
           if (match) {
             allResults.push({
               code: (cols[0] || '').trim(),
-              description: (cols[1] || '').trim()
+              description: (cols[1] || '').trim(),
+              thickness: (cols[2] || '').trim()
             });
           }
         }
