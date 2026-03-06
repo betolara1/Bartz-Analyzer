@@ -101,8 +101,23 @@ function FileDetailDrawer({
   // detect if any coringa matches contain CG1 or CG2 (now using persistent meta from backend)
   const hasCG1 = !!data?.meta?.cg1_detected;
   const hasCG2 = !!data?.meta?.cg2_detected;
+  const hasCoringa1 = !!data?.meta?.coringa1_detected;
+  const hasCoringa2 = !!data?.meta?.coringa2_detected;
+
   const [cg1Replace, setCg1Replace] = React.useState('');
   const [cg2Replace, setCg2Replace] = React.useState('');
+
+  const [coringa1Acronym, setCoringa1Acronym] = React.useState('');
+  const [coringa2Acronym, setCoringa2Acronym] = React.useState('');
+  const [coringa1Options, setCoringa1Options] = React.useState<Array<{ code: string, description: string }>>([]);
+  const [coringa2Options, setCoringa2Options] = React.useState<Array<{ code: string, description: string }>>([]);
+  const [coringa1Selected, setCoringa1Selected] = React.useState('');
+  const [coringa2Selected, setCoringa2Selected] = React.useState('');
+  const [coringa1Searching, setCoringa1Searching] = React.useState(false);
+  const [coringa2Searching, setCoringa2Searching] = React.useState(false);
+  const [coringa1Done, setCoringa1Done] = React.useState(false);
+  const [coringa2Done, setCoringa2Done] = React.useState(false);
+
   const [refFillValue, setRefFillValue] = React.useState('');
   const [selectedRefSingle, setSelectedRefSingle] = React.useState<string | null>(null);
 
@@ -174,6 +189,17 @@ function FileDetailDrawer({
     setLastReplace(null);
     setCg1Done(false);
     setCg2Done(false);
+
+    setCoringa1Acronym('');
+    setCoringa2Acronym('');
+    setCoringa1Options([]);
+    setCoringa2Options([]);
+    setCoringa1Selected('');
+    setCoringa2Selected('');
+    setCoringa1Searching(false);
+    setCoringa2Searching(false);
+    setCoringa1Done(false);
+    setCoringa2Done(false);
 
     if (data?.filename) {
       // Tentar pegar os primeiros 5 dígitos (ex: 65946)
@@ -385,6 +411,36 @@ function FileDetailDrawer({
     } finally {
       setErpSearching(false);
       toast.dismiss(id);
+    }
+  }
+
+  // Função para buscar siglas de CORINGA1/2
+  async function handleCoringaSearch(acronym: string, type: 1 | 2) {
+    if (!acronym) return;
+    const is1 = type === 1;
+    if (is1) { setCoringa1Searching(true); setCoringa1Options([]); setCoringa1Selected(''); }
+    else { setCoringa2Searching(true); setCoringa2Options([]); setCoringa2Selected(''); }
+
+    const id = toast.loading(`Buscando cores para "${acronym}"...`);
+    try {
+      const result = await (window as any).electron?.analyzer?.searchErpProduct?.({
+        desc: acronym,
+        type: 'CORINGA'
+      });
+
+      if (result?.ok && result?.results && result.results.length > 0) {
+        if (is1) { setCoringa1Options(result.results); setCoringa1Selected(result.results[0].code); }
+        else { setCoringa2Options(result.results); setCoringa2Selected(result.results[0].code); }
+        toast.success(`Encontradas ${result.results.length} cores.`);
+      } else {
+        toast.warning(result?.message || 'Nenhuma cor encontrada.');
+      }
+    } catch (e: any) {
+      toast.error(`Erro ao buscar cores: ${String(e?.message || e)}`);
+    } finally {
+      toast.dismiss(id);
+      if (is1) setCoringa1Searching(false);
+      else setCoringa2Searching(false);
     }
   }
 
@@ -1373,31 +1429,172 @@ function FileDetailDrawer({
                         </div>
                       )}
 
-                      {/* CG1 / CG2 bulk replace UI */}
-                      {(hasCG1 || hasCG2) && (() => {
+                      {/* CORINGA1 / CORINGA2 bulk replace UI */}
+                      {(hasCoringa1 || hasCoringa2) && (() => {
                         const hasIndividualCoringas = Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0;
                         return (
                           <div className="mt-4 border-t border-amber-500/10 pt-4 space-y-4">
                             <div className={`text-[10px] text-amber-300 font-bold uppercase tracking-wider text-center ${hasIndividualCoringas ? 'opacity-30' : 'opacity-60'}`}>
+                              Troca de CORINGA1 / CORINGA2
+                            </div>
+                            <div className={`grid gap-4 ${hasCoringa1 && hasCoringa2 ? 'grid-cols-2' : 'grid-cols-1'} ${hasIndividualCoringas ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                              {hasCoringa1 && (
+                                <div className="space-y-2">
+                                  <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CORINGA 1</label>
+                                  <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                      <input
+                                        value={coringa1Acronym}
+                                        disabled={coringa1Done || hasIndividualCoringas}
+                                        onChange={(e) => setCoringa1Acronym(e.target.value.toUpperCase())}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleCoringaSearch(coringa1Acronym, 1); }}
+                                        placeholder="Cor (Ex: BR)"
+                                        className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
+                                      />
+                                      <button
+                                        onClick={() => handleCoringaSearch(coringa1Acronym, 1)}
+                                        disabled={!coringa1Acronym || coringa1Searching || coringa1Done || hasIndividualCoringas}
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-amber-500 disabled:opacity-50"
+                                      >
+                                        <Search className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                    <div className="flex-1 min-w-[150px]">
+                                      <select
+                                        value={coringa1Selected}
+                                        onChange={(e) => setCoringa1Selected(e.target.value)}
+                                        disabled={coringa1Options.length === 0 || coringa1Done || hasIndividualCoringas}
+                                        className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none disabled:opacity-50 transition-all font-mono"
+                                      >
+                                        <option value="">Selecione a cor...</option>
+                                        {coringa1Options.map((opt, i) => (
+                                          <option key={i} value={opt.code}>{opt.description}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <button
+                                      disabled={!coringa1Selected || coringa1Done || hasIndividualCoringas}
+                                      onClick={async () => {
+                                        if (!data || !coringa1Selected) return;
+                                        const id = toast.loading('Aplicando CORINGA1...');
+                                        try {
+                                          const opt = coringa1Options.find(o => o.code === coringa1Selected);
+                                          const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA1': coringa1Selected });
+                                          if (res?.ok) {
+                                            toast.success('CORINGA1 substituído com sucesso.');
+                                            if (onAction && data) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA1 por "${coringa1Selected}" (${opt?.description})`);
+                                            setCoringa1Done(true);
+                                            await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                          }
+                                        } catch (e: any) { toast.error(String(e?.message || e)); }
+                                        finally { toast.dismiss(id); }
+                                      }}
+                                      className="px-2 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {hasCoringa2 && (
+                                <div className="space-y-2">
+                                  <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CORINGA 2</label>
+                                  <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                      <input
+                                        value={coringa2Acronym}
+                                        disabled={coringa2Done || hasIndividualCoringas}
+                                        onChange={(e) => setCoringa2Acronym(e.target.value.toUpperCase())}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleCoringaSearch(coringa2Acronym, 2); }}
+                                        placeholder="Cor (Ex: BR)"
+                                        className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
+                                      />
+                                      <button
+                                        onClick={() => handleCoringaSearch(coringa2Acronym, 2)}
+                                        disabled={!coringa2Acronym || coringa2Searching || coringa2Done || hasIndividualCoringas}
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-amber-500 disabled:opacity-50"
+                                      >
+                                        <Search className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                    <div className="flex-1 min-w-[150px]">
+                                      <select
+                                        value={coringa2Selected}
+                                        onChange={(e) => setCoringa2Selected(e.target.value)}
+                                        disabled={coringa2Options.length === 0 || coringa2Done || hasIndividualCoringas}
+                                        className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none disabled:opacity-50 transition-all font-mono"
+                                      >
+                                        <option value="">Selecione a cor...</option>
+                                        {coringa2Options.map((opt, i) => (
+                                          <option key={i} value={opt.code}>{opt.description}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <button
+                                      disabled={!coringa2Selected || coringa2Done || hasIndividualCoringas}
+                                      onClick={async () => {
+                                        if (!data || !coringa2Selected) return;
+                                        const id = toast.loading('Aplicando CORINGA2...');
+                                        try {
+                                          const opt = coringa2Options.find(o => o.code === coringa2Selected);
+                                          const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA2': coringa2Selected });
+                                          if (res?.ok) {
+                                            toast.success('CORINGA2 substituído com sucesso.');
+                                            if (onAction && data) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA2 por "${coringa2Selected}" (${opt?.description})`);
+                                            setCoringa2Done(true);
+                                            await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+                                          }
+                                        } catch (e: any) { toast.error(String(e?.message || e)); }
+                                        finally { toast.dismiss(id); }
+                                      }}
+                                      className="px-2 bg-amber-800/20 text-amber-700 border border-amber-800/30 rounded-lg hover:bg-amber-800 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {hasIndividualCoringas && (
+                              <div className="text-[9px] text-amber-500/50 italic text-center animate-pulse">
+                                Aguardando a substituição de todas as cores individuais...
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* CG1 / CG2 bulk replace UI */}
+                      {(hasCG1 || hasCG2) && (() => {
+                        const hasIndividualCoringas = Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0;
+                        const pendingCoringa1 = hasCoringa1 && !coringa1Done;
+                        const pendingCoringa2 = hasCoringa2 && !coringa2Done;
+                        const hasPendingCoringas = pendingCoringa1 || pendingCoringa2;
+
+                        return (
+                          <div className={`mt-4 border-t border-amber-500/10 pt-4 space-y-4 ${hasPendingCoringas ? 'opacity-50' : ''}`}>
+                            <div className={`text-[10px] text-amber-300 font-bold uppercase tracking-wider text-center ${hasIndividualCoringas || hasPendingCoringas ? 'opacity-30' : 'opacity-60'}`}>
                               Troca de Siglas Compartilhadas (Lote)
                             </div>
-                            <div className={`grid gap-4 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'} ${hasIndividualCoringas ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            <div className={`grid gap-4 ${hasCG1 && hasCG2 ? 'grid-cols-2' : 'grid-cols-1'} ${hasIndividualCoringas || hasPendingCoringas ? 'cursor-not-allowed' : ''}`}>
                               {hasCG1 && (
                                 <div className="space-y-2">
                                   <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">CG1 →</label>
                                   <div className="flex gap-2">
                                     <input
                                       value={cg1Replace}
-                                      disabled={cg1Done || hasIndividualCoringas}
+                                      disabled={cg1Done || hasIndividualCoringas || hasPendingCoringas}
                                       onChange={(e) => {
                                         const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
                                         setCg1Replace(val);
                                       }}
-                                      placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : "Ex: LA"}
+                                      placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : hasPendingCoringas ? "Troque CORINGA1/2 primeiro" : "Ex: LA"}
                                       className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
                                     />
                                     <button
-                                      disabled={!cg1Replace || cg1Done || hasIndividualCoringas}
+                                      disabled={!cg1Replace || cg1Done || hasIndividualCoringas || hasPendingCoringas}
                                       onClick={async () => {
                                         if (!data) return;
                                         const id = toast.loading('Trocando CG1...');
@@ -1425,16 +1622,16 @@ function FileDetailDrawer({
                                   <div className="flex gap-2">
                                     <input
                                       value={cg2Replace}
-                                      disabled={cg2Done || hasIndividualCoringas}
+                                      disabled={cg2Done || hasIndividualCoringas || hasPendingCoringas}
                                       onChange={(e) => {
                                         const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
                                         setCg2Replace(val);
                                       }}
-                                      placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : "Ex: MO"}
+                                      placeholder={hasIndividualCoringas ? "Troque as cores acima primeiro" : hasPendingCoringas ? "Troque CORINGA1/2 primeiro" : "Ex: MO"}
                                       className="w-full bg-[#111] border border-[#2C2C2C] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono disabled:cursor-not-allowed"
                                     />
                                     <button
-                                      disabled={!cg2Replace || cg2Done || hasIndividualCoringas}
+                                      disabled={!cg2Replace || cg2Done || hasIndividualCoringas || hasPendingCoringas}
                                       onClick={async () => {
                                         if (!data) return;
                                         const id = toast.loading('Trocando CG2...');
@@ -1457,9 +1654,9 @@ function FileDetailDrawer({
                                 </div>
                               )}
                             </div>
-                            {hasIndividualCoringas && (
+                            {(hasIndividualCoringas || hasPendingCoringas) && (
                               <div className="text-[9px] text-amber-500/50 italic text-center animate-pulse">
-                                Aguardando a substituição de todas as cores individuais...
+                                Aguardando a substituição de todas as cores pendentes acima...
                               </div>
                             )}
                           </div>

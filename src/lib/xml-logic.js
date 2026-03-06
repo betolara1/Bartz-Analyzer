@@ -134,11 +134,16 @@ function validateXmlContent(txt, cfg = {}) {
 
         const hasCG1Global = /(?<![a-zA-Z0-9])CG1(?![a-zA-Z0-9])/i.test(txt);
         const hasCG2Global = /(?<![a-zA-Z0-9])CG2(?![a-zA-Z0-9])/i.test(txt);
-        if (hasCG1Global || hasCG2Global) {
+        const hasCoringa1Global = /(?<![a-zA-Z0-9])CORINGA1(?![a-zA-Z0-9])/i.test(txt);
+        const hasCoringa2Global = /(?<![a-zA-Z0-9])CORINGA2(?![a-zA-Z0-9])/i.test(txt);
+
+        if (hasCG1Global || hasCG2Global || hasCoringa1Global || hasCoringa2Global) {
             payload.erros.push({ descricao: "PENDENTE: TROCA DE SIGLAS (LOTE)" });
             payload.tags.push("coringa");
-            payload.meta.cg1_detected = hasCG1Global;
-            payload.meta.cg2_detected = hasCG2Global;
+            if (hasCG1Global) payload.meta.cg1_detected = true;
+            if (hasCG2Global) payload.meta.cg2_detected = true;
+            if (hasCoringa1Global) payload.meta.coringa1_detected = true;
+            if (hasCoringa2Global) payload.meta.coringa2_detected = true;
         }
     } catch (e) { }
 

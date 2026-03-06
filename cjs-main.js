@@ -724,9 +724,9 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
     let allResults = [];
 
     // ==========================================================
-    // 1. BUSCA EM CSV (Se type === 'PAINEL' ou 'TODOS')
+    // 1. BUSCA EM CSV (Se type === 'PAINEL', 'TODOS' ou 'CORINGA')
     // ==========================================================
-    if (type === 'PAINEL' || !type) {
+    if (type === 'PAINEL' || type === 'CORINGA' || !type) {
       console.log('[Analyzer] Buscando no CSV de painéis (\\\\192.168.1.10\\Promob\\codigos_paineis.csv)...');
       const csvPath = '\\\\192.168.1.10\\Promob\\codigos_paineis.csv';
 
@@ -743,8 +743,17 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
           const cols = lines[i].split(delimiter);
           if (cols.length < 2) continue;
           const rowCode = (cols[0] || '').trim().toUpperCase();
-          const rowDesc = (cols[1] || '').trim().toUpperCase();
+          const rawDesc = (cols[1] || '').trim().toUpperCase();
           const rowThickness = (cols[2] || '').trim().toUpperCase();
+
+          // Formatação especial para CORINGA: pegar apenas antes do primeiro hífen e remover espaços extras
+          let rowDescFormatted = rawDesc;
+          if (type === 'CORINGA') {
+            rowDescFormatted = rawDesc.split('-')[0]
+              .replace(/\b(MDF|MDP|1F|2F|BP|\d{1,2}MM)\b/gi, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
 
           let match = false;
           if (searchCode) {
@@ -754,7 +763,7 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
             match = searchTerms.every(term => {
               // Limpar "MM" do termo para comparar com a espessura (ex: "18MM" -> "18")
               const cleanTerm = term.replace(/MM$/i, '');
-              const inDesc = rowDesc.includes(term);
+              const inDesc = rawDesc.includes(term); // busca na original para garantir que acha (mesmo se o termo tiver "MDF")
               const inThickness = rowThickness && (rowThickness === term || rowThickness === cleanTerm);
               return inDesc || inThickness;
             });
@@ -765,18 +774,30 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
           if (match) {
             allResults.push({
               code: (cols[0] || '').trim(),
-              description: (cols[1] || '').trim(),
+              description: type === 'CORINGA' ? rowDescFormatted : rawDesc,
               thickness: (cols[2] || '').trim()
             });
           }
+        }
+
+        // Se for CORINGA, remover duplicatas baseadas na descrição
+        if (type === 'CORINGA') {
+          const uniqueMap = new Map();
+          for (const res of allResults) {
+            if (!uniqueMap.has(res.description)) {
+              // Quando salva no map, guarda o resultado inteiro
+              uniqueMap.set(res.description, res);
+            }
+          }
+          allResults = Array.from(uniqueMap.values());
         }
       }
     }
 
     // ==========================================================
-    // 2. BUSCA NO ERP (Sempre executa para buscar itens relacionados no banco)
+    // 2. BUSCA NO ERP (Sempre executa para buscar itens relacionados no banco, EXCETO para CORINGA e PAINEL)
     // ==========================================================
-    {
+    if (type !== 'CORINGA' && type !== 'PAINEL') {
       let url = '';
       const searchDesc = (desc || '').trim().toUpperCase();
       const codeTerm = (code || '').trim().toUpperCase();
