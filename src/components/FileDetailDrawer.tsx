@@ -125,7 +125,7 @@ function FileDetailDrawer({
   const [erpSearchCode, setErpSearchCode] = React.useState('');
   const [erpSearchDesc, setErpSearchDesc] = React.useState('');
   const [erpSearchType, setErpSearchType] = React.useState('');
-  const [erpSearchResults, setErpSearchResults] = React.useState<Array<{ code: string; description: string }>>([]);
+  const [erpSearchResults, setErpSearchResults] = React.useState<Array<{ code: string; description: string; thickness?: string }>>([]);
   const [erpSearching, setErpSearching] = React.useState(false);
 
   // Estados para busca de pedido (baseado nos primeiros 5 dígitos do filename)

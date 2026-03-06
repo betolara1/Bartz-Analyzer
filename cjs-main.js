@@ -737,20 +737,29 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
         const delimiter = header.includes(';') ? ';' : '\t';
         const searchCode = (code || '').trim().toUpperCase();
         const searchDesc = (desc || '').trim().toUpperCase();
+        const searchTerms = searchDesc.split(/\s+/).filter(t => t.length > 0);
 
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(delimiter);
           if (cols.length < 2) continue;
           const rowCode = (cols[0] || '').trim().toUpperCase();
           const rowDesc = (cols[1] || '').trim().toUpperCase();
+          const rowThickness = (cols[2] || '').trim().toUpperCase();
 
           let match = false;
           if (searchCode) {
             if (rowCode === searchCode || rowCode.startsWith(searchCode)) match = true;
-          } else if (searchDesc) {
-            if (rowDesc.includes(searchDesc)) match = true;
+          } else if (searchTerms.length > 0) {
+            // Cada termo da busca deve estar presente ou na descrição ou na espessura
+            match = searchTerms.every(term => {
+              // Limpar "MM" do termo para comparar com a espessura (ex: "18MM" -> "18")
+              const cleanTerm = term.replace(/MM$/i, '');
+              const inDesc = rowDesc.includes(term);
+              const inThickness = rowThickness && (rowThickness === term || rowThickness === cleanTerm);
+              return inDesc || inThickness;
+            });
           } else {
-            match = true;
+            match = true; // Se não houver termos, retorna tudo
           }
 
           if (match) {
@@ -765,19 +774,22 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
     }
 
     // ==========================================================
-    // 2. BUSCA NO ERP (Se type !== 'PAINEL')
+    // 2. BUSCA NO ERP (Sempre executa para buscar itens relacionados no banco)
     // ==========================================================
-    if (type !== 'PAINEL') {
+    {
       let url = '';
-      const searchTerm = (desc || '').trim().toUpperCase();
+      const searchDesc = (desc || '').trim().toUpperCase();
       const codeTerm = (code || '').trim().toUpperCase();
+      const searchTerms = searchDesc.split(/\s+/).filter(t => t.length > 0);
 
       if (codeTerm) {
         url = `http://192.168.1.10:8081/api/erp/search-code?q=${encodeURIComponent(codeTerm)}`;
-      } else if (searchTerm) {
-        url = `http://192.168.1.10:8081/api/erp/search-desc?q=${encodeURIComponent(searchTerm)}`;
+      } else if (searchDesc) {
+        // Enviar o termo mais longo para o banco para ser mais permissivo na query inicial
+        // e depois filtramos rigorosamente localmente com todos os termos.
+        const longestTerm = searchTerms.reduce((a, b) => a.length > b.length ? a : b, '');
+        url = `http://192.168.1.10:8081/api/erp/search-desc?q=${encodeURIComponent(longestTerm || searchDesc)}`;
       }
-      // Removida a busca automática apenas por prefixo (ex: 10.01.) pois causa timeout no servidor
 
       if (url) {
         console.log(`[ERP API] Solicitando: ${url}`);
@@ -797,20 +809,32 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
             const data = await response.json();
             let erpResults = Array.isArray(data) ? data : (data ? [data] : []);
 
-            // Filtragem rigorosa por prefixos
+            // Filtragem local inteligente
             erpResults = erpResults.filter(item => {
-              const itemCode = (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString();
+              const itemCode = (item.code || item.CODIGO || item.item_code || item.codeItem || item.refComercial || '').toString().toUpperCase();
+              const itemDesc = (item.description || item.DESCRICAO || item.item_description || item.descItem || item.nomeItem || item.descricao || '').toString().toUpperCase();
 
               // 1. Filtrar por formato rigoroso: apenas xx.xx.xxxx (exatamente 2 pontos)
               const dotCount = (itemCode.match(/\./g) || []).length;
               if (dotCount !== 2) return false;
 
-              // 2. Se um tipo específico foi selecionado
-              if (type && typePrefixes[type]) {
-                return itemCode.startsWith(typePrefixes[type]);
+              // 2. Se um tipo específico foi selecionado (exceto PAINEL que busca em tudo do banco)
+              if (type && type !== 'PAINEL' && typePrefixes[type]) {
+                if (!itemCode.startsWith(typePrefixes[type])) return false;
+              } else {
+                // Se "TODOS" ou "PAINEL", aceita qualquer um dos prefixos permitidos
+                if (!allowedPrefixes.some(p => itemCode.startsWith(p))) return false;
               }
-              // 3. Se "TODOS" (vazio)
-              return allowedPrefixes.some(p => itemCode.startsWith(p));
+
+              // 3. Match de todos os termos da busca
+              if (searchTerms.length > 0) {
+                return searchTerms.every(term => {
+                  const cleanTerm = term.replace(/MM$/i, '');
+                  return itemDesc.includes(term) || itemDesc.includes(cleanTerm) || itemCode.includes(term);
+                });
+              }
+
+              return true;
             });
 
             // Adicionar ao pool global
