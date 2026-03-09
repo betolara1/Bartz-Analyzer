@@ -724,9 +724,9 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
     let allResults = [];
 
     // ==========================================================
-    // 1. BUSCA EM CSV (Se type === 'PAINEL', 'TODOS' ou 'CORINGA')
+    // 1. BUSCA EM CSV (Se type === 'PAINEL' ou 'TODOS')
     // ==========================================================
-    if (type === 'PAINEL' || type === 'CORINGA' || !type) {
+    if (type === 'PAINEL' || !type) {
       console.log('[Analyzer] Buscando no CSV de painéis (\\\\192.168.1.10\\Promob\\codigos_paineis.csv)...');
       const csvPath = '\\\\192.168.1.10\\Promob\\codigos_paineis.csv';
 
@@ -746,51 +746,107 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
           const rawDesc = (cols[1] || '').trim().toUpperCase();
           const rowThickness = (cols[2] || '').trim().toUpperCase();
 
-          // Formatação especial para CORINGA: pegar apenas antes do primeiro hífen e remover espaços extras
-          let rowDescFormatted = rawDesc;
-          if (type === 'CORINGA') {
-            rowDescFormatted = rawDesc.split('-')[0]
-              .replace(/\b(MDF|MDP|1F|2F|BP|\d{1,2}MM)\b/gi, '')
-              .replace(/\s+/g, ' ')
-              .trim();
-          }
-
           let match = false;
           if (searchCode) {
             if (rowCode === searchCode || rowCode.startsWith(searchCode)) match = true;
           } else if (searchTerms.length > 0) {
-            // Cada termo da busca deve estar presente ou na descrição ou na espessura
             match = searchTerms.every(term => {
-              // Limpar "MM" do termo para comparar com a espessura (ex: "18MM" -> "18")
               const cleanTerm = term.replace(/MM$/i, '');
-              const inDesc = rawDesc.includes(term); // busca na original para garantir que acha (mesmo se o termo tiver "MDF")
+              const inDesc = rawDesc.includes(term);
               const inThickness = rowThickness && (rowThickness === term || rowThickness === cleanTerm);
               return inDesc || inThickness;
             });
           } else {
-            match = true; // Se não houver termos, retorna tudo
+            match = true;
           }
 
           if (match) {
             allResults.push({
               code: (cols[0] || '').trim(),
-              description: type === 'CORINGA' ? rowDescFormatted : rawDesc,
+              description: rawDesc,
               thickness: (cols[2] || '').trim()
             });
           }
         }
+      }
+    }
 
-        // Se for CORINGA, remover duplicatas baseadas na descrição
-        if (type === 'CORINGA') {
+    // ==========================================================
+    // 1.1 BUSCA EM API DE CORES (Se type === 'CORINGA')
+    // ==========================================================
+    if (type === 'CORINGA') {
+      const searchDesc = (desc || '').trim().toUpperCase();
+      const codeTerm = (code || '').trim().toUpperCase();
+      let url = '';
+
+      if (codeTerm) {
+        url = `http://192.168.1.10:8081/api/cor/find-by-sigla?sigla=${encodeURIComponent(codeTerm)}`;
+      } else if (searchDesc) {
+        url = `http://192.168.1.10:8081/api/cor/search-descricao?q=${encodeURIComponent(searchDesc)}`;
+      } else {
+        url = `http://192.168.1.10:8081/api/cor`;
+      }
+
+      console.log(`[COR API] Solicitando: ${url}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        const response = await fetch(url, {
+          headers: { 'X-API-KEY': 'bartznewmoveisapi' },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          // Suportar resposta paginada do Spring Boot (data.content) ou array direto
+          let corResults = [];
+          if (Array.isArray(data)) {
+            corResults = data;
+          } else if (data && Array.isArray(data.content)) {
+            corResults = data.content;
+          } else if (data) {
+            corResults = [data];
+          }
+
+          console.log(`[COR API] Resultados recebidos: ${corResults.length}`);
+          if (corResults.length > 0) {
+            console.log('[COR API] Exemplo de item:', JSON.stringify(corResults[0]));
+          }
+
+          corResults.forEach(item => {
+            // Mapear campos: API retorna { siglaCor, descricao }
+            const rowCode = (item.siglaCor || item.sigla || item.code || item.CODIGO || item.refComercial || item.id || '').toString().trim();
+            const rawDesc = (item.descricao || item.description || item.DESCRICAO || item.nome || '').toString().trim();
+
+            // Ignorar itens sem código válido
+            if (!rowCode) return;
+
+            // Limpeza de descrição para o select
+            const rowDescFormatted = rawDesc.split('-')[0]
+              .replace(/\b(MDF|MDP|1F|2F|BP|\d{1,2}MM)\b/gi, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            allResults.push({
+              code: rowCode,
+              description: rowDescFormatted || rowCode
+            });
+          });
+
+          // Remover duplicatas baseadas na descrição formatada
           const uniqueMap = new Map();
           for (const res of allResults) {
             if (!uniqueMap.has(res.description)) {
-              // Quando salva no map, guarda o resultado inteiro
               uniqueMap.set(res.description, res);
             }
           }
           allResults = Array.from(uniqueMap.values());
         }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error(`[COR API] Erro na requisição ${url}:`, err.message);
       }
     }
 
@@ -804,12 +860,12 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
       const searchTerms = searchDesc.split(/\s+/).filter(t => t.length > 0);
 
       if (codeTerm) {
-        url = `http://192.168.1.10:8081/api/erp/search-code?q=${encodeURIComponent(codeTerm)}`;
+        url = `http://192.168.1.10:8081/api/item/search-code?q=${encodeURIComponent(codeTerm)}`;
       } else if (searchDesc) {
         // Enviar o termo mais longo para o banco para ser mais permissivo na query inicial
         // e depois filtramos rigorosamente localmente com todos os termos.
         const longestTerm = searchTerms.reduce((a, b) => a.length > b.length ? a : b, '');
-        url = `http://192.168.1.10:8081/api/erp/search-desc?q=${encodeURIComponent(longestTerm || searchDesc)}`;
+        url = `http://192.168.1.10:8081/api/item/search-desc?q=${encodeURIComponent(longestTerm || searchDesc)}`;
       }
 
       if (url) {
