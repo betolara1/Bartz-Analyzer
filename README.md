@@ -133,4 +133,3 @@ Consulte `.github/workflows/ci.yml` para detalhes.
 
 ---
 © 2026 Bartz - Desenvolvido com auxílio de IA.
-

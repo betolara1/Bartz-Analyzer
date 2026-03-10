@@ -1358,6 +1358,7 @@ function FileDetailDrawer({
                                       <button
                                         onClick={() => {
                                           if (Array.isArray(data?.meta?.coringaMatches) && data.meta.coringaMatches.length > 0) {
+                                            setIndCoringaAcronym(prod.code);
                                             setCoringaTo(prod.code);
                                           }
                                           const showRefPanel = ((data?.meta?.referenciaEmpty?.length ?? 0) > 0 || (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
@@ -1371,7 +1372,7 @@ function FileDetailDrawer({
                                         }}
                                         className="p-1 px-2 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-[9px] font-bold uppercase tracking-tighter"
                                       >
-                                        Copi
+                                        Copiar
                                       </button>
                                     </td>
                                   </tr>
