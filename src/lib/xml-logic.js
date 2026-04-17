@@ -155,24 +155,22 @@ function validateXmlContent(txt, cfg = {}) {
             const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(ES0[^"]*)"/i);
             if (baseMatch) {
                 const itemBase = baseMatch[1].toUpperCase();
-                if (itemBase !== "ES08") {
-                    const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
-                    const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
-                    const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
-                    const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
-                    const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+                const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+                const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
 
-                    const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
-                    const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
-                    const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+                const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+                const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+                const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
 
-                    specialItems.push({
-                        itemBase,
-                        desenho: desenhoMatch ? desenhoMatch[1] : "",
-                        descricao: descMatch ? descMatch[1] : "",
-                        dimensao: `${l}x${a}x${p}`
-                    });
-                }
+                specialItems.push({
+                    itemBase,
+                    desenho: desenhoMatch ? desenhoMatch[1] : "",
+                    descricao: descMatch ? descMatch[1] : "",
+                    dimensao: `${l}x${a}x${p}`
+                });
             }
         }
         const spMap = new Map();

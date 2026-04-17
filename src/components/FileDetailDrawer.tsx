@@ -844,7 +844,7 @@ function FileDetailDrawer({
               </section>
             )}
 
-            {/* ITENS ESPECIAIS (ES0?) exceto ES08 */}
+            {/* ITENS ESPECIAIS (ES0?) */}
             <section className="rounded-xl border border-[#232323] bg-[#1B1B1B] overflow-hidden shadow-sm transition-all duration-300 hover:border-[#2C2C2C]">
               <div
                 className="px-5 py-4 flex items-center justify-between cursor-pointer group"
