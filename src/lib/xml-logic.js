@@ -23,8 +23,9 @@ function validateXmlContent(txt, cfg = {}) {
     }
 
     // ===== Regras fixas =====
-    let hasMissingCode = false;
     const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
+    const refEmptyMatches = [];
+
     for (const m of itemMatches) {
         const itemTag = m[0];
         const hasEmptyRef = /\bREFERENCIA\s*=\s*""/i.test(itemTag);
@@ -36,53 +37,33 @@ function validateXmlContent(txt, cfg = {}) {
         const baseIsMissing = hasEmptyBase || hasNoBase;
 
         if (refIsMissing && baseIsMissing) {
-            hasMissingCode = true;
-            break;
+            const idMatch = itemTag.match(/\bID\s*=\s*"([^"]+)"/i);
+            const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]+)"/i);
+            const caminhoMatch = itemTag.match(/\bCAMINHOITEMCATALOG\s*=\s*"([^"]+)"/i);
+
+            refEmptyMatches.push({
+                id: idMatch ? idMatch[1] : null,
+                descricao: descMatch ? descMatch[1] : null,
+                caminhoItemCatalog: caminhoMatch ? caminhoMatch[1] : null,
+                snippet: itemTag.slice(0, 500)
+            });
         }
     }
-    if (hasMissingCode) {
+
+    if (refEmptyMatches.length > 0) {
         payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
         payload.tags.push("sem_codigo");
+
+        const map = new Map();
+        for (const r of refEmptyMatches) {
+            const key = `${r.id || ''}|${r.descricao || ''}`;
+            if (!map.has(key)) map.set(key, r);
+        }
+        payload.meta.referenciaEmpty = Array.from(map.values());
     }
 
     if (/\bQUANTIDADE\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM QUANTIDADE" });
     if (/\bPRECO_TOTAL\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM PREÇO" });
-
-    // Coletar itens com REFERENCIA vazia
-    try {
-        const refEmptyMatches = [];
-        for (const m of itemMatches) {
-            const itemTag = m[0];
-            const hasEmptyRef = /\bREFERENCIA\s*=\s*""/i.test(itemTag);
-            const hasEmptyBase = /\bITEM_BASE\s*=\s*""/i.test(itemTag);
-            const hasNoRef = !/\bREFERENCIA\s*=\s*"/i.test(itemTag);
-            const hasNoBase = !/\bITEM_BASE\s*=\s*"/i.test(itemTag);
-
-            const refIsMissing = hasEmptyRef || hasNoRef;
-            const baseIsMissing = hasEmptyBase || hasNoBase;
-
-            if (refIsMissing && baseIsMissing) {
-                const idMatch = itemTag.match(/\bID\s*=\s*"([^"]+)"/i);
-                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]+)"/i);
-                const caminhoMatch = itemTag.match(/\bCAMINHOITEMCATALOG\s*=\s*"([^"]+)"/i);
-
-                refEmptyMatches.push({
-                    id: idMatch ? idMatch[1] : null,
-                    descricao: descMatch ? descMatch[1] : null,
-                    caminhoItemCatalog: caminhoMatch ? caminhoMatch[1] : null,
-                    snippet: itemTag.slice(0, 500)
-                });
-            }
-        }
-        if (refEmptyMatches.length) {
-            const map = new Map();
-            for (const r of refEmptyMatches) {
-                const key = `${r.id || ''}|${r.descricao || ''}`;
-                if (!map.has(key)) map.set(key, r);
-            }
-            payload.meta.referenciaEmpty = Array.from(map.values());
-        }
-    } catch (e) { }
 
     // ===== ITEM_BASE="ES08" (DUPLADO 37MM) =====
     try {
