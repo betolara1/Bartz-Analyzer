@@ -302,7 +302,14 @@ export default function Dashboard() {
   }
 
 
-  async function savePaths() { await (window as any).electron?.settings?.save?.(cfg); }
+  async function savePaths() {
+    try {
+      await (window as any).electron?.settings?.save?.(cfg);
+      toast.success("Configurações salvas com sucesso!");
+    } catch (e: any) {
+      toast.error(`Falha ao salvar: ${String(e?.message || e)}`);
+    }
+  }
   async function start() {
     const ok = await (window as any).electron?.analyzer?.start?.(cfg);
     if (!ok) toast.error("Confira os caminhos e permissões.");

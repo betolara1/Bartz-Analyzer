@@ -68,6 +68,19 @@ async function testPaths(cfg) {
   return out;
 }
 
+function buildNormalizedConfig(obj) {
+  if (!obj) obj = {};
+  return {
+    entrada: normalizeWin(obj.entrada || ''),
+    exportacao: normalizeWin(obj.exportacao || obj.working || ''),
+    ok: normalizeWin(obj.ok || ''),
+    erro: normalizeWin(obj.erro || ''),
+    logsErrors: normalizeWin(obj.logsErrors || ''),
+    logsProcessed: normalizeWin(obj.logsProcessed || ''),
+    drawings: normalizeWin(obj.drawings || ''),
+  };
+}
+
 /* ------ validação (stub) ------ */
 async function validateXml(fileFullPath) {
   const payload = { arquivo: fileFullPath, erros: [], tags: [], autoFixes: [] };
@@ -110,29 +123,13 @@ async function processOne(fileFullPath, cfg) {
 /* ---------------- IPC: Settings --------------- */
 ipcMain.handle('settings:load', async () => (await loadCfg()));
 ipcMain.handle('settings:save', async (_e, obj) => {
-  const next = {
-    entrada: normalizeWin(obj?.entrada || ''),
-    exportacao: normalizeWin(obj?.exportacao || obj?.working || ''),
-    ok: normalizeWin(obj?.ok || ''),
-    erro: normalizeWin(obj?.erro || ''),
-    logsErrors: normalizeWin(obj?.logsErrors || ''),
-    logsProcessed: normalizeWin(obj?.logsProcessed || ''),
-    drawings: normalizeWin(obj?.drawings || ''),
-  };
+  const next = buildNormalizedConfig(obj);
   await saveCfg(next);
   currentCfg = next;
   return { ok: true, saved: next };
 });
 ipcMain.handle('settings:testPaths', async (_e, obj) => {
-  const cfg = {
-    entrada: normalizeWin(obj?.entrada || ''),
-    exportacao: normalizeWin(obj?.exportacao || obj?.working || ''),
-    ok: normalizeWin(obj?.ok || ''),
-    erro: normalizeWin(obj?.erro || ''),
-    logsErrors: normalizeWin(obj?.logsErrors || ''),
-    logsProcessed: normalizeWin(obj?.logsProcessed || ''),
-    drawings: normalizeWin(obj?.drawings || ''),
-  };
+  const cfg = buildNormalizedConfig(obj);
   return await testPaths(cfg);
 });
 ipcMain.handle('settings:pickFolder', async (_e, initial) => {
@@ -150,15 +147,7 @@ ipcMain.handle('analyzer:start', async (_e, overrideCfg) => {
     const saved = currentCfg && Object.keys(currentCfg).length ? currentCfg : (await loadCfg());
     const raw = (overrideCfg && Object.keys(overrideCfg).length) ? overrideCfg : saved;
 
-    const cfg = {
-      entrada: normalizeWin(raw.entrada),
-      exportacao: normalizeWin(raw.exportacao || raw.working),
-      ok: normalizeWin(raw.ok),
-      erro: normalizeWin(raw.erro),
-      logsErrors: normalizeWin(raw.logsErrors),
-      logsProcessed: normalizeWin(raw.logsProcessed),
-      drawings: normalizeWin(raw.drawings),
-    };
+    const cfg = buildNormalizedConfig(raw);
 
     for (const k of ['entrada', 'exportacao', 'ok', 'erro']) {
       if (!cfg[k]) { send('error', { where: 'start', message: `Config inválida: '${k}' vazio.` }); return false; }
