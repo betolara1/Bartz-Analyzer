@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import FileDetailDrawer from "./FileDetailDrawer";
+import ThemeToggle from "./ThemeToggle";
 
 
 // ...
@@ -421,14 +422,18 @@ export default function Dashboard() {
       const copy = [...prev];
       const idx = copy.findIndex(r => r.fullpath === oldPath);
       if (idx !== -1) {
-        copy[idx] = {
+        const updatedRow = {
           ...copy[idx],
           fullpath: newPath,
           filename: newPath.split(/[\\/]/).pop() || copy[idx].filename,
-          status: "OK",
+          status: "OK" as const,
           errors: [],
           tags: (copy[idx].tags || []).filter(t => t.toLowerCase() !== "duplado 37mm" && t.toLowerCase() !== "duplado37mm"),
         };
+        copy[idx] = updatedRow;
+
+        // Atualizar também o estado do modal se ele estiver aberto para este arquivo
+        setDetailData(prevDetail => (prevDetail && prevDetail.fullpath === oldPath ? updatedRow : prevDetail));
       }
       return copy;
     });
@@ -488,25 +493,29 @@ export default function Dashboard() {
 
   // ---- UI ----
   return (
-    <div className="min-h-screen bg-[#111] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="border-b border-[#2C2C2C] bg-[#1B1B1B] px-6 py-4 flex items-center justify-between">
+      <div className="border-b border-border bg-card px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-[#F1C40F] rounded flex items-center justify-center text-black font-bold">B</div>
+          <div className="h-8 w-8 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold shadow-sm">B</div>
           <div>
             <div className="text-lg font-semibold">Bartz Verificador XML</div>
-            {watchRoot && <div className="text-xs opacity-70">Monitorando: {watchRoot}</div>}
+            {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {!monitoring ? (
-            <Button onClick={start} className="gap-2 bg-[#27AE60] hover:bg-[#27AE60]/90"><Play className="h-4 w-4" /> Iniciar</Button>
-          ) : (
-            <Button onClick={stop} className="gap-2 bg-[#E74C3C] hover:bg-[#E74C3C]/90"><Pause className="h-4 w-4" /> Parar</Button>
-          )}
-          <Button variant="outline" onClick={exportReport} className="gap-2 border-blue-700 hover:bg-blue-900/20 text-blue-400"><Download className="h-4 w-4" /> Exportar</Button>
-          <Button variant="outline" onClick={clearReport} className="gap-2 border-amber-700 hover:bg-amber-900/20 text-amber-400"><AlertCircle className="h-4 w-4" /> Limpar</Button>
-          <Button variant="outline" onClick={handleClearFolders} className="gap-2 border-red-700 hover:bg-red-900/20 text-red-500"><XCircle className="h-4 w-4" /> Excluir arquivos</Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            {!monitoring ? (
+              <Button onClick={start} className="gap-2 bg-green-600 hover:bg-green-700 text-white border-0"><Play className="h-4 w-4" /> Iniciar</Button>
+            ) : (
+              <Button onClick={stop} className="gap-2 bg-red-600 hover:bg-red-700 text-white border-0"><Pause className="h-4 w-4" /> Parar</Button>
+            )}
+            <Button variant="outline" onClick={exportReport} className="gap-2 border-blue-600/30 hover:bg-blue-600/10 text-blue-600 dark:text-blue-400"><Download className="h-4 w-4" /> Exportar</Button>
+            <Button variant="outline" onClick={clearReport} className="gap-2 border-amber-600/30 hover:bg-amber-600/10 text-amber-600 dark:text-amber-400"><AlertCircle className="h-4 w-4" /> Limpar</Button>
+            <Button variant="outline" onClick={handleClearFolders} className="gap-2 border-red-600/30 hover:bg-red-600/10 text-red-600 dark:text-red-500"><XCircle className="h-4 w-4" /> Excluir arquivos</Button>
+          </div>
+          <div className="h-8 w-px bg-border mx-1" />
+          <ThemeToggle />
         </div>
       </div>
 
@@ -516,17 +525,17 @@ export default function Dashboard() {
           {/* Coluna 1 - Caminhos de Rede */}
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-[#A7A7A7]">Caminhos de Rede</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Caminhos de Rede</h3>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${monitoring ? "bg-[#27AE60]" : "bg-[#E74C3C]"}`} />
-                <span className="text-xs text-[#A7A7A7]">{monitoring ? "Monitoramento Ativo" : "Monitoramento Parado"}</span>
+                <span className="text-xs text-muted-foreground">{monitoring ? "Monitoramento Ativo" : "Monitoramento Parado"}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6">
               {/* Grupo 1: Origem & Destino */}
-              <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-4 space-y-4 shadow-sm">
-                <div className="flex items-center gap-2 border-b border-[#2C2C2C] pb-2 mb-2">
+              <div className="bg-card rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-border pb-2 mb-2">
                   <ArrowRightLeft className="h-4 w-4 text-[#3498DB]" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#3498DB]">Origem & Destino</span>
                 </div>
@@ -534,19 +543,19 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* ENTRADA */}
                   <div className="space-y-2">
-                    <Label htmlFor="entrada" className="text-[#A7A7A7] text-xs">Pasta de Entrada</Label>
+                    <Label htmlFor="entrada" className="text-muted-foreground text-xs">Pasta de Entrada</Label>
                     <div className="flex gap-2">
                       <Input
                         id="entrada"
                         value={cfg.entrada}
                         onChange={(e) => setPaths({ entrada: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1 focus:border-[#3498DB]"
+                        className="bg-background border-border text-foreground text-sm flex-1 focus:border-primary"
                         placeholder="\\servidor\share\entrada"
                       />
                       <Button
                         variant="outline" size="sm" title="Escolher pasta"
                         onClick={() => pickFolder("entrada")}
-                        className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
+                        className="border-border hover:bg-muted shrink-0"
                       >
                         <FolderOpen className="h-4 w-4" />
                       </Button>
@@ -555,19 +564,19 @@ export default function Dashboard() {
 
                   {/* EXPORTACAO */}
                   <div className="space-y-2">
-                    <Label htmlFor="exportacao" className="text-[#A7A7A7] text-xs">Pasta de Exportação</Label>
+                    <Label htmlFor="exportacao" className="text-muted-foreground text-xs">Pasta de Exportação</Label>
                     <div className="flex gap-2">
                       <Input
                         id="exportacao"
                         value={cfg.exportacao}
                         onChange={(e) => setPaths({ exportacao: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1 focus:border-[#3498DB]"
+                        className="bg-background border-border text-foreground text-sm flex-1 focus:border-primary"
                         placeholder="\\servidor\share\exportacao"
                       />
                       <Button
                         variant="outline" size="sm" title="Escolher pasta"
                         onClick={() => pickFolder("exportacao")}
-                        className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0"
+                        className="border-border hover:bg-muted shrink-0"
                       >
                         <FolderOpen className="h-4 w-4" />
                       </Button>
@@ -577,8 +586,8 @@ export default function Dashboard() {
               </div>
 
               {/* Grupo 2: Resultados */}
-              <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-4 space-y-4 shadow-sm">
-                <div className="flex items-center gap-2 border-b border-[#2C2C2C] pb-2 mb-2">
+              <div className="bg-card rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-border pb-2 mb-2">
                   <CheckCircle2 className="h-4 w-4 text-[#27AE60]" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#27AE60]">Resultados & Desenhos</span>
                 </div>
@@ -586,15 +595,15 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* OK */}
                   <div className="space-y-2">
-                    <Label htmlFor="ok" className="text-[#A7A7A7] text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3 text-[#27AE60]" /> Pasta Final - OK</Label>
+                    <Label htmlFor="ok" className="text-muted-foreground text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3 text-green-500" /> Pasta Final - OK</Label>
                     <div className="flex gap-2">
                       <Input
                         id="ok"
                         value={cfg.ok}
                         onChange={(e) => setPaths({ ok: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                        className="bg-background border-border text-foreground text-sm flex-1"
                       />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("ok")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("ok")} className="border-border hover:bg-muted shrink-0">
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
@@ -602,15 +611,15 @@ export default function Dashboard() {
 
                   {/* ERRO */}
                   <div className="space-y-2">
-                    <Label htmlFor="erro" className="text-[#A7A7A7] text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-[#E74C3C]" /> Pasta Final - Erro</Label>
+                    <Label htmlFor="erro" className="text-muted-foreground text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-red-500" /> Pasta Final - Erro</Label>
                     <div className="flex gap-2">
                       <Input
                         id="erro"
                         value={cfg.erro}
                         onChange={(e) => setPaths({ erro: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                        className="bg-background border-border text-foreground text-sm flex-1"
                       />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("erro")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("erro")} className="border-border hover:bg-muted shrink-0">
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
@@ -618,15 +627,15 @@ export default function Dashboard() {
 
                   {/* DRAWINGS */}
                   <div className="space-y-2">
-                    <Label htmlFor="drawings" className="text-[#A7A7A7] text-xs flex items-center gap-1"><FileText className="h-3 w-3 text-[#F1C40F]" /> Pasta de Desenhos</Label>
+                    <Label htmlFor="drawings" className="text-muted-foreground text-xs flex items-center gap-1"><FileText className="h-3 w-3 text-primary" /> Pasta de Desenhos</Label>
                     <div className="flex gap-2">
                       <Input
                         id="drawings"
                         value={cfg.drawings}
                         onChange={(e) => setPaths({ drawings: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                        className="bg-background border-border text-foreground text-sm flex-1"
                       />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("drawings")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("drawings")} className="border-border hover:bg-muted shrink-0">
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
@@ -635,8 +644,8 @@ export default function Dashboard() {
               </div>
 
               {/* Grupo 3: Registros */}
-              <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-4 space-y-4 shadow-sm">
-                <div className="flex items-center gap-2 border-b border-[#2C2C2C] pb-2 mb-2">
+              <div className="bg-card rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-border pb-2 mb-2">
                   <ListTodo className="h-4 w-4 text-[#9B59B6]" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#9B59B6]">Registros (Logs)</span>
                 </div>
@@ -644,15 +653,15 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* LOGS ERRORS */}
                   <div className="space-y-2">
-                    <Label htmlFor="logsErrors" className="text-[#A7A7A7] text-xs">Logs - Errors</Label>
+                    <Label htmlFor="logsErrors" className="text-muted-foreground text-xs">Logs - Errors</Label>
                     <div className="flex gap-2">
                       <Input
                         id="logsErrors"
                         value={cfg.logsErrors}
                         onChange={(e) => setPaths({ logsErrors: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                        className="bg-background border-border text-foreground text-sm flex-1"
                       />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("logsErrors")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("logsErrors")} className="border-border hover:bg-muted shrink-0">
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
@@ -660,15 +669,15 @@ export default function Dashboard() {
 
                   {/* LOGS PROCESSED */}
                   <div className="space-y-2">
-                    <Label htmlFor="logsProcessed" className="text-[#A7A7A7] text-xs">Logs - Processed</Label>
+                    <Label htmlFor="logsProcessed" className="text-muted-foreground text-xs">Logs - Processed</Label>
                     <div className="flex gap-2">
                       <Input
                         id="logsProcessed"
                         value={cfg.logsProcessed}
                         onChange={(e) => setPaths({ logsProcessed: e.target.value })}
-                        className="bg-[#111111] border-[#2C2C2C] text-white text-sm flex-1"
+                        className="bg-background border-border text-foreground text-sm flex-1"
                       />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("logsProcessed")} className="border-[#2C2C2C] hover:bg-[#2C2C2C] shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => pickFolder("logsProcessed")} className="border-border hover:bg-muted shrink-0">
                         <FolderOpen className="h-4 w-4" />
                       </Button>
                     </div>
@@ -679,13 +688,13 @@ export default function Dashboard() {
 
             <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={savePaths} className="gap-2 border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-xs h-9">
+                <Button variant="outline" onClick={savePaths} className="gap-2 border-border bg-card hover:bg-muted text-xs h-9">
                   <Save className="h-3.5 w-3.5" /> Salvar padrão
                 </Button>
               </div>
 
               <div className="flex items-center gap-3">
-                <label className="text-xs text-[#A7A7A7] flex items-center gap-2 cursor-pointer select-none border border-[#2C2C2C] rounded-md px-3 h-9 bg-[#1B1B1B]">
+                <label className="text-xs text-muted-foreground flex items-center gap-2 cursor-pointer select-none border border-border rounded-md px-3 h-9 bg-card">
                   <input
                     type="checkbox"
                     checked={true}
@@ -710,39 +719,39 @@ export default function Dashboard() {
 
           {/* Coluna 2 - Relatório de Atividade */}
           <div className="space-y-6">
-            <h3 className="text-sm font-medium text-[#A7A7A7] mb-1">Relatório de Atividade</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-1">Relatório de Atividade</h3>
 
-            <div className="bg-[#1B1B1B] rounded-xl border border-[#2C2C2C] p-6 space-y-6 shadow-sm">
+            <div className="bg-card rounded-xl border border-border p-6 space-y-6 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#A7A7A7]">Resultados do Dia</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados do Dia</span>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-[#2C2C2C] text-[#A7A7A7]">
+                <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
                   Hoje, {new Date().toLocaleDateString('pt-BR')}
                 </Badge>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
                   <CheckCircle2 className="h-5 w-5 text-[#27AE60] opacity-80" />
                   <div className="text-2xl font-bold text-[#27AE60]">{okFiles}</div>
-                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Corretos</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Corretos</div>
                 </div>
-                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
                   <XCircle className="h-5 w-5 text-[#E74C3C] opacity-80" />
                   <div className="text-2xl font-bold text-[#E74C3C]">{errorFiles}</div>
-                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Com Erro</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Com Erro</div>
                 </div>
-                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
                   <Package className="h-5 w-5 text-[#F39C12] opacity-80" />
                   <div className="text-2xl font-bold text-[#F39C12]">{ferragensFiles}</div>
-                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Ferragens</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Ferragens</div>
                 </div>
-                <div className="bg-[#111111] p-3 rounded-lg border border-[#232323] flex flex-col items-center justify-center space-y-1">
+                <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
                   <Zap className="h-5 w-5 text-[#1ABC9C] opacity-80" />
                   <div className="text-2xl font-bold text-[#1ABC9C]">{autoFixedFiles}</div>
-                  <div className="text-[10px] uppercase tracking-tighter text-[#A7A7A7] font-medium">Auto-fix</div>
+                  <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Auto-fix</div>
                 </div>
               </div>
 
@@ -750,19 +759,19 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-wider text-[#A7A7A7] font-semibold flex items-center gap-1">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Taxa de Sucesso
                       </span>
-                      <span className="text-2xl font-bold text-white">
+                      <span className="text-2xl font-bold text-foreground">
                         {totalFiles > 0 ? Math.round(((okFiles + ferragensFiles) / totalFiles) * 100) : 0}%
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] uppercase tracking-wider text-[#A7A7A7] font-semibold">Total Processado</span>
-                      <div className="text-lg font-medium text-white">{totalFiles} <span className="text-xs text-[#A7A7A7]">XMLs</span></div>
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Processado</span>
+                      <div className="text-lg font-medium text-foreground">{totalFiles} <span className="text-xs text-muted-foreground">XMLs</span></div>
                     </div>
                   </div>
-                  <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden border border-[#232323]">
+                  <div className="h-1.5 w-full bg-background rounded-full overflow-hidden border border-border">
                     <div
                       className="h-full bg-gradient-to-r from-[#27AE60] to-[#2ECC71] transition-all duration-500"
                       style={{ width: `${totalFiles > 0 ? ((okFiles + ferragensFiles) / totalFiles) * 100 : 0}%` }}
@@ -770,7 +779,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-[#A7A7A7] bg-[#111111] p-2 rounded border border-[#232323]">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground bg-muted p-2 rounded border border-border">
                   <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> Última atividade</span>
                   <span className="text-white font-medium">{lastActivity}</span>
                 </div>
@@ -790,9 +799,9 @@ export default function Dashboard() {
               <button
                 key={k.key}
                 onClick={() => { setFilter(k.key); setCurrentPage(1); }}
-                className={`group text-left bg-[#1B1B1B] border rounded-xl p-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
-                  ? "border-opacity-100 shadow-[0_0_20px_rgba(0,0,0,0.4)]"
-                  : "border-[#2C2C2C] hover:border-white/20 hover:-translate-y-1"
+                className={`group text-left bg-card border rounded-xl p-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
+                  ? "border-primary shadow-[0_0_20px_rgba(0,0,0,0.2)] dark:shadow-[0_0_20px_rgba(0,0,0,0.4)]"
+                  : "border-border hover:border-primary/20 hover:-translate-y-1"
                   }`}
                 style={{
                   borderColor: isActive ? k.color : '#2C2C2C',
@@ -806,16 +815,16 @@ export default function Dashboard() {
                   />
                 )}
                 <div className="flex items-start justify-between mb-3">
-                  <div className={`p-2 rounded-lg bg-[#111] border border-[#232323] transition-colors duration-300 ${isActive ? 'bg-opacity-50' : 'group-hover:bg-[#222]'}`} style={{ color: k.color }}>
+                  <div className={`p-2 rounded-lg bg-background border border-border transition-colors duration-300 ${isActive ? 'bg-opacity-50' : 'group-hover:bg-muted'}`} style={{ color: k.color }}>
                     {React.cloneElement(k.icon as React.ReactElement, { className: "h-4 w-4" })}
                   </div>
                   {isActive && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 8px ${k.color}` }} />}
                 </div>
                 <div className="space-y-0.5">
-                  <div className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isActive ? 'text-white' : 'text-[#A7A7A7]'}`}>
+                  <div className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {k.title}
                   </div>
-                  <div className="text-2xl font-bold tracking-tight text-white">{k.value}</div>
+                  <div className="text-2xl font-bold tracking-tight text-foreground">{k.value}</div>
                 </div>
               </button>
             );
@@ -829,11 +838,11 @@ export default function Dashboard() {
                 placeholder="Buscar arquivo..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                className="pl-9 w-80 bg-[#161616] border-[#2C2C2C] text-sm focus:border-[#3498DB] focus:ring-1 focus:ring-[#3498DB]/20 transition-all"
+                className="pl-9 w-80 bg-muted/50 border-border text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               />
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#A7A7A7] group-focus-within:text-[#3498DB] transition-colors" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>
-            <div className="flex items-center gap-2 text-[#A7A7A7] bg-[#1B1B1B] px-3 py-1.5 rounded-lg border border-[#2C2C2C]">
+            <div className="flex items-center gap-2 text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border">
               <Calendar className="h-3.5 w-3.5" /> <span className="text-xs font-medium">Últimas 24h</span>
             </div>
           </div>
@@ -849,16 +858,16 @@ export default function Dashboard() {
                 Enviar 'PROBLEMA NA GERAÇÃO DE MÁQUINAS' para OK? ({bulkMoveEligible.length})
               </Button>
             )}
-            <div className="text-[11px] uppercase tracking-wider font-bold text-[#666] bg-[#161616] px-3 py-1 rounded-full border border-[#232323]">
-              Mostrando <span className="text-white">{filtered.length}</span> de <span className="text-white">{rows.length}</span> arquivos
+            <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border">
+              Mostrando <span className="text-foreground">{filtered.length}</span> de <span className="text-foreground">{rows.length}</span> arquivos
             </div>
           </div>
         </div>
 
-        <div className="bg-[#161616] border border-[#232323] rounded-xl overflow-hidden shadow-2xl">
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xl">
           <Table>
-            <TableHeader className="bg-[#1B1B1B]/50">
-              <TableRow className="border-[#232323] hover:bg-transparent">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest pl-6">Arquivo</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Inconformidades (Erros)</TableHead>
@@ -874,7 +883,7 @@ export default function Dashboard() {
               {paginatedData.map((file) => {
                 const autoFixed = (file.autoFixes || []).length > 0;
                 return (
-                  <TableRow key={file.fullpath} className="border-[#232323] hover:bg-white/[0.02] transition-colors group/row">
+                  <TableRow key={file.fullpath} className="border-border hover:bg-primary/[0.02] transition-colors group/row">
                     <TableCell className="pl-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`h-2.5 w-2.5 rounded-full shrink-0 transition-shadow duration-300 ${file.status === 'OK' ? 'bg-[#27AE60] shadow-[0_0_8px_rgba(39,174,96,0.5)]' :
@@ -882,7 +891,7 @@ export default function Dashboard() {
                             'bg-[#F39C12] shadow-[0_0_8px_rgba(243,156,18,0.5)]'
                           }`} />
                         <div className="flex flex-col">
-                          <span className="font-mono text-sm text-white group-hover/row:text-[#3498DB] transition-colors truncate max-w-[280px]">
+                          <span className="font-mono text-sm text-foreground group-hover/row:text-primary transition-colors truncate max-w-[280px]">
                             {file.filename}
                           </span>
                         </div>
@@ -956,18 +965,18 @@ export default function Dashboard() {
                     </TableCell>
 
                     <TableCell className="text-center pr-6 py-4">
-                      <div className="inline-flex gap-2 p-1.5 bg-[#111] rounded-lg border border-[#232323] transition-colors group-hover/row:border-[#2C2C2C]">
+                      <div className="inline-flex gap-2 p-1.5 bg-background rounded-lg border border-border transition-colors group-hover/row:border-border/80">
                         <button
                           title="Ver detalhes"
                           onClick={() => handleFileDetail(file)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-[#222] hover:text-[#3498DB] transition-all text-[#A7A7A7]"
+                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-primary transition-all text-muted-foreground"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button
                           title="Abrir na pasta"
                           onClick={() => handleOpenFolder(file.fullpath)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-[#222] hover:text-[#F1C40F] transition-all text-[#A7A7A7]"
+                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-primary transition-all text-muted-foreground"
                         >
                           <FolderOpen className="h-4 w-4" />
                         </button>
@@ -981,7 +990,7 @@ export default function Dashboard() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 text-sm text-[#A7A7A7]">
+          <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
             <div>Página {currentPage} de {totalPages}</div>
             <div className="flex gap-2">
               <Button
@@ -989,7 +998,7 @@ export default function Dashboard() {
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-[#A7A7A7] disabled:opacity-50"
+                className="border-border bg-card hover:bg-muted text-muted-foreground disabled:opacity-50"
               >
                 Anterior
               </Button>
@@ -998,7 +1007,7 @@ export default function Dashboard() {
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="border-[#2C2C2C] bg-[#1B1B1B] hover:bg-[#2C2C2C] text-[#A7A7A7] disabled:opacity-50"
+                className="border-border bg-card hover:bg-muted text-muted-foreground disabled:opacity-50"
               >
                 Próxima
               </Button>
@@ -1018,13 +1027,13 @@ export default function Dashboard() {
 
       {/* CONFIRMAÇÕES */}
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
-        <AlertDialogContent className="bg-[#1a1a1a] border border-amber-500/30">
-          <AlertDialogTitle className="text-white">Confirmação de Limpeza</AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-300">
+        <AlertDialogContent className="bg-card border border-amber-500/30">
+          <AlertDialogTitle className="text-foreground">Confirmação de Limpeza</AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground">
             Tem certeza que deseja limpar o Relatório de Atividade? Essa ação não pode ser desfeita.
           </AlertDialogDescription>
           <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={executeClearReport}
               className="bg-amber-600 text-white hover:bg-amber-500"
@@ -1036,13 +1045,13 @@ export default function Dashboard() {
       </AlertDialog>
 
       <AlertDialog open={confirmExcluirOpen} onOpenChange={setConfirmExcluirOpen}>
-        <AlertDialogContent className="bg-[#1a1a1a] border border-rose-500/30">
-          <AlertDialogTitle className="text-white">Confirmação de Exclusão</AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-300">
+        <AlertDialogContent className="bg-card border border-rose-500/30">
+          <AlertDialogTitle className="text-foreground">Confirmação de Exclusão</AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground">
             Deseja excluir fisicamente os arquivos das pastas (OK, erro, logs)? Esta ação removerá os arquivos do disco permanentemente.
           </AlertDialogDescription>
           <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={executeClearFolders}
               className="bg-rose-600 text-white hover:bg-rose-500"
@@ -1054,15 +1063,15 @@ export default function Dashboard() {
       </AlertDialog>
 
       <AlertDialog open={confirmBulkMoveOpen} onOpenChange={setConfirmBulkMoveOpen}>
-        <AlertDialogContent className="bg-[#1a1a1a] border border-emerald-500/30">
-          <AlertDialogTitle className="text-white">Enviar Erros de Máquinas para OK</AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-300">
-            Deseja mover <strong className="text-white">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-white">apenas</strong> o erro "PROBLEMA NA GERAÇÃO DE MÁQUINAS" para a pasta OK?
+        <AlertDialogContent className="bg-card border border-emerald-500/30">
+          <AlertDialogTitle className="text-foreground">Enviar Erros de Máquinas para OK</AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground">
+            Deseja mover <strong className="text-foreground">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-foreground">apenas</strong> o erro "PROBLEMA NA GERAÇÃO DE MÁQUINAS" para a pasta OK?
             <br /><br />
-            <span className="text-zinc-500 text-xs">Arquivos com outros erros além desse não serão movidos.</span>
+            <span className="text-muted-foreground/60 text-xs">Arquivos com outros erros além desse não serão movidos.</span>
           </AlertDialogDescription>
           <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-zinc-700 text-white hover:bg-zinc-600 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={executeBulkMoveToOk}
               className="bg-emerald-600 text-white hover:bg-emerald-500"

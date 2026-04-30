@@ -5121,25 +5121,202 @@ html {
 @tailwind components;
 @tailwind utilities;
 
-/* tokens shadcn */
-:root {
-  --background: 24 24 27;   /* zink-900 */
-  --foreground: 250 250 250;
-  --card: 24 24 27;
-  --card-foreground: 250 250 250;
-  --muted: 39 39 42;
-  --muted-foreground: 161 161 170;
-  --border: 63 63 70;
-  --ring: 234 179 8; /* amarelo Bartz */
-}
-
-.dark { /* se usar dark por classe */
-  --background: 17 17 20;
-}
-
 /* helpers (igual shadcn) */
-.bg-background { background-color: rgb(var(--background)); }
-.text-foreground { color: rgb(var(--foreground)); }
-.border-border { border-color: rgb(var(--border)); }
+.bg-background { background-color: var(--background); }
+.text-foreground { color: var(--foreground); }
+.border-border { border-color: var(--border); }
 
+/* ══════════════════════════════════════════════════════════════════
+   FILE DETAIL MODAL — Centered, resizable, tabbed detail panel
+   ══════════════════════════════════════════════════════════════════ */
 
+/* --- Custom Scrollbar --- */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(var(--foreground), 0.08);
+  border-radius: 100px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--foreground), 0.15);
+}
+
+/* --- Overlay --- */
+.fd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  animation: fd-overlay-in 0.25s ease-out;
+}
+.fd-modal-overlay[data-state="closed"] {
+  animation: fd-overlay-out 0.2s ease-in forwards;
+}
+
+/* --- Modal Container --- */
+.fd-modal-container {
+  position: fixed;
+  z-index: 51;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 85vw;
+  height: 85vh;
+  min-width: 620px;
+  min-height: 480px;
+  max-width: 95vw;
+  max-height: 95vh;
+  resize: both;
+  overflow: hidden;
+  outline: none;
+  animation: fd-modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fd-modal-container[data-state="closed"] {
+  animation: fd-modal-out 0.2s ease-in forwards;
+}
+
+/* --- Maximized state --- */
+.fd-modal-container.fd-modal-maximized {
+  width: 98vw !important;
+  height: 96vh !important;
+  resize: none;
+}
+
+/* --- Inner wrapper (visual styling) --- */
+.fd-modal-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 25px 60px -12px rgba(0, 0, 0, 0.6),
+    0 0 120px -20px rgba(16, 185, 129, 0.04);
+  overflow: hidden;
+}
+
+/* --- Header --- */
+.fd-modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(to bottom, rgba(var(--foreground), 0.02), transparent);
+  flex-shrink: 0;
+}
+
+/* --- Window control buttons --- */
+.fd-window-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fd-window-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #aaa;
+}
+.fd-window-btn-close:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* --- Resize grip indicator --- */
+.fd-resize-grip {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  opacity: 0.15;
+  transition: opacity 0.2s;
+  background:
+    linear-gradient(135deg,
+      transparent 30%,
+      rgba(255,255,255,0.3) 30%,
+      rgba(255,255,255,0.3) 40%,
+      transparent 40%,
+      transparent 55%,
+      rgba(255,255,255,0.3) 55%,
+      rgba(255,255,255,0.3) 65%,
+      transparent 65%,
+      transparent 80%,
+      rgba(255,255,255,0.3) 80%,
+      rgba(255,255,255,0.3) 90%,
+      transparent 90%
+    );
+  border-radius: 0 0 12px 0;
+  pointer-events: none;
+}
+.fd-modal-container:hover .fd-resize-grip {
+  opacity: 0.35;
+}
+
+/* --- Tab content fade --- */
+.fd-tab-content {
+  animation: fd-tab-fade 0.2s ease-out;
+}
+
+/* --- Animations --- */
+@keyframes fd-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fd-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes fd-modal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes fd-modal-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+@keyframes fd-tab-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .fd-modal-container {
+    width: 98vw !important;
+    height: 95vh !important;
+    min-width: unset;
+    resize: none;
+  }
+  .fd-resize-grip {
+    display: none;
+  }
+}

@@ -17,7 +17,7 @@ export function ErrorWarningSection({ data }: ErrorWarningSectionProps) {
     return (
       <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
         <CheckCircle className="h-5 w-5 text-emerald-500" />
-        <p className="text-sm text-emerald-200/80 font-medium tracking-tight">Nenhuma inconformidade ou aviso detectado.</p>
+        <p className="text-sm text-emerald-500/80 font-medium tracking-tight">Nenhuma inconformidade ou aviso detectado.</p>
       </div>
     );
   }
@@ -63,7 +63,7 @@ export function ErrorWarningSection({ data }: ErrorWarningSectionProps) {
           </div>
           <div className="flex flex-wrap gap-2">
             {warnings.map((w, i) => (
-              <div key={i} className="text-[11px] bg-amber-500/5 text-amber-200/70 border border-amber-500/10 px-2 py-1 rounded-md font-medium leading-tight italic">
+              <div key={i} className="text-[11px] bg-amber-500/5 text-amber-500/70 border border-amber-500/10 px-2 py-1 rounded-md font-medium leading-tight italic">
                 {w}
               </div>
             ))}
