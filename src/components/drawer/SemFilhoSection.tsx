@@ -55,8 +55,8 @@ export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendi
 
       {isOpen && (
         <div className="px-5 pb-5 pt-2 space-y-4">
-          <div className="p-4 rounded-lg bg-rose-500/5 border border-rose-500/10 text-xs dark:text-rose-200/70 text-rose-700 leading-relaxed">
-            Este arquivo contém itens que possuem preço <span className="text-rose-400 font-bold">0.01</span> mas não possuem componentes internos (filhos). 
+          <div className="p-4 rounded-lg bg-rose-500/5 border border-rose-500/10 text-xs dark:text-rose-200 text-rose-900 leading-relaxed font-medium">
+            Este arquivo contém itens que possuem preço <span className="text-rose-600 dark:text-rose-400 font-bold">0.01</span> mas não possuem componentes internos (filhos). 
             Isso geralmente ocorre em componentes lineares ou acessórios que não foram gerados corretamente.
           </div>
 

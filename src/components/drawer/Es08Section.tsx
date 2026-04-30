@@ -70,10 +70,10 @@ export function Es08Section({
         <div className="p-5 space-y-6 border-t border-rose-500/10">
           <div className="grid grid-cols-1 gap-3">
             {matches.map((item, i) => (
-              <div key={i} className="p-4 rounded-xl bg-black/40 border border-rose-500/10 group hover:border-rose-500/30 transition-all">
+              <div key={i} className="p-4 rounded-xl bg-[#0a0a0a] border border-white/5 group hover:border-rose-500/30 transition-all">
                 <div className="flex items-start justify-between mb-2">
-                  <div className="text-[9px] uppercase font-bold dark:text-rose-300 text-rose-700 tracking-widest opacity-60">ID do Item</div>
-                  <span className="font-mono text-[10px] text-white bg-[#0a0a0a] px-2 py-0.5 rounded border border-white/5">{item.id || "—"}</span>
+                  <div className="text-[9px] uppercase font-bold text-zinc-500 tracking-widest">ID do Item</div>
+                  <span className="font-mono text-[10px] text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">{item.id || "—"}</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">

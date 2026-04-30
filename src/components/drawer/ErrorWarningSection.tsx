@@ -23,7 +23,7 @@ export function ErrorWarningSection({ data }: ErrorWarningSectionProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-muted/30 p-4 rounded-xl border border-border hover:border-primary/50 transition-colors">
       {/* ERROS */}
       {errors.length > 0 && (
         <div className="space-y-2">

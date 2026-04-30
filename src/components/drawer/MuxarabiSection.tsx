@@ -50,8 +50,8 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-3 font-mono text-orange-400">{item.itemBase}</td>
                       <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
-                      <td className="px-4 py-3 text-foreground/60 text-[11px] leading-tight break-words max-w-[250px]">
-                        {item.descricao || <span className="text-[#444] italic">vazio</span>}
+                      <td className="px-4 py-3 text-white text-[11px] leading-tight break-words max-w-[250px]">
+                        {item.descricao || <span className="text-white/40 italic">vazio</span>}
                       </td>
                     </tr>
                   ))}

@@ -52,8 +52,8 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                       <td className="px-4 py-3 font-mono text-purple-400">{item.itemBase}</td>
                       <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
                       <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao}</td>
-                      <td className="px-4 py-3 text-foreground/60 text-[11px] leading-tight max-w-[180px] break-words">
-                        {item.descricao || <span className="text-muted-foreground/40 italic">vazio</span>}
+                      <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[180px] break-words">
+                        {item.descricao || <span className="text-white/40 italic">vazio</span>}
                       </td>
                     </tr>
                   ))}

@@ -25,6 +25,7 @@ export function ErpSearchSection({
 }: ErpSearchSectionProps) {
   
   const showSection = ((data?.meta?.coringaMatches?.length || 0) > 0) || 
+                      ((data?.meta?.referenciaEmpty?.length || 0) > 0) ||
                       ((data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
 
   if (!showSection) return null;

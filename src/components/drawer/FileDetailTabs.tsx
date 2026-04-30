@@ -60,7 +60,6 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDe
     { key: "overview", label: "Visão Geral", icon: <Eye className="h-3.5 w-3.5" /> },
     { key: "components", label: "Componentes", icon: <Boxes className="h-3.5 w-3.5" /> },
     ...(hasActions ? [{ key: "actions", label: "Ações Manuais", icon: <Wrench className="h-3.5 w-3.5" /> } as TabDef] : []),
-    { key: "diagnostics", label: "Diagnóstico", icon: <Stethoscope className="h-3.5 w-3.5" /> },
   ];
 
   // If actions tab is active but no longer available, switch to overview
@@ -112,9 +111,6 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDe
           )}
           {activeTab === "actions" && (
             <ActionsTab data={data} actions={actions} />
-          )}
-          {activeTab === "diagnostics" && (
-            <DiagnosticsTab data={data} />
           )}
         </div>
       </div>
@@ -200,6 +196,12 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
 
 /* ─── TAB: Ações Manuais ─── */
 function ActionsTab({ data, actions }: { data: Row | null; actions: ReturnType<typeof useFileActions> }) {
+  const hasCG1 = !!data?.meta?.cg1_detected;
+  const hasCG2 = !!data?.meta?.cg2_detected;
+  const hasCoringa1 = !!data?.meta?.coringa1_detected;
+  const hasCoringa2 = !!data?.meta?.coringa2_detected;
+  const showCoringa = actions.filteredCoringaMatches.length > 0 || hasCG1 || hasCG2 || hasCoringa1 || hasCoringa2;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <div className="lg:col-span-2">
@@ -290,119 +292,16 @@ function ActionsTab({ data, actions }: { data: Row | null; actions: ReturnType<t
         cg2Done={actions.cg2Done}
         onApplyCg2={actions.onApplyCg2}
       />
-      <div className="lg:col-span-2">
-        <PendingRefSection
-          isOpen={actions.pendingRefOpen}
-          onToggle={() => actions.setPendingRefOpen(!actions.pendingRefOpen)}
-          data={data}
-          selectedRefSingle={actions.selectedRefSingle}
-          setSelectedRefSingle={actions.setSelectedRefSingle}
-          refFillValue={actions.refFillValue}
-          setRefFillValue={actions.setRefFillValue}
-          onConfirm={() => actions.setConfirmRefOpen(true)}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ─── TAB: Diagnóstico ─── */
-function DiagnosticsTab({ data }: { data: Row | null }) {
-  const handleCopyPath = () => {
-    if (!data?.fullpath) return;
-    navigator.clipboard.writeText(data.fullpath);
-    toast.success("Caminho copiado!");
-  };
-
-  return (
-    <>
-      {/* File Path */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 px-1">
-          <FolderOpen className="h-4 w-4 text-muted-foreground" />
-          <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Caminho Completo do Arquivo</h4>
-        </div>
-        <div className="relative group">
-          <div className="p-4 rounded-xl bg-muted/30 border border-border hover:border-primary/50 transition-colors">
-            <div className="text-[11px] font-mono text-muted-foreground/80 break-all select-all leading-relaxed">
-              {data?.fullpath || "Caminho não disponível"}
-            </div>
-          </div>
-          <button
-            onClick={handleCopyPath}
-            className="absolute top-3 right-3 p-1.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </section>
-
-      {/* File Metadata */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 px-1">
-          <Stethoscope className="h-4 w-4 text-muted-foreground" />
-          <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Metadata do Arquivo</h4>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <MetaCard label="Status" value={data?.status || "—"} />
-          <MetaCard label="ID" value={data?.id || "—"} />
-          <MetaCard label="Processamento" value={data?.timestamp || "—"} />
-          <MetaCard label="Erros" value={String(data?.errors?.length ?? 0)} />
-          <MetaCard label="Avisos" value={String(data?.warnings?.length ?? 0)} />
-          <MetaCard label="Auto-fixes" value={String(data?.autoFixes?.length ?? 0)} />
-          <MetaCard label="Tags" value={(data?.tags || []).join(", ") || "—"} />
-          <MetaCard label="Chave ERP" value={data?.meta?.importKey || "—"} />
-          <MetaCard label="Máquinas" value={String(data?.meta?.machines?.length ?? 0)} />
-        </div>
-      </section>
-
-      {/* Action History */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 px-1">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Histórico de Ações</h4>
-        </div>
-        {(data?.history || []).length > 0 ? (
-          <div className="space-y-2">
-            {(data?.history || []).map((entry, i) => (
-              <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border text-xs text-muted-foreground font-medium flex items-start gap-3 hover:border-primary/50 transition-colors">
-                <div className="h-5 w-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[8px] font-bold text-primary">{i + 1}</span>
-                </div>
-                <span className="leading-relaxed">{entry}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-border opacity-50">
-            <p className="text-xs italic text-muted-foreground/40">Nenhuma ação registrada até o momento.</p>
-          </div>
-        )}
-      </section>
-
-      {/* Raw Meta */}
-      {data?.meta && Object.keys(data.meta).length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <Stethoscope className="h-4 w-4 text-muted-foreground" />
-            <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Meta Completo (Debug)</h4>
-          </div>
-          <div className="p-4 rounded-xl bg-background border border-border overflow-x-auto">
-            <pre className="text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all max-h-60 overflow-y-auto custom-scrollbar">
-              {JSON.stringify(data.meta, null, 2)}
-            </pre>
-          </div>
-        </section>
-      )}
-    </>
-  );
-}
-
-function MetaCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="p-3 rounded-xl bg-muted/30 border border-border hover:border-primary/50 transition-colors">
-      <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-widest mb-1">{label}</div>
-      <div className="text-xs text-foreground font-medium truncate" title={value}>{value}</div>
+      <PendingRefSection
+        isOpen={actions.pendingRefOpen}
+        onToggle={() => actions.setPendingRefOpen(!actions.pendingRefOpen)}
+        data={data}
+        selectedRefSingle={actions.selectedRefSingle}
+        setSelectedRefSingle={actions.setSelectedRefSingle}
+        refFillValue={actions.refFillValue}
+        setRefFillValue={actions.setRefFillValue}
+        onConfirm={() => actions.setConfirmRefOpen(true)}
+      />
     </div>
   );
 }
