@@ -106,6 +106,19 @@ function extractItemCodes(txt) {
 
 async function checkCodeExistsInErp(codigo, cache = {}) {
   let processedCode = codigo.trim();
+  const originalUpper = processedCode.toUpperCase();
+
+  // Ignorar códigos de cores coringas (ex: TAPAFURO_CG1, CHAPA_CG2, etc)
+  const wildcardPatterns = [
+    'CHAPA_CG',
+    'PAINEL_CG',
+    'FITA_CG',
+    'TAPAFURO_CG',
+    'CAPA_CG'
+  ];
+  if (wildcardPatterns.some(p => originalUpper.includes(p))) {
+    return true; // Ignora a consulta no ERP, assume como válido para este check
+  }
 
   // 1. Remover sufixo CG1 ou CG2 do final do código (case-insensitive)
   if (/cg[12]$/i.test(processedCode)) {
@@ -119,18 +132,6 @@ async function checkCodeExistsInErp(codigo, cache = {}) {
 
   const upperCode = processedCode.toUpperCase();
   if (!upperCode) return true;
-
-  // Ignorar códigos de cores coringas
-  const wildcardPatterns = [
-    'CHAPA_CG',
-    'PAINEL_CG',
-    'FITA_CG',
-    'TAPAFURO_CG',
-    'CAPA_CG'
-  ];
-  if (wildcardPatterns.some(p => upperCode.includes(p))) {
-    return true; // Ignora a consulta no ERP, assume como válido para este check
-  }
 
   if (cache.results && cache.results.has(upperCode)) {
     return cache.results.get(upperCode);
