@@ -18,12 +18,10 @@
 ## 📸 Preview
 
 <div align="center">
-  <img src="docs/img/bartz_analyzer.png" alt="Bartz Analyzer Dashboard" width="100%">
-</div>
-
-<div align="center">
-  <img src="docs/img/bartz_analyzer_2.png" width="49%" />
-  <img src="docs/img/bartz_analyzer_3.png" width="49%" />
+  <img src="assets/foto1.png" width="49%" alt="Bartz Analyzer Screen 1" />
+  <img src="assets/foto2.png" width="49%" alt="Bartz Analyzer Screen 2" />
+  <img src="assets/foto3.png" width="49%" alt="Bartz Analyzer Screen 3" />
+  <img src="assets/foto4.png" width="49%" alt="Bartz Analyzer Screen 4" />
 </div>
 
 ---
