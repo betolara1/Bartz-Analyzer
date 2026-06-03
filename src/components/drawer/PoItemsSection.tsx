@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import { Package, ChevronDown, Edit2, AlertTriangle, Search } from "lucide-react";
+import { Layers, ChevronDown, Edit2, AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
-interface SpecialItemsSectionProps {
+interface PoItemsSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   data: Row | null;
 }
 
-export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSectionProps) {
-  const specialItems = (data?.meta?.specialItems || []) as any[];
+export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) {
+  const poItems = (data?.meta?.poItems || []) as any[];
 
   // Filter State
   const [filterText, setFilterText] = useState("");
@@ -22,7 +22,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
   const [newDescription, setNewDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredItems = specialItems.filter((item: any) => {
+  const filteredItems = poItems.filter((item: any) => {
     if (!filterText.trim()) return true;
     const search = filterText.toLowerCase();
     return (
@@ -33,7 +33,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
     );
   });
 
-  if (specialItems.length === 0) return null;
+  if (poItems.length === 0) return null;
 
   const handleOpenEditModal = (item: any) => {
     setSelectedItem(item);
@@ -70,22 +70,22 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
   };
 
   return (
-    <section className="rounded-xl border border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/5 overflow-hidden shadow-sm transition-all duration-300">
+    <section className="rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/5 overflow-hidden shadow-sm transition-all duration-300">
       <div
         className="px-5 py-4 flex items-center justify-between cursor-pointer group"
         onClick={onToggle}
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-purple-400">
-            <Package className="h-4 w-4" />
+          <div className="p-2 rounded-lg bg-[#111] border border-[#232323] text-indigo-400">
+            <Layers className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground tracking-tight">Itens Especiais (ES0?)</h3>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Detecção de parâmetros customizados</p>
+            <h3 className="text-sm font-bold text-foreground tracking-tight">Itens POXXXX</h3>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Detecção de códigos padrão POXXXX / POXXXXAA</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className={`h-2 w-2 rounded-full ${specialItems.length > 0 ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]' : 'bg-[#333]'}`} />
+          <div className={`h-2 w-2 rounded-full ${poItems.length > 0 ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-[#333]'}`} />
           <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
             <ChevronDown className="h-4 w-4 text-[#666]" />
           </div>
@@ -93,7 +93,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
       </div>
       {isOpen && (
         <div className="px-5 pb-5 pt-2 space-y-3">
-          {specialItems.length > 0 && (
+          {poItems.length > 0 && (
             <div className="relative max-w-md">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
                 <Search className="h-3.5 w-3.5" />
@@ -103,7 +103,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 placeholder="Buscar por item, desenho, dimensão ou descrição..."
-                className="w-full bg-[#111] border border-[#232323] text-white pl-9 pr-3 py-2 rounded-lg text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium"
+                className="w-full bg-[#111] border border-[#232323] text-white pl-9 pr-3 py-2 rounded-lg text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium"
               />
             </div>
           )}
@@ -123,7 +123,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                 <tbody className="divide-y divide-[#232323]">
                   {filteredItems.map((item: any, i: number) => (
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
-                      <td className="px-4 py-3 font-mono text-purple-400">{item.itemBase}</td>
+                      <td className="px-4 py-3 font-mono text-indigo-400">{item.itemBase}</td>
                       <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
                       <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao}</td>
                       <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[220px] break-words">
@@ -132,7 +132,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleOpenEditModal(item)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 active:scale-[0.97] transition-all"
                         >
                           <Edit2 className="h-3 w-3" />
                           Trocar Descrição
@@ -143,13 +143,13 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                 </tbody>
               </table>
             </div>
-          ) : specialItems.length > 0 ? (
+          ) : poItems.length > 0 ? (
             <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
               <p className="text-xs italic text-[#555]">Nenhum item corresponde à busca.</p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
-              <p className="text-xs italic text-[#555]">Nenhum item especial ES0 detectado.</p>
+              <p className="text-xs italic text-[#555]">Nenhum item POXXXX detectado.</p>
             </div>
           )}
         </div>
@@ -158,15 +158,15 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
       {/* MODAL 1: EDITAR DESCRIÇÃO */}
       {isEditModalOpen && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-[#151515] border border-purple-500/30 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-lg bg-[#151515] border border-indigo-500/30 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="px-6 py-4 bg-[#1B1B1B] border-b border-[#232323] flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400">
+              <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
                 <Edit2 className="h-4 w-4" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white tracking-tight">Trocar Descrição</h3>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração especial de componentes</p>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração de descrição de item POXXXX</p>
               </div>
             </div>
             
@@ -185,7 +185,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Digite a nova descrição do item..."
-                  className="w-full bg-[#0E0E0E] border border-[#2C2C2C] text-white px-3 py-2.5 rounded-lg text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium"
+                  className="w-full bg-[#0E0E0E] border border-[#2C2C2C] text-white px-3 py-2.5 rounded-lg text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium"
                   autoFocus
                 />
               </div>
@@ -208,7 +208,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                   setIsEditModalOpen(false);
                   setIsConfirmModalOpen(true);
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 Confirmar
               </button>
@@ -220,7 +220,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
       {/* MODAL 2: CONFIRMAR ALTERAÇÃO */}
       {isConfirmModalOpen && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#151515] border border-purple-500/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md bg-[#151515] border border-indigo-500/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="px-6 py-4 bg-[#1B1B1B] border-b border-[#232323] flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500">
@@ -273,7 +273,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
               <button
                 disabled={isSaving}
                 onClick={handleApplyDescriptionChange}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isSaving ? "Salvando..." : "Confirmar Troca"}
               </button>
@@ -282,5 +282,5 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
         </div>
       )}
     </section>
-);
+  );
 }

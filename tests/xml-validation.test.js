@@ -143,5 +143,21 @@ describe('XML Validation Logic', () => {
         const { payload } = validateXmlContent(xml);
         expect(payload.erros).not.toContainEqual({ descricao: 'Sem Item Filho' });
     });
+ 
+    it('should detect POXXXX and POXXXXAA items correctly', () => {
+        const xml = `
+        <PEDIDO>
+            <ITENS>
+                <ITEM ID="PAI_PO" REFERENCIA="PO3206" ITEM_BASE="PO3206" DESCRICAO="Porta Pai" LARGURA="600" ALTURA="2000" PROFUNDIDADE="18" />
+                <ITEM ID="FILHO_PO" REFERENCIA="PO3206AA" ITEM_BASE="PO3206AA" DESCRICAO="Puxador Filho" LARGURA="50" ALTURA="50" PROFUNDIDADE="20" />
+            </ITENS>
+        </PEDIDO>`;
+        const { payload } = validateXmlContent(xml);
+        expect(payload.meta.poItems).toHaveLength(2);
+        expect(payload.meta.poItems[0].itemBase).toBe('PO3206');
+        expect(payload.meta.poItems[0].dimensao).toBe('600x2000x18');
+        expect(payload.meta.poItems[1].itemBase).toBe('PO3206AA');
+        expect(payload.meta.poItems[1].dimensao).toBe('50x50x20');
+    });
 
 });

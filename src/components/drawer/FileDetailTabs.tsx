@@ -19,6 +19,7 @@ import { MachineSection } from "./MachineSection";
 import { ImportKeySection } from "./ImportKeySection";
 import { OrderInfoSection } from "./OrderInfoSection";
 import { SpecialItemsSection } from "./SpecialItemsSection";
+import { PoItemsSection } from "./PoItemsSection";
 import { MuxarabiSection } from "./MuxarabiSection";
 import { Es08Section } from "./Es08Section";
 import { ErpSearchSection } from "./ErpSearchSection";
@@ -59,8 +60,9 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDe
   const hasSemFilho = !!data?.tags?.includes('sem_filho');
   const hasEs08 = (data?.meta?.es08Matches || []).length > 0;
   const hasSpecialItems = (data?.meta?.specialItems || []).length > 0;
+  const hasPoItems = (data?.meta?.poItems || []).length > 0;
   const hasMuxarabi = (data?.meta?.muxarabiItems || []).length > 0;
-  const hasComponents = hasSemFilho || hasEs08 || hasSpecialItems || hasMuxarabi;
+  const hasComponents = hasSemFilho || hasEs08 || hasSpecialItems || hasPoItems || hasMuxarabi;
 
   const tabs: TabDef[] = [
     { key: "overview", label: "Visão Geral", icon: <Eye className="h-3.5 w-3.5" /> },
@@ -205,6 +207,13 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
         <SpecialItemsSection
           isOpen={actions.specialItemsOpen}
           onToggle={() => actions.setSpecialItemsOpen(!actions.specialItemsOpen)}
+          data={data}
+        />
+      </div>
+      <div className="lg:col-span-2">
+        <PoItemsSection
+          isOpen={actions.poItemsOpen}
+          onToggle={() => actions.setPoItemsOpen(!actions.poItemsOpen)}
           data={data}
         />
       </div>

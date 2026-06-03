@@ -972,15 +972,9 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
     for (const id of ids) {
       if (!id) continue;
       
-      // Step 1: Build the itemRegex targeting by DESENHO (if provided) or ID as fallback
-      let itemRegex;
-      if (desenho) {
-        const escapedDesenho = escapeRegExp(String(desenho));
-        itemRegex = new RegExp(`<ITEM(?:[^<]|\\n)*?DESENHO\\s*=\\s*"${escapedDesenho}"(?:[^<]|\\n)*?(?:>|/>)`, 'gi');
-      } else {
-        const escapedId = escapeRegExp(String(id));
-        itemRegex = new RegExp(`<ITEM(?:[^<]|\\n)*?ID\\s*=\\s*"${escapedId}"(?:[^<]|\\n)*?(?:>|/>)`, 'gi');
-      }
+      // Step 1: Build the itemRegex targeting by ID (unique identifier in XML)
+      const escapedId = escapeRegExp(String(id));
+      const itemRegex = new RegExp(`<ITEM(?:[^<]|\\n)*?ID\\s*=\\s*"${escapedId}"(?:[^<]|\\n)*?(?:>|/>)`, 'gi');
 
       let oldDesc = "";
       let itemDrawing = desenho || "";

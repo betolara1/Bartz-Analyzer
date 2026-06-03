@@ -176,6 +176,57 @@ function validateXmlContent(txt, cfg = {}) {
         payload.meta.specialItems = Array.from(spMap.values());
     } catch (e) { }
 
+    // ITENS POXXXX / POXXXXAA
+    try {
+        const poItems = [];
+        for (const m of itemMatches) {
+            const itemTag = m[0];
+            const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(PO\d{4}[^"]*)"/i);
+            const refMatch = itemTag.match(/\bREFERENCIA\s*=\s*"(PO\d{4}[^"]*)"/i);
+            if (baseMatch || refMatch) {
+                const itemBase = (baseMatch ? baseMatch[1] : refMatch[1]).toUpperCase();
+                const referencia = (refMatch ? refMatch[1] : (baseMatch ? baseMatch[1] : "")).toUpperCase();
+                const idMatch = itemTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+                const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+                const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+
+                const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+                const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+                const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+
+                poItems.push({
+                    id: idMatch ? idMatch[1] : "",
+                    itemBase,
+                    referencia,
+                    desenho: desenhoMatch ? desenhoMatch[1] : "",
+                    descricao: descMatch ? descMatch[1] : "",
+                    dimensao: `${l}x${a}x${p}`
+                });
+            }
+        }
+        const poMap = new Map();
+        for (const s of poItems) {
+            const key = `${s.itemBase}|${s.desenho}|${s.descricao}|${s.dimensao}`;
+            if (!poMap.has(key)) {
+                poMap.set(key, {
+                    id: s.id,
+                    itemBase: s.itemBase,
+                    referencia: s.referencia,
+                    desenho: s.desenho,
+                    descricao: s.descricao,
+                    dimensao: s.dimensao,
+                    ids: [s.id]
+                });
+            } else {
+                poMap.get(key).ids.push(s.id);
+            }
+        }
+        payload.meta.poItems = Array.from(poMap.values());
+    } catch (e) { }
+
     // IMPORTKEY
     try {
         const importKeyMatch = txt.match(/<IMPORTKEY\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);

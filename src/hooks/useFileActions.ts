@@ -14,6 +14,7 @@ export function useFileActions(
   const [coringaOpen, setCoringaOpen] = useState(false);
   const [orderInfoOpen, setOrderInfoOpen] = useState(false);
   const [specialItemsOpen, setSpecialItemsOpen] = useState(false);
+  const [poItemsOpen, setPoItemsOpen] = useState(false);
   const [muxarabiOpen, setMuxarabiOpen] = useState(false);
   const [es08Open, setEs08Open] = useState(false);
   const [semFilhoOpen, setSemFilhoOpen] = useState(false);
@@ -151,6 +152,7 @@ export function useFileActions(
       setCoringaOpen(false);
       setOrderInfoOpen(false);
       setSpecialItemsOpen(false);
+      setPoItemsOpen(false);
       setMuxarabiOpen(false);
       setEs08Open(false);
       setSemFilhoOpen(false);
@@ -564,6 +566,7 @@ export function useFileActions(
     coringaOpen, setCoringaOpen,
     orderInfoOpen, setOrderInfoOpen,
     specialItemsOpen, setSpecialItemsOpen,
+    poItemsOpen, setPoItemsOpen,
     muxarabiOpen, setMuxarabiOpen,
     es08Open, setEs08Open,
     erpSearchCode, setErpSearchCode,
