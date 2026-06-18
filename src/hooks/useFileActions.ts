@@ -333,7 +333,11 @@ export function useFileActions(
     try {
       const res = await (window as any).electron?.analyzer?.getOrderComments?.(num);
       if (res?.ok) {
-        setOrderComments(res.data || []);
+        const rawComments = res.data || [];
+        const filteredComments = rawComments.filter(
+          (c: any) => c.pk_pedido_comentario && (Number(c.int_situacao) === 0 || Number(c.int_situacao) === 1)
+        );
+        setOrderComments(filteredComments);
       } else {
         setOrderComments([]);
         toast.error(`Falha: ${res?.message || 'Erro ao buscar'}`);
