@@ -9,6 +9,15 @@ interface OrderInfoSectionProps {
   onFetch: () => void;
 }
 
+function cleanComment(text: string): string {
+  if (!text) return "";
+  // Remove the entire div block containing "Alterado para"
+  let cleaned = text.replace(/<div[^>]*style=['"][^'"]*border-top:[^'"]*['"][^>]*>[\s\S]*?\[Alterado para[\s\S]*?<\/div>/gi, "");
+  // Just in case there is a standalone "[Alterado para ...]" without the div wrapper
+  cleaned = cleaned.replace(/\[Alterado para[^\]]*\]/gi, "");
+  return cleaned.trim();
+}
+
 export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch }: OrderInfoSectionProps) {
   return (
     <section className="rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/5 overflow-hidden shadow-sm transition-all duration-300">
@@ -53,25 +62,27 @@ export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch 
             </div>
           ) : comments.length > 0 ? (
             <div className="space-y-4">
-              {comments.map((c, i) => (
-                <div key={i} className="p-4 rounded-lg bg-[#111] border border-[#232323] space-y-2 group/comment hover:border-[#333] transition-colors">
-                  {c.txt_titulo && (
-                    <div className="text-[9px] uppercase font-bold text-[#3498DB] tracking-widest mb-1 opacity-80 group-hover/comment:opacity-100 transition-opacity">
-                      {c.txt_titulo}
-                    </div>
-                  )}
-                  <div className="text-sm text-white leading-relaxed font-medium">
-                    {(c.txt_comentario || "Nenhum comentário registrado.")
-                      .split(/<br\s*\/?>/gi)
-                      .map((line: string, idx: number) => (
+              {comments.map((c, i) => {
+                const commentText = cleanComment(c.txt_comentario || "Nenhum comentário registrado.");
+                const lines = commentText.split(/<br\s*\/?>/gi);
+                return (
+                  <div key={i} className="p-4 rounded-lg bg-[#111] border border-[#232323] space-y-2 group/comment hover:border-[#333] transition-colors">
+                    {c.txt_titulo && (
+                      <div className="text-[9px] uppercase font-bold text-[#3498DB] tracking-widest mb-1 opacity-80 group-hover/comment:opacity-100 transition-opacity">
+                        {c.txt_titulo}
+                      </div>
+                    )}
+                    <div className="text-sm text-white leading-relaxed font-medium">
+                      {lines.map((line: string, idx: number) => (
                         <React.Fragment key={idx}>
                           {line}
-                          {idx < (c.txt_comentario || "").split(/<br\s*\/?>/gi).length - 1 && <br />}
+                          {idx < lines.length - 1 && <br />}
                         </React.Fragment>
                       ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 rounded-lg bg-[#111] border border-dashed border-[#232323] space-y-2 opacity-60">
