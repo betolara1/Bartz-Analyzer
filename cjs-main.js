@@ -1821,10 +1821,12 @@ ipcMain.handle('analyzer:openMuxarabiDrawing', async (_e, arg) => {
     if (!sizeCode) {
       return { ok: false, message: "Código de tamanho vazio ou inválido." };
     }
-    const muxarabiDirPath = path.join(app.getAppPath(), 'Muxarabi');
+    const muxarabiDirPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'Muxarabi')
+      : path.join(app.getAppPath(), 'Muxarabi');
     const folderExists = await fse.pathExists(muxarabiDirPath);
     if (!folderExists) {
-      return { ok: false, message: `Pasta "Muxarabi" não encontrada na raiz do projeto: ${muxarabiDirPath}` };
+      return { ok: false, message: `Pasta "Muxarabi" não encontrada na raiz do projeto ou recursos: ${muxarabiDirPath}` };
     }
 
     // Buscar o arquivo de desenho (ex: "50x50.dxf") recursivamente dentro da pasta Muxarabi na raiz

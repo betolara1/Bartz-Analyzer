@@ -29,6 +29,9 @@
       "preload.js",
       "package.json"
     ],
+    "extraResources": [
+      "Muxarabi/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "node_modules/app-builder-lib/templates/icons/proton-native/proton-native.ico"
