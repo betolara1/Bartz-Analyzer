@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Package, ChevronDown, Edit2, AlertTriangle, Search } from "lucide-react";
+import { Package, ChevronDown, Edit2, AlertTriangle, Search, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
@@ -69,6 +69,26 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
     }
   };
 
+  const handleOpenDrawing = async (drawingCode: string) => {
+    if (!drawingCode) {
+      toast.error("Código de desenho inválido.");
+      return;
+    }
+    const id = toast.loading(`Buscando e abrindo desenho ${drawingCode}...`);
+    try {
+      const res = await (window as any).electron?.analyzer?.openDrawing?.(drawingCode);
+      if (res?.ok) {
+        toast.success(`Desenho ${drawingCode} aberto com sucesso!`);
+      } else {
+        toast.error(`Não foi possível abrir o desenho: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error(`Erro ao abrir desenho: ${error.message || error}`);
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
   return (
     <section className="rounded-xl border border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/5 overflow-hidden shadow-sm transition-all duration-300">
       <div
@@ -117,6 +137,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
+                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[140px]">Abrir Desenho</th>
                     <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[130px]">Ações</th>
                   </tr>
                 </thead>
@@ -128,6 +149,16 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
                       <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao}</td>
                       <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[220px] break-words">
                         {item.descricao || <span className="text-white/40 italic">vazio</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          disabled={!item.desenho}
+                          onClick={() => handleOpenDrawing(item.desenho)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          Abrir Desenho
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button

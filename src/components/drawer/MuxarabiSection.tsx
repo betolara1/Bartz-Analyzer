@@ -1,5 +1,6 @@
 import React from "react";
-import { Layers, ChevronDown } from "lucide-react";
+import { Layers, ChevronDown, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { Row } from "../../types";
 
 interface MuxarabiSectionProps {
@@ -10,6 +11,46 @@ interface MuxarabiSectionProps {
 
 export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps) {
   const muxarabiItems = (data?.meta?.muxarabiItems || []) as any[];
+
+  const handleOpenDrawing = async (drawingCode: string) => {
+    if (!drawingCode) {
+      toast.error("Código de desenho inválido.");
+      return;
+    }
+    const id = toast.loading(`Buscando e abrindo desenho ${drawingCode}...`);
+    try {
+      const res = await (window as any).electron?.analyzer?.openDrawing?.(drawingCode);
+      if (res?.ok) {
+        toast.success(`Desenho ${drawingCode} aberto com sucesso!`);
+      } else {
+        toast.error(`Não foi possível abrir o desenho: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error(`Erro ao abrir desenho: ${error.message || error}`);
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
+  const handleOpenMuxarabi = async (sizeCode: string) => {
+    if (!sizeCode) {
+      toast.error("Não foi possível identificar o tamanho do muxarabi.");
+      return;
+    }
+    const id = toast.loading(`Buscando e abrindo desenho do Muxarabi ${sizeCode}...`);
+    try {
+      const res = await (window as any).electron?.analyzer?.openMuxarabiDrawing?.(sizeCode);
+      if (res?.ok) {
+        toast.success(`Desenho Muxarabi ${sizeCode} aberto com sucesso!`);
+      } else {
+        toast.error(`Não foi possível abrir o Muxarabi: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error(`Erro ao abrir Muxarabi: ${error.message || error}`);
+    } finally {
+      toast.dismiss(id);
+    }
+  };
 
   if (muxarabiItems.length === 0) return null;
 
@@ -45,18 +86,46 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
+                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[260px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#232323]">
-                  {muxarabiItems.map((item: any, i: number) => (
-                    <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-4 py-3 font-mono text-orange-400">{item.itemBase}</td>
-                      <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
-                      <td className="px-4 py-3 text-white text-[11px] leading-tight break-words max-w-[250px]">
-                        {item.descricao || <span className="text-white/40 italic">vazio</span>}
-                      </td>
-                    </tr>
-                  ))}
+                   {muxarabiItems.map((item: any, i: number) => {
+                    const match = item.descricao?.match(/(\d+\s*x\s*\d+)/i);
+                    const sizeCode = match ? match[1].replace(/\s+/g, '').toLowerCase() : null;
+
+                    return (
+                      <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-4 py-3 font-mono text-orange-400">{item.itemBase}</td>
+                        <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
+                        <td className="px-4 py-3 text-white text-[11px] leading-tight break-words max-w-[250px]">
+                          {item.descricao || <span className="text-white/40 italic">vazio</span>}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex gap-2">
+                            <button
+                              disabled={!item.desenho}
+                              onClick={() => handleOpenDrawing(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir desenho principal do item"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              Abrir Desenho
+                            </button>
+                            <button
+                              disabled={!sizeCode}
+                              onClick={() => handleOpenMuxarabi(sizeCode)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={`Abrir desenho Muxarabi de tamanho ${sizeCode || 'desconhecido'}`}
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              Abrir Muxarabi
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

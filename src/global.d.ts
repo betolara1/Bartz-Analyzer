@@ -10,6 +10,8 @@ declare global {
         onEvent: (cb: (msg: any) => void) => void;
         openInFolder: (fullOrBasePath: string) => Promise<boolean>;
         reprocessOne: (fullOrBasePath: string) => Promise<boolean>;
+        openDrawing?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
+        openMuxarabiDrawing?: (sizeCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
       };
       settings?: {
         load: () => Promise<any>;

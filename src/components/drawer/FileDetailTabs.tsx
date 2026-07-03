@@ -224,11 +224,13 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
           data={data}
         />
       </div>
-      <MuxarabiSection
-        isOpen={actions.muxarabiOpen}
-        onToggle={() => actions.setMuxarabiOpen(!actions.muxarabiOpen)}
-        data={data}
-      />
+      <div className="lg:col-span-2">
+        <MuxarabiSection
+          isOpen={actions.muxarabiOpen}
+          onToggle={() => actions.setMuxarabiOpen(!actions.muxarabiOpen)}
+          data={data}
+        />
+      </div>
     </div>
   );
 }

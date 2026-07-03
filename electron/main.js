@@ -1,5 +1,5 @@
 // main.js  (CommonJS)
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -79,6 +79,22 @@ function buildNormalizedConfig(obj) {
     logsProcessed: normalizeWin(obj.logsProcessed || ''),
     drawings: normalizeWin(obj.drawings || ''),
   };
+}
+
+async function findFileRecursive(dir, filenameLower) {
+  try {
+    const entries = await fsp.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const found = await findFileRecursive(fullPath, filenameLower);
+        if (found) return found;
+      } else if (entry.name.toLowerCase() === filenameLower) {
+        return fullPath;
+      }
+    }
+  } catch (e) { }
+  return null;
 }
 
 /* ------ validação (stub) ------ */
@@ -207,61 +223,116 @@ ipcMain.handle('analyzer:scanOnce', async () => {
   }
 });
 
-ipcMain.handle('analyzer:findDrawingFile', async (_e, drawingCode) => {
+ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
   try {
+    const { drawingCode } = (typeof obj === 'string') ? { drawingCode: obj } : (obj || {});
     console.log('[DXF Search] ========== INICIANDO BUSCA ==========');
     console.log('[DXF Search] Código de desenho procurado:', drawingCode);
 
-    // Buscar na pasta "desenho_dxf" no Desktop
-    const desktopPath = path.join(app.getPath('home'), 'Desktop');
-    const dxfFolderPath = path.join(desktopPath, 'desenho_dxf');
+    const cfg = currentCfg || (await loadCfg()) || {};
+    const dxfFolderPath = cfg?.drawings;
 
-    console.log('[DXF Search] Desktop path:', desktopPath);
+    if (!dxfFolderPath) {
+      console.log('[DXF Search] ❌ Pasta de desenhos não configurada');
+      return { found: false, path: null, message: "A pasta de desenhos não está configurada nas preferências." };
+    }
+
     console.log('[DXF Search] DXF folder path:', dxfFolderPath);
 
     // Verificar se a pasta existe
     const folderExists = await fse.pathExists(dxfFolderPath);
-    console.log('[DXF Search] Pasta "desenho_dxf" existe?', folderExists);
+    console.log('[DXF Search] Pasta existe?', folderExists);
 
     if (!folderExists) {
       console.log('[DXF Search] ❌ FALHA: Pasta não encontrada');
       return { found: false, path: null, message: `Pasta não encontrada: ${dxfFolderPath}` };
     }
 
-    // Buscar o arquivo na pasta
-    const files = await fsp.readdir(dxfFolderPath);
-    console.log('[DXF Search] Total de arquivos na pasta:', files.length);
-    console.log('[DXF Search] Arquivos encontrados:');
-    files.forEach((f, i) => {
-      console.log(`  [${i + 1}] ${f}`);
-    });
+    // Procurar arquivo recursivamente
+    const exactFilename = `${drawingCode.toLowerCase()}.dxf`;
+    console.log('[DXF Search] Buscando arquivo recursivamente:', exactFilename);
+    const fullPath = await findFileRecursive(dxfFolderPath, exactFilename);
 
-    // Procurar arquivo que comece com o código de desenho (case-insensitive)
-    const searchPattern = drawingCode.toLowerCase();
-    console.log('[DXF Search] Padrão de busca (lowercase):', searchPattern);
-    console.log('[DXF Search] Procurando arquivo que comece com:', searchPattern);
-
-    const foundFile = files.find(f => {
-      const lowerF = f.toLowerCase();
-      const matches = lowerF.startsWith(searchPattern);
-      console.log(`  Comparando "${f}" (${lowerF}) -> começa com "${searchPattern}"? ${matches}`);
-      return matches;
-    });
-
-    if (foundFile) {
-      const fullPath = path.join(dxfFolderPath, foundFile);
+    if (fullPath) {
+      const foundFile = path.basename(fullPath);
       console.log('[DXF Search] ✅ SUCESSO: Arquivo encontrado');
       console.log('[DXF Search] Nome:', foundFile);
       console.log('[DXF Search] Caminho completo:', fullPath);
       return { found: true, path: fullPath, name: foundFile };
     }
 
-    console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão');
-    return { found: false, path: null, message: `Arquivo "${drawingCode}" não encontrado em desenho_dxf` };
+    console.log('[DXF Search] ❌ FALHA: Nenhum arquivo corresponde ao padrão nas subpastas');
+    return { found: false, path: null, message: `Arquivo "${exactFilename}" não encontrado em ${dxfFolderPath} ou subpastas.` };
   } catch (e) {
     console.log('[DXF Search] ❌ ERRO DURANTE BUSCA:', e.message || e);
     console.error('[DXF Search] Stack:', e.stack);
     return { found: false, path: null, message: `Erro ao buscar: ${String(e && e.message || e)}` };
+  }
+});
+
+/** ================== IPC: OPEN DRAWING FILE ================== **/
+ipcMain.handle('analyzer:openDrawing', async (_e, arg) => {
+  try {
+    const drawingCode = (typeof arg === 'string') ? arg : (arg?.drawingCode || '');
+    if (!drawingCode) {
+      return { ok: false, message: "Código de desenho vazio ou inválido." };
+    }
+    const cfg = currentCfg || (await loadCfg()) || {};
+    const dxfFolderPath = cfg?.drawings;
+    
+    if (!dxfFolderPath) {
+      return { ok: false, message: "A pasta de desenhos não está configurada nas preferências." };
+    }
+
+    const folderExists = await fse.pathExists(dxfFolderPath);
+    if (!folderExists) {
+      return { ok: false, message: `Pasta de desenhos não encontrada: ${dxfFolderPath}` };
+    }
+
+    const exactFilename = `${drawingCode.toLowerCase()}.dxf`;
+    const fullPath = await findFileRecursive(dxfFolderPath, exactFilename);
+
+    if (!fullPath) {
+      return { ok: false, message: `Desenho "${exactFilename}" não encontrado na pasta de desenhos ou subpastas.` };
+    }
+    const errorMsg = await shell.openPath(fullPath);
+    if (errorMsg) {
+      return { ok: false, message: `Erro ao abrir o arquivo: ${errorMsg}` };
+    }
+    return { ok: true, path: fullPath };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
+/** ================== IPC: OPEN MUXARABI DRAWING FILE ================== **/
+ipcMain.handle('analyzer:openMuxarabiDrawing', async (_e, arg) => {
+  try {
+    const sizeCode = (typeof arg === 'string') ? arg : (arg?.sizeCode || '');
+    if (!sizeCode) {
+      return { ok: false, message: "Código de tamanho vazio ou inválido." };
+    }
+    const muxarabiDirPath = path.join(app.getAppPath(), 'Muxarabi');
+    const folderExists = await fse.pathExists(muxarabiDirPath);
+    if (!folderExists) {
+      return { ok: false, message: `Pasta "Muxarabi" não encontrada na raiz do projeto: ${muxarabiDirPath}` };
+    }
+
+    // Buscar o arquivo de desenho (ex: "50x50.dxf") recursivamente dentro da pasta Muxarabi na raiz
+    const exactFilename = `${sizeCode.toLowerCase()}.dxf`;
+    const fullPath = await findFileRecursive(muxarabiDirPath, exactFilename);
+
+    if (!fullPath) {
+      return { ok: false, message: `Desenho "${exactFilename}" não encontrado na pasta Muxarabi da raiz do projeto.` };
+    }
+
+    const errorMsg = await shell.openPath(fullPath);
+    if (errorMsg) {
+      return { ok: false, message: `Erro ao abrir o arquivo: ${errorMsg}` };
+    }
+    return { ok: true, path: fullPath };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
   }
 });
 

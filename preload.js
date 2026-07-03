@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electron', {
     fillReferenciaByIds: (filePath, replacements) => ipcRenderer.invoke('analyzer:fillReferenciaByIds', { filePath, replacements }),
     replaceItemDescription: (filePath, ids, newDescription, desenho) => ipcRenderer.invoke('analyzer:replaceItemDescription', { filePath, ids, newDescription, desenho }),
     findDrawingFile: (drawingCode, xmlFilePath) => ipcRenderer.invoke('analyzer:findDrawingFile', { drawingCode, xmlFilePath }),
+    openDrawing: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawing', { drawingCode }),
+    openMuxarabiDrawing: (sizeCode) => ipcRenderer.invoke('analyzer:openMuxarabiDrawing', { sizeCode }),
     fixFresa37to18: (dxfFilePath) => ipcRenderer.invoke('analyzer:fixFresa37to18', dxfFilePath),
     exportReport: (reportData) => ipcRenderer.invoke('analyzer:exportReport', reportData),
     searchCsvProduct: (colorName, productType) => ipcRenderer.invoke('analyzer:searchCsvProduct', { colorName, productType }),

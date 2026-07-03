@@ -9,7 +9,9 @@ contextBridge.exposeInMainWorld('electron', {
     onEvent: (cb) => {
       ipcRenderer.removeAllListeners('analyzer:event');
       ipcRenderer.on('analyzer:event', (_e, data) => cb?.(data));
-    }
+    },
+    openDrawing: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawing', { drawingCode }),
+    openMuxarabiDrawing: (sizeCode) => ipcRenderer.invoke('analyzer:openMuxarabiDrawing', { sizeCode })
   },
   settings: {
     load: () => ipcRenderer.invoke('settings:load'),
