@@ -272,6 +272,8 @@ function validateXmlContent(txt, cfg = {}) {
     }
 
     // ===== SEM ITEM FILHO =====
+    // Analisa apenas itens PAI (top-level, direto dentro de <ITENS_PEDIDO> ou <ITENS>)
+    // Itens filhos (aninhados dentro de outro <ITEM>) NÃO devem ser verificados
     try {
         const parser = new XMLParser({ 
             ignoreAttributes: false, 
@@ -280,6 +282,7 @@ function validateXmlContent(txt, cfg = {}) {
         });
         const jsonObj = parser.parse(txt);
         
+        // Coleta recursiva de TODOS os itens (para allItems)
         const allItens = [];
         const findItens = (node) => {
             if (!node || typeof node !== 'object') return;
@@ -349,19 +352,90 @@ function validateXmlContent(txt, cfg = {}) {
         }
         payload.meta.allItems = Array.from(itemsMap.values());
 
+        // SEM ITEM FILHO: Analisa bloco por bloco de <ITEM> dentro de <ITENS_PEDIDO>
+        // Se o bloco do item PAI não contém <UNIQUE_ID>, é inconsistência "sem filho"
         const semFilhoMatches = [];
-        for (const item of allItens) {
-            const preco = String(item.PRECO_TOTAL || "").trim();
-            if (preco === "0.01") {
-                const itemsCol = item.ITEMS?.[0];
-                const children = itemsCol?.ITEM || [];
-                const hasChildren = Array.isArray(children) && children.length > 0;
-                
-                if (!hasChildren) {
-                    semFilhoMatches.push({
-                        id: item.ID || "",
-                        referencia: item.REFERENCIA || ""
-                    });
+
+        // Encontra o conteúdo do container principal (ITENS_PEDIDO ou ITENS de primeiro nível)
+        let containerContent = null;
+
+        // Tenta ITENS_PEDIDO primeiro (mais específico)
+        const ipMatch = txt.match(/<ITENS_PEDIDO\b[^>]*>([\s\S]*)<\/ITENS_PEDIDO>/i);
+        if (ipMatch) {
+            containerContent = ipMatch[1];
+        } else {
+            // Fallback: primeiro <ITENS> do documento com depth tracking
+            const itensOpenMatch = txt.match(/<ITENS\b[^>]*>/i);
+            if (itensOpenMatch) {
+                const startIdx = itensOpenMatch.index + itensOpenMatch[0].length;
+                let d = 1;
+                const itensTagRx = /<(\/?)(ITENS)\b[^>]*>/gi;
+                itensTagRx.lastIndex = startIdx;
+                let tm;
+                while ((tm = itensTagRx.exec(txt)) !== null) {
+                    if (tm[1] === '/') {
+                        d--;
+                        if (d === 0) {
+                            containerContent = txt.substring(startIdx, tm.index);
+                            break;
+                        }
+                    } else {
+                        d++;
+                    }
+                }
+            }
+        }
+
+        if (containerContent) {
+            // Extrai cada bloco top-level de <ITEM> por tracking de profundidade
+            const itemTagRx = /<(\/?)ITEM\b([^>]*?)(\/?)>/gi;
+            let tm;
+            let depth = 0;
+            let blockStart = -1;
+
+            while ((tm = itemTagRx.exec(containerContent)) !== null) {
+                const isClose = tm[1] === '/';
+                const isSelfClose = tm[3] === '/';
+
+                if (!isClose && !isSelfClose) {
+                    // Opening <ITEM ...>
+                    if (depth === 0) blockStart = tm.index;
+                    depth++;
+                } else if (isSelfClose) {
+                    // Self-closing <ITEM ... />
+                    if (depth === 0) {
+                        const block = tm[0];
+                        if (!/<UNIQUE_ID\b/i.test(block)) {
+                            const idM = block.match(/\bID\s*=\s*"([^"]*)"/i);
+                            const refM = block.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+                            semFilhoMatches.push({
+                                id: idM ? idM[1] : "",
+                                referencia: refM ? refM[1] : "",
+                                rawBlock: block
+                            });
+                        }
+                    }
+                } else {
+                    // Closing </ITEM>
+                    depth--;
+                    if (depth === 0 && blockStart >= 0) {
+                        const blockEnd = tm.index + tm[0].length;
+                        const block = containerContent.substring(blockStart, blockEnd);
+
+                        // Se o bloco NÃO contém <UNIQUE_ID>, é "sem filho"
+                        if (!/<UNIQUE_ID\b/i.test(block)) {
+                            const openTagM = block.match(/<ITEM\b([^>]*)>/i);
+                            const openTag = openTagM ? openTagM[1] : "";
+                            const idM = openTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                            const refM = openTag.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+                            semFilhoMatches.push({
+                                id: idM ? idM[1] : "",
+                                referencia: refM ? refM[1] : "",
+                                rawBlock: block
+                            });
+                        }
+                        blockStart = -1;
+                    }
                 }
             }
         }
@@ -435,6 +509,28 @@ function validateXmlContent(txt, cfg = {}) {
         if (priceFixCount > 0) {
             payload.autoFixes.push(`Ajustes de PREÇO aplicados em ${priceFixCount} item(ns)`);
             payload.erros = (payload.erros || []).filter(e => (e.descricao || e).toUpperCase() !== "ITEM SEM PREÇO");
+        }
+
+        if (payload.meta.semFilhoItems && payload.meta.semFilhoItems.length > 0) {
+            let semFilhoRemovedCount = 0;
+            payload.meta.semFilhoItems.forEach(item => {
+                if (item.rawBlock) {
+                    // Try to remove leading spaces/tabs and newline before the block for a cleaner deletion
+                    // But if it doesn't match perfectly, fallback to just replacing the block itself
+                    const rawEscaped = item.rawBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regexClean = new RegExp(`[ \\t]*\\n?[ \\t]*` + rawEscaped + `\\n?`, 'i');
+                    if (regexClean.test(updatedTxt)) {
+                        updatedTxt = updatedTxt.replace(regexClean, '');
+                    } else {
+                        updatedTxt = updatedTxt.replace(item.rawBlock, '');
+                    }
+                    semFilhoRemovedCount++;
+                }
+            });
+            if (semFilhoRemovedCount > 0) {
+                payload.autoFixes.push(`Removido ${semFilhoRemovedCount} item(ns) vazio(s) sem filho`);
+                payload.erros = (payload.erros || []).filter(e => (e.descricao || e).toUpperCase() !== "SEM ITEM FILHO");
+            }
         }
     }
 

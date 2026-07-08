@@ -38,7 +38,7 @@ export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendi
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground tracking-tight">Itens sem Componentes</h3>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Verificação de itens vazios (Preço 0.01)</p>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Verificação de itens vazios</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -56,7 +56,7 @@ export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendi
       {isOpen && (
         <div className="px-5 pb-5 pt-2 space-y-4">
           <div className="p-4 rounded-lg bg-rose-500/5 border border-rose-500/10 text-xs dark:text-white-200 text-rose-900 leading-relaxed font-medium">
-            Este arquivo contém itens que possuem preço <span className="text-rose-600 dark:text-rose-400 font-bold">0.01</span> mas não possuem componentes internos (filhos). 
+            Este arquivo contém itens que não possuem componentes internos (filhos). 
             Isso geralmente ocorre em componentes lineares ou acessórios que não foram gerados corretamente.
           </div>
 
@@ -84,38 +84,6 @@ export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendi
             </div>
           )}
 
-          <div className="flex justify-end">
-            {isResolved ? (
-              <div className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-                <div className="text-[11px] font-bold uppercase tracking-tight">Resolvido ✓</div>
-              </div>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onResolve();
-                }}
-                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all group active:scale-95 ${
-                  isLastProblem
-                    ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
-                    : 'bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
-                }`}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <div className="text-left">
-                  <div className="text-[11px] font-bold uppercase tracking-tight">
-                    {isLastProblem ? 'Resolver e Mover para OK' : 'Marcar como Resolvido'}
-                  </div>
-                  <div className="text-[9px] opacity-60">
-                    {isLastProblem 
-                      ? 'Último problema — envia para pasta OK' 
-                      : `Ainda resta(m) ${otherPendingCount} problema(s)`}
-                  </div>
-                </div>
-              </button>
-            )}
-          </div>
         </div>
       )}
     </section>

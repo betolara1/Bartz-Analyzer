@@ -101,27 +101,69 @@ describe('XML Validation Logic', () => {
         expect(payload.erros).not.toContainEqual({ descricao: 'PROBLEMA NA GERAÇÃO DE MÁQUINAS' });
     });
 
-    it('should detect SEM ITEM FILHO when PRECO_TOTAL="0.01" and it has no children', () => {
+    it('should detect SEM ITEM FILHO when top-level ITEM has no UNIQUE_ID', () => {
         const xml = `
         <PEDIDO>
             <ITENS>
-                <ITEM ID="PAI_VAZIO" REFERENCIA="LN4002" PRECO_TOTAL="0.01">
-                    <MAQUINAS />
+                <ITEM ID="PAI_VAZIO" REFERENCIA="LN4002">
+                    <CONFIGURADO>
+                        <CARACTERISTICA CODIGO="FILETYPE" RESPOSTA="10" />
+                    </CONFIGURADO>
+                    <ESTRUTURA />
+                    <SORTIDO />
                 </ITEM>
             </ITENS>
         </PEDIDO>`;
         const { payload } = validateXmlContent(xml);
         expect(payload.erros).toContainEqual({ descricao: 'Sem Item Filho' });
         expect(payload.tags).toContain('sem_filho');
-        expect(payload.meta.semFilhoItems).toContainEqual({ id: 'PAI_VAZIO', referencia: 'LN4002' });
+        expect(payload.meta.semFilhoItems).toContainEqual({ id: 'PAI_VAZIO', referencia: 'LN4002', rawBlock: expect.any(String) });
     });
 
-    it('should NOT detect SEM ITEM FILHO if PRECO_TOTAL is NOT "0.01", even if empty', () => {
+    it('should REMOVE "Sem Item Filho" blocks when auto-fix is enabled', () => {
         const xml = `
         <PEDIDO>
             <ITENS>
-                <ITEM ID="PAI_VAZIO" REFERENCIA="LN4002" PRECO_TOTAL="100.00">
-                    <ITEMS></ITEMS>
+                <ITEM ID="PAI_VAZIO" REFERENCIA="LN4002">
+                    <CONFIGURADO>
+                        <CARACTERISTICA CODIGO="FILETYPE" RESPOSTA="10" />
+                    </CONFIGURADO>
+                    <ESTRUTURA />
+                    <SORTIDO />
+                </ITEM>
+                <ITEM ID="PAI_OK" REFERENCIA="LN4003">
+                    <CONFIGURADO>
+                        <UNIQUE_ID CODIGO="123" />
+                    </CONFIGURADO>
+                </ITEM>
+            </ITENS>
+        </PEDIDO>`;
+        const { payload, updatedTxt } = validateXmlContent(xml, { enableAutoFix: true });
+        
+        // Verifica se o erro foi removido do payload e adicionado em autoFixes
+        expect(payload.erros).not.toContainEqual({ descricao: 'Sem Item Filho' });
+        expect(payload.tags).toContain('sem_filho'); // A tag agora é mantida mesmo após a correção
+        expect(payload.autoFixes).toContainEqual(expect.stringContaining('Removido 1 item(ns) vazio(s) sem filho'));
+
+        // Verifica se o texto atualizado não tem mais o item vazio, mas manteve o OK
+        expect(updatedTxt).not.toContain('PAI_VAZIO');
+        expect(updatedTxt).toContain('PAI_OK');
+    });
+
+    it('should NOT detect SEM ITEM FILHO when top-level ITEM has UNIQUE_ID', () => {
+        const xml = `
+        <PEDIDO>
+            <ITENS>
+                <ITEM ID="PAI_OK" REFERENCIA="LN4002">
+                    <CONFIGURADO>
+                        <UNIQUE_ID CODIGO="abc123" AMBIENTGUID="def456" />
+                        <CARACTERISTICA CODIGO="FILETYPE" RESPOSTA="10" />
+                    </CONFIGURADO>
+                    <ITEMS>
+                        <ITEM ID="FILHO1" REFERENCIA="F01" />
+                    </ITEMS>
+                    <ESTRUTURA />
+                    <SORTIDO />
                 </ITEM>
             </ITENS>
         </PEDIDO>`;
@@ -129,19 +171,55 @@ describe('XML Validation Logic', () => {
         expect(payload.erros).not.toContainEqual({ descricao: 'Sem Item Filho' });
     });
 
-    it('should NOT detect SEM ITEM FILHO if it has children, even if PRECO_TOTAL="0.01"', () => {
+    it('should detect SEM ITEM FILHO for item without UNIQUE_ID inside ITENS_PEDIDO', () => {
+        const xml = `
+        <ITENS_PEDIDO>
+            <ITEM ID="item_com_uid" REFERENCIA="10.15.0245">
+                <CONFIGURADO>
+                    <UNIQUE_ID CODIGO="blr2a594" AMBIENTGUID="ccb5aa38" />
+                    <CARACTERISTICA CODIGO="FILETYPE" RESPOSTA="10" />
+                </CONFIGURADO>
+                <ITEMS>
+                    <ITEM ID="child1" REFERENCIA="CHILD_REF" />
+                </ITEMS>
+                <ESTRUTURA />
+            </ITEM>
+            <ITEM ID="item_sem_uid" REFERENCIA="10.15.0266">
+                <CONFIGURADO>
+                    <CARACTERISTICA CODIGO="FILETYPE" RESPOSTA="10" />
+                </CONFIGURADO>
+                <ESTRUTURA />
+                <SORTIDO />
+            </ITEM>
+        </ITENS_PEDIDO>`;
+        const { payload } = validateXmlContent(xml);
+        expect(payload.erros).toContainEqual({ descricao: 'Sem Item Filho' });
+        expect(payload.tags).toContain('sem_filho');
+        expect(payload.meta.semFilhoItems).toHaveLength(1);
+        expect(payload.meta.semFilhoItems[0].id).toBe('item_sem_uid');
+    });
+
+    it('should NOT flag a child ITEM nested inside a parent as "Sem Item Filho"', () => {
+        // Item filho (CORTE_INT) está dentro do bloco pai que tem UNIQUE_ID
+        // O filho não tem UNIQUE_ID, mas não deve ser verificado pois não é top-level
         const xml = `
         <PEDIDO>
             <ITENS>
-                <ITEM ID="PAI_OK" REFERENCIA="LN4002" PRECO_TOTAL="0.01">
+                <ITEM ID="embalagem_peca_600" REFERENCIA="EMBALAGEM">
+                    <CONFIGURADO>
+                        <UNIQUE_ID CODIGO="abc123" AMBIENTGUID="def456" />
+                    </CONFIGURADO>
                     <ITEMS>
-                        <ITEM ID="FILHO1" REFERENCIA="F01" />
+                        <ITEM ID="raiz_estr_Modulo_geometrias_Corte_retangulo_angulo_" REFERENCIA="CORTE_INT">
+                            <MAQUINAS />
+                        </ITEM>
                     </ITEMS>
                 </ITEM>
             </ITENS>
         </PEDIDO>`;
         const { payload } = validateXmlContent(xml);
         expect(payload.erros).not.toContainEqual({ descricao: 'Sem Item Filho' });
+        expect(payload.tags).not.toContain('sem_filho');
     });
  
     it('should detect POXXXX and POXXXXAA items correctly', () => {
