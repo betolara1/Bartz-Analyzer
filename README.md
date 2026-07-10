@@ -84,7 +84,7 @@ graph TD
   - **Abertura Inteligente de Muxarabis:** Abertura automática de arquivos de desenho de Muxarabi (.dxf) conforme a dimensão exigida no pedido (ex: 25x25, 40x25, etc.).
 - **Resiliência com Itens Sem Cadastro:** Tratamento e exibição inteligente de itens que não possuem código ou cadastro no ERP.
 - **Filtragem de Pedidos de Compra (PO):** Ajuste na lógica para exibir somente códigos de formato `POXXXXXX` com 6 números (em vez de 4).
-
+- **Sistema de Atualização Automática (OTA):** Integração com GitHub Releases permitindo buscar, baixar e instalar novas versões do aplicativo com apenas um clique diretamente pelo Dashboard, incluindo feedback visual de erros e progresso de download.
 ---
 
 ## 🏛️ Estrutura do Código
