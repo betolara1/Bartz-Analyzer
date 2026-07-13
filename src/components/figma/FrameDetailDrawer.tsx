@@ -1,4 +1,4 @@
-import { FileDetailDrawer } from "../FileDetailDrawer"
+import FileDetailDrawer from "../FileDetailDrawer"
 
 const mockFileData = {
   filename: "PEDIDO_11111_TESTE_SO_MUXARABI.xml",
@@ -40,9 +40,9 @@ export function FrameDetailDrawer() {
     >
       <div className="relative h-full">
         <FileDetailDrawer
-          isOpen={true}
-          onClose={() => {}}
-          fileData={mockFileData}
+          open={true}
+          onOpenChange={() => {}}
+          data={mockFileData as any}
         />
       </div>
     </div>

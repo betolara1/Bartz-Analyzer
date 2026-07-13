@@ -5,20 +5,6 @@ import { Input } from "./ui/input";
 import { CircleHelp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-declare global {
-  interface Window {
-    api?: {
-      testAccess: (form: Paths) => Promise<Record<string, { ok: boolean; exists: boolean; write: boolean }>>;
-    };
-    electron?: {
-      settings?: {
-        load: () => Promise<Paths>;
-        save: (form: Paths) => Promise<void>;
-      };
-    };
-  }
-}
-
 export type Paths = {
   entrada?: string;
   exportacao?: string;

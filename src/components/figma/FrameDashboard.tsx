@@ -1,4 +1,4 @@
-import { Dashboard } from "../Dashboard"
+import Dashboard from "../Dashboard"
 
 export function FrameDashboard() {
   const handleNavigateToConfig = () => {

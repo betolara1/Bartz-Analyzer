@@ -26,6 +26,9 @@ declare global {
         onUpdateAvailable: (cb: (info: any) => void) => void;
         onUpdateProgress: (cb: (progress: any) => void) => void;
         onUpdateDownloaded: (cb: (info: any) => void) => void;
+        onUpdateNotAvailable: (cb: (info: any) => void) => void;
+        onUpdateError: (cb: (err: any) => void) => void;
+        checkForUpdates: () => Promise<void>;
         startDownload: () => Promise<void>;
         installUpdate: () => Promise<void>;
       };

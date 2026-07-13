@@ -58,7 +58,7 @@ graph TD
     I & J --> K[Atualização de Fila na UI React via IPC]
     
     %% Scheduler Scheduler Flow
-    L[Agendador Interno - Scheduler] -->|11:30 & 17:30| M[Exportação de Relatórios CSV/JSON]
+    L[Agendador Interno - Scheduler] -->|11:30 & 17:30| M[Exportação de Relatórios CSV]
     L -->|17:30| N[Limpeza Automática de Pastas Temporárias/Logs]
 ```
 
@@ -76,15 +76,21 @@ graph TD
   - **API de Pedidos:** Resgate de metadados cruciais para conferência do lote (`/api_pedidos.php`).
   - **API do ERP:** Validação e pesquisa de códigos/descrições de itens e registros de cores locais.
 - **Agendador Inteligente (Scheduler):**
-  - **Relatórios Diários:** Geração e exportação automática em lote de relatórios nos formatos JSON e CSV para a pasta do trabalhador às **11:30** e **17:30**.
+  - **Relatórios Diários:** Geração e exportação automática em lote de relatórios no formato **CSV** para a pasta de relatórios configurada às **11:30** e **17:30**, contendo metadados completos de inconformidades e decodificação otimizada para Excel (**BOM UTF-8**).
   - **Rotina de Limpeza:** Faxina programada diária às **17:30** para manter as pastas de processamento (`ok`, `erro`, `log_proc`, `log_erro`) limpas e otimizadas.
 - **Dashboard Interativo em Tempo Real:** Interface elegante construída com React, TypeScript e Tailwind CSS, alimentada por canais IPC de alto desempenho.
+  - **Seletor de Datas Interativo por Calendário:** Calendário nativo `<input type="date">` acoplado ao cabeçalho que permite visualizar os resultados de qualquer dia do histórico e exportar relatórios manuais direcionados apenas a essa data.
+  - **Busca Global Inteligente:** Campo de busca aprimorado que localiza arquivos simultaneamente pelo nome, erros, avisos, tags e status do robô.
+  - **Visualização de Auto-Fix Simplificada:** Remoção de colunas redundantes e inclusão de distintivo visual **`AUTO-FIX`** integrado diretamente ao lado das tags do arquivo.
+  - **Controle de Visualização de Tags Corrigidas:** Omissão automática de tags originais duplicadas (como `muxarabi` ou `duplado`) quando sua respectiva versão corrigida (`_autofix`) está presente.
+  - **Portabilidade Visual de Tema (Color Scheme):** Correção de bugs de cores em computadores rodando o sistema operacional em modo claro, forçando popups e dropdowns nativos do Windows a renderizarem no modo escuro.
   - **Aba de Itens Completa (Visualização & Edição):** Nova funcionalidade que lista todos os itens (pais e filhos) do XML, permitindo alterar suas descrições e visualizar detalhes sem abrir o XML bruto.
   - **Visualização de Desenhos Técnicos:** Integração com botões de "Abrir Desenho" em todas as abas de itens, acelerando as conferências no chão de fábrica.
   - **Abertura Inteligente de Muxarabis:** Abertura automática de arquivos de desenho de Muxarabi (.dxf) conforme a dimensão exigida no pedido (ex: 25x25, 40x25, etc.).
 - **Resiliência com Itens Sem Cadastro:** Tratamento e exibição inteligente de itens que não possuem código ou cadastro no ERP.
 - **Filtragem de Pedidos de Compra (PO):** Ajuste na lógica para exibir somente códigos de formato `POXXXXXX` com 6 números (em vez de 4).
 - **Sistema de Atualização Automática (OTA):** Integração com GitHub Releases permitindo buscar, baixar e instalar novas versões do aplicativo com apenas um clique diretamente pelo Dashboard, incluindo feedback visual de erros e progresso de download.
+
 ---
 
 ## 🏛️ Estrutura do Código

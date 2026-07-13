@@ -159,7 +159,11 @@ const getPathIcon = (key: string) => {
   }
 };
 
-export default function Dashboard() {
+interface DashboardProps {
+  onNavigateToConfig?: () => void;
+}
+
+export default function Dashboard({ onNavigateToConfig }: DashboardProps = {}) {
   // tabela / filtros
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
@@ -381,7 +385,7 @@ export default function Dashboard() {
         if (!term) return true;
         const nameMatch = r.filename.toLowerCase().includes(term);
         const errorMatch = (r.errors || []).some(e => {
-          const desc = typeof e === "string" ? e : (e?.descricao || "");
+          const desc = typeof e === "string" ? e : ((e as any)?.descricao || "");
           return desc.toLowerCase().includes(term);
         });
         const warningMatch = (r.warnings || []).some(w => String(w).toLowerCase().includes(term));
@@ -649,7 +653,7 @@ export default function Dashboard() {
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v4.6.0
+                v{import.meta.env['PACKAGE_VERSION'] || '0.0.0'}
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
