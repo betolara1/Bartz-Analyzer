@@ -101,7 +101,7 @@ async function validateXml(fileFullPath) {
   try {
     const base = path.basename(fileFullPath).toLowerCase();
     if (!base.includes('ok')) payload.erros.push({ descricao: 'Arquivo fora do padrão' });
-    if (base.includes('mux')) payload.tags.push('muxarabi');
+    //if (base.includes('mux')) payload.tags.push('muxarabi');
     if (base.includes('ferr')) payload.tags.push('ferragens');
   } catch (e) {
     payload.erros.push({ descricao: `Falha ao ler: ${String(e && e.message || e)}` });

@@ -12,9 +12,11 @@ import {
   CheckCircle, XCircle, Package, Grid3X3, Zap, Filter,
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
-  ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send
+  ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
+  CircleHelp
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,7 @@ import {
 } from "./ui/alert-dialog";
 import FileDetailDrawer from "./FileDetailDrawer";
 import ThemeToggle from "./ThemeToggle";
+import { PATH_CONFIGS } from "./ConfigurationScreen";
 
 
 // ...
@@ -78,10 +81,47 @@ function formatTag(tag: string) {
   if (t === "sem_codigo" || t === "sem codigo") return "SEM CÓDIGO";
   return t.toUpperCase();
 }
+
+function filterTags(tags: string[]): string[] {
+  if (!tags) return [];
+  const norm = (t: string) => t.trim().toLowerCase().replace(/\s+/g, '_');
+  const normalizedTags = tags.map(t => norm(t));
+
+  const autofixBases = new Set<string>();
+  normalizedTags.forEach(t => {
+    if (t.endsWith('_autofix')) {
+      autofixBases.add(t.replace(/_autofix$/, ''));
+    } else if (t.endsWith('autofix')) {
+      autofixBases.add(t.replace(/autofix$/, ''));
+    }
+  });
+
+  return tags.filter(t => !autofixBases.has(norm(t)));
+}
+
 // helper para “Curvo” (fora do toRow!)
 const hasCurvo = (r: Row) =>
   (r.tags || []).includes("curvo") ||
   (r.warnings || []).some(w => /curvo/i.test(String(w)));
+
+const normalizeTagForMatch = (t: string) => 
+  (t || "").toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s_]+/g, "");
+
+const getPathIcon = (key: string) => {
+  switch (key) {
+    case "ok":
+      return <CheckCircle className="h-3 w-3 text-green-500" />;
+    case "erro":
+      return <XCircle className="h-3 w-3 text-red-500" />;
+    case "drawings":
+      return <FileText className="h-3 w-3 text-primary" />;
+    default:
+      return null;
+  }
+};
 
 export default function Dashboard() {
   // tabela / filtros
@@ -266,11 +306,11 @@ export default function Dashboard() {
   const resumo = useMemo(() => {
     const ok = rows.filter((r) => r.status === "OK").length;
     const erro = rows.filter((r) => r.status === "ERRO").length;
-    const mux = rows.filter((r) => (r.tags || []).includes("muxarabi")).length;
-    const cor = rows.filter((r) => (r.tags || []).includes("coringa")).length;
+    const mux = rows.filter((r) => (r.tags || []).some(t => normalizeTagForMatch(t).includes("muxarabi"))).length;
+    const cor = rows.filter((r) => (r.tags || []).some(t => normalizeTagForMatch(t).includes("coringa"))).length;
     const curvo = rows.filter(hasCurvo).length;
-    const dup37 = rows.filter((r) => (r.tags || []).includes("duplado37mm")).length;
-    const semCod = rows.filter((r) => (r.tags || []).includes("sem_codigo")).length;
+    const dup37 = rows.filter((r) => (r.tags || []).some(t => normalizeTagForMatch(t).includes("duplado"))).length;
+    const semCod = rows.filter((r) => (r.tags || []).some(t => normalizeTagForMatch(t).includes("semcodigo"))).length;
     return { ok, erro, mux, cor, curvo, dup37, semCod };
   }, [rows]);
 
@@ -293,10 +333,10 @@ export default function Dashboard() {
         if (filter === "all") return true;
         if (filter === "ok") return r.status === "OK";
         if (filter === "erro") return r.status === "ERRO";
-        if (filter === "muxarabi") return (r.tags || []).includes("muxarabi");
-        if (filter === "coringa") return (r.tags || []).includes("coringa");
-        if (filter === "duplado37mm") return (r.tags || []).includes("duplado37mm");
-        if (filter === "sem_codigo") return (r.tags || []).includes("sem_codigo");
+        if (filter === "muxarabi") return (r.tags || []).some(t => normalizeTagForMatch(t).includes("muxarabi"));
+        if (filter === "coringa") return (r.tags || []).some(t => normalizeTagForMatch(t).includes("coringa"));
+        if (filter === "duplado37mm") return (r.tags || []).some(t => normalizeTagForMatch(t).includes("duplado"));
+        if (filter === "sem_codigo") return (r.tags || []).some(t => normalizeTagForMatch(t).includes("semcodigo"));
         if (filter === "curvo") return hasCurvo(r);
         return true;
       });
@@ -578,47 +618,39 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* ENTRADA */}
-                  <div className="space-y-2">
-                    <Label htmlFor="entrada" className="text-muted-foreground text-xs">Pasta de Entrada</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="entrada"
-                        value={cfg.entrada}
-                        onChange={(e) => setPaths({ entrada: e.target.value })}
-                        className="bg-background border-border text-foreground text-sm flex-1 focus:border-primary"
-                        placeholder="\\servidor\share\entrada"
-                      />
-                      <Button
-                        variant="outline" size="sm" title="Escolher pasta"
-                        onClick={() => pickFolder("entrada")}
-                        className="border-border hover:bg-muted shrink-0"
-                      >
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
+                  {PATH_CONFIGS.filter(c => c.key === "entrada" || c.key === "exportacao").map((config) => (
+                    <div key={config.key} className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor={config.key} className="text-muted-foreground text-xs">{config.label}</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground/60 hover:text-foreground transition-colors cursor-help">
+                              <CircleHelp className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-popover text-popover-foreground border border-border p-2 shadow-md max-w-xs">
+                            <p>{config.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          id={config.key}
+                          value={(cfg as any)[config.key] || ""}
+                          onChange={(e) => setPaths({ [config.key]: e.target.value })}
+                          className="bg-background border-border text-foreground text-sm flex-1 focus:border-primary"
+                          placeholder={config.placeholder}
+                        />
+                        <Button
+                          variant="outline" size="sm" title="Escolher pasta"
+                          onClick={() => pickFolder(config.key)}
+                          className="border-border hover:bg-muted shrink-0"
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* EXPORTACAO */}
-                  <div className="space-y-2">
-                    <Label htmlFor="exportacao" className="text-muted-foreground text-xs">Pasta de Exportação</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="exportacao"
-                        value={cfg.exportacao}
-                        onChange={(e) => setPaths({ exportacao: e.target.value })}
-                        className="bg-background border-border text-foreground text-sm flex-1 focus:border-primary"
-                        placeholder="\\servidor\share\exportacao"
-                      />
-                      <Button
-                        variant="outline" size="sm" title="Escolher pasta"
-                        onClick={() => pickFolder("exportacao")}
-                        className="border-border hover:bg-muted shrink-0"
-                      >
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -630,53 +662,41 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* OK */}
-                  <div className="space-y-2">
-                    <Label htmlFor="ok" className="text-muted-foreground text-xs flex items-center gap-1"><CheckCircle className="h-3 w-3 text-green-500" /> Pasta Final - OK</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="ok"
-                        value={cfg.ok}
-                        onChange={(e) => setPaths({ ok: e.target.value })}
-                        className="bg-background border-border text-foreground text-sm flex-1"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("ok")} className="border-border hover:bg-muted shrink-0">
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
+                  {PATH_CONFIGS.filter(c => c.key === "ok" || c.key === "erro" || c.key === "drawings").map((config) => (
+                    <div key={config.key} className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor={config.key} className="text-muted-foreground text-xs flex items-center gap-1">
+                          {getPathIcon(config.key)}
+                          {config.label}
+                        </Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="text-muted-foreground/60 hover:text-foreground transition-colors cursor-help">
+                              <CircleHelp className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-popover text-popover-foreground border border-border p-2 shadow-md max-w-xs">
+                            <p>{config.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          id={config.key}
+                          value={(cfg as any)[config.key] || ""}
+                          onChange={(e) => setPaths({ [config.key]: e.target.value })}
+                          className="bg-background border-border text-foreground text-sm flex-1 focus:border-primary"
+                          placeholder={config.placeholder}
+                        />
+                        <Button
+                          variant="outline" size="sm" onClick={() => pickFolder(config.key)}
+                          className="border-border hover:bg-muted shrink-0"
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* ERRO */}
-                  <div className="space-y-2">
-                    <Label htmlFor="erro" className="text-muted-foreground text-xs flex items-center gap-1"><XCircle className="h-3 w-3 text-red-500" /> Pasta Final - Erro</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="erro"
-                        value={cfg.erro}
-                        onChange={(e) => setPaths({ erro: e.target.value })}
-                        className="bg-background border-border text-foreground text-sm flex-1"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("erro")} className="border-border hover:bg-muted shrink-0">
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* DRAWINGS */}
-                  <div className="space-y-2">
-                    <Label htmlFor="drawings" className="text-muted-foreground text-xs flex items-center gap-1"><FileText className="h-3 w-3 text-primary" /> Pasta de Desenhos</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="drawings"
-                        value={cfg.drawings}
-                        onChange={(e) => setPaths({ drawings: e.target.value })}
-                        className="bg-background border-border text-foreground text-sm flex-1"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => pickFolder("drawings")} className="border-border hover:bg-muted shrink-0">
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -846,7 +866,6 @@ export default function Dashboard() {
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest pl-6">Arquivo</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Inconformidades (Erros)</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest text-center">Auto-fix</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Avisos do Sistema</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Tags</TableHead>
                 <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest whitespace-nowrap">Data / Hora</TableHead>
@@ -887,18 +906,6 @@ export default function Dashboard() {
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-center">
-                      {autoFixed ? (
-                        <div className="flex justify-center">
-                          <div className="h-6 w-6 rounded-lg bg-[#1ABC9C]/10 border border-[#1ABC9C]/20 flex items-center justify-center shadow-[0_0_15px_rgba(26,188,156,0.1)] group-hover/row:border-[#1ABC9C]/40 transition-all">
-                            <Zap className="h-3.5 w-3.5 text-[#1ABC9C]" />
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-[#444]">—</span>
-                      )}
-                    </TableCell>
-
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
                         {(file.warnings || []).length > 0 ? (
@@ -919,19 +926,33 @@ export default function Dashboard() {
 
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5 max-w-32">
-                        {(file.tags || []).length > 0 ? (
-                          (file.tags || []).map((t, i) => (
-                            <Badge
-                              key={i}
-                              variant="outline"
-                              className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/5 text-[9px] font-bold uppercase py-0 px-2 h-5"
-                            >
-                              {formatTag(t)}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-[#444] text-[10px]">—</span>
-                        )}
+                        {(() => {
+                          const displayTags = filterTags(file.tags || []);
+                          const hasTags = displayTags.length > 0 || autoFixed;
+                          return hasTags ? (
+                            <>
+                              {autoFixed && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[#1ABC9C] border-[#1ABC9C]/20 bg-[#1ABC9C]/5 text-[9px] font-bold uppercase py-0 px-2 h-5 flex items-center gap-1"
+                                >
+                                  <Zap className="h-2.5 w-2.5 text-[#1ABC9C]" /> AUTO-FIX
+                                </Badge>
+                              )}
+                              {displayTags.map((t, i) => (
+                                <Badge
+                                  key={i}
+                                  variant="outline"
+                                  className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/5 text-[9px] font-bold uppercase py-0 px-2 h-5"
+                                >
+                                  {formatTag(t)}
+                                </Badge>
+                              ))}
+                            </>
+                          ) : (
+                            <span className="text-[#444] text-[10px]">—</span>
+                          );
+                        })()}
                       </div>
                     </TableCell>
 
