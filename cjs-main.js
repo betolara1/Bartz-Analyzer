@@ -3052,8 +3052,15 @@ ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
 autoUpdater.autoDownload = false; // Não baixa sozinho, pergunta antes
 autoUpdater.autoInstallOnAppQuit = true;
 
+// "sem atualização"/erro só interessam quando o usuário clicou no botão "Atualizar".
+// Nas verificações periódicas silenciosas, não incomodar o usuário.
+let manualCheckPending = false;
+let updateDownloadInProgress = false;
+let updateReadyToInstall = false;
+
 autoUpdater.on('update-available', (info) => {
   console.log('Update available:', info);
+  manualCheckPending = false;
   if (win) win.webContents.send('updater:available', info);
 });
 
@@ -3063,21 +3070,42 @@ autoUpdater.on('download-progress', (progressObj) => {
 
 autoUpdater.on('update-downloaded', (info) => {
   console.log('Update downloaded:', info);
+  updateDownloadInProgress = false;
+  updateReadyToInstall = true;
   if (win) win.webContents.send('updater:downloaded', info);
 });
 
 autoUpdater.on('update-not-available', (info) => {
   console.log('Update not available:', info);
-  if (win) win.webContents.send('updater:not-available', info);
+  if (win && manualCheckPending) win.webContents.send('updater:not-available', info);
+  manualCheckPending = false;
 });
 
 autoUpdater.on('error', (err) => {
   console.error('AutoUpdater Error:', err);
-  if (win) win.webContents.send('updater:error', String(err.message || err));
+  updateDownloadInProgress = false;
+  if (win && manualCheckPending) win.webContents.send('updater:error', String(err.message || err));
+  manualCheckPending = false;
 });
+
+// Verificação periódica: assim que uma release for publicada no GitHub,
+// o popup aparece para o usuário em até 10 minutos, mesmo com o programa aberto.
+const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+let updateCheckTimer = null;
+
+function startPeriodicUpdateCheck() {
+  if (process.env.VITE_DEV || updateCheckTimer) return;
+  updateCheckTimer = setInterval(() => {
+    if (updateDownloadInProgress || updateReadyToInstall) return; // não interferir em download/instalação pendente
+    Promise.resolve(autoUpdater.checkForUpdates())
+      .catch((e) => console.error('[Updater] Verificação periódica falhou:', String((e && e.message) || e)));
+  }, UPDATE_CHECK_INTERVAL_MS);
+  console.log(`[Updater] Verificação automática de atualização a cada ${UPDATE_CHECK_INTERVAL_MS / 60000} minutos.`);
+}
 
 ipcMain.handle('updater:check', () => {
   if (!process.env.VITE_DEV) {
+    manualCheckPending = true;
     autoUpdater.checkForUpdates();
   } else {
     if (win) win.webContents.send('updater:not-available', { version: app.getVersion() });
@@ -3085,6 +3113,7 @@ ipcMain.handle('updater:check', () => {
 });
 
 ipcMain.handle('updater:start-download', () => {
+  updateDownloadInProgress = true;
   autoUpdater.downloadUpdate();
 });
 
@@ -3096,10 +3125,11 @@ ipcMain.handle('updater:install', () => {
 app.whenReady().then(() => {
   createWindow();
   startAutomaticScheduler();
-  
+
   if (!process.env.VITE_DEV) {
     autoUpdater.checkForUpdatesAndNotify();
   }
+  startPeriodicUpdateCheck();
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
