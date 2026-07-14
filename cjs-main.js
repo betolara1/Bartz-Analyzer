@@ -2072,17 +2072,26 @@ function parseDxfEntities(dxfContent) {
   let pieceBounds = null;
   const panelEntities = entities.filter(e => e.layer === 'PANEL');
   if (panelEntities.length > 0) {
-    const panel = panelEntities[0];
-    const xs = panel.points.map(p => p.x);
-    const ys = panel.points.filter(p => p.y !== null).map(p => p.y);
-    pieceBounds = {
-      minX: Math.min(...xs),
-      maxX: Math.max(...xs),
-      minY: Math.min(...ys),
-      maxY: Math.max(...ys),
-      width: Math.max(...xs) - Math.min(...xs),
-      height: Math.max(...ys) - Math.min(...ys)
-    };
+    // Une os pontos de TODAS as entidades da layer PANEL: cobre tanto LWPOLYLINE
+    // (pontos na própria entidade) quanto POLYLINE antiga (pontos em entidades VERTEX separadas)
+    const xs = [];
+    const ys = [];
+    for (const ent of panelEntities) {
+      for (const p of ent.points) {
+        if (!isNaN(p.x)) xs.push(p.x);
+        if (p.y !== null && !isNaN(p.y)) ys.push(p.y);
+      }
+    }
+    if (xs.length >= 2 && ys.length >= 2) {
+      pieceBounds = {
+        minX: Math.min(...xs),
+        maxX: Math.max(...xs),
+        minY: Math.min(...ys),
+        maxY: Math.max(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys)
+      };
+    }
   }
 
   const hasUsinagem = entities.some(e => /^USINAGEM_\d+$/i.test(e.layer));
@@ -2252,6 +2261,36 @@ function findMaxHandle(dxfContent) {
   return maxHandle;
 }
 
+/**
+ * Converte uma LWPOLYLINE do template para POLYLINE/VERTEX/SEQEND (estilo R12),
+ * usado quando o desenho ITE é do formato mínimo (sem cabeçalho nem handles).
+ * Preserva vértices, bulges (arcos, código 42) e o flag de fechada (código 70).
+ */
+function lwpolylineToOldStyle(rawText, layerName) {
+  const src = rawText.split(/\r?\n/);
+  const verts = [];
+  let closedFlag = 0;
+  let cur = null;
+  let inVertices = false;
+  for (let i = 0; i < src.length - 1; i += 2) {
+    const code = src[i].trim();
+    const val = (src[i + 1] || '').trim();
+    if (code === '70' && !inVertices) closedFlag = (parseInt(val, 10) || 0) & 1;
+    else if (code === '10') { cur = { x: val, y: '0', b: '0' }; verts.push(cur); inVertices = true; }
+    else if (code === '20' && cur) cur.y = val;
+    else if (code === '42' && cur) cur.b = val;
+  }
+  if (verts.length === 0) return [];
+
+  const out = [];
+  out.push('0', 'POLYLINE', '8', layerName, '66', '1', '70', String(closedFlag));
+  for (const v of verts) {
+    out.push('0', 'VERTEX', '8', layerName, '70', '0', '10', v.x, '20', v.y, '30', '0', '42', v.b);
+  }
+  out.push('0', 'SEQEND', '8', layerName);
+  return out;
+}
+
 async function doInjectMuxarabi(arg) {
   try {
     const { drawingCode, sizeCode, thickness } = (typeof arg === 'object' && arg) ? arg : {};
@@ -2341,6 +2380,11 @@ async function doInjectMuxarabi(arg) {
     }
 
     // 5. Generate new handles and inject entities into the ITE DXF
+    // Detectar o formato do ITE: "moderno" (com cabeçalho $ACADVER, handles, LWPOLYLINE)
+    // ou "mínimo" estilo R12 (sem cabeçalho, POLYLINE/VERTEX, sem handles)
+    const isModernDxf = /\$ACADVER/i.test(iteContent);
+    console.log(`[Muxarabi Inject] Formato do ITE: ${isModernDxf ? 'moderno (com cabeçalho)' : 'mínimo R12 (sem cabeçalho)'}`);
+
     let maxHandle = findMaxHandle(iteContent);
     const iteLines = iteContent.split(/\r?\n/);
 
@@ -2374,40 +2418,49 @@ async function doInjectMuxarabi(arg) {
       console.log(`[Muxarabi Inject] Peça convertida para ${th}mm (${fresaLayer})`);
     }
 
-    // Build the new entity text with unique handles
+    // Build the new entity text
     const newEntityLines = [];
-    for (const entity of fittingEntities) {
-      maxHandle++;
-      const handleHex = maxHandle.toString(16).toUpperCase();
+    if (isModernDxf) {
+      // Formato moderno: copiar o texto bruto do template trocando handle (5), owner (330),
+      // layer (8) e descartando a referência de material (347)
+      for (const entity of fittingEntities) {
+        maxHandle++;
+        const handleHex = maxHandle.toString(16).toUpperCase();
 
-      // Replace handle (5), owner (330), layer (8); strip material do template (347)
-      const entityLines = entity.rawText.split(/\r?\n/);
-      let handleReplaced = false;
-      let ownerReplaced = false;
-      let layerReplaced = false;
+        const entityLines = entity.rawText.split(/\r?\n/);
+        let handleReplaced = false;
+        let ownerReplaced = false;
+        let layerReplaced = false;
 
-      for (let i = 0; i < entityLines.length; i++) {
-        const code = entityLines[i].trim();
-        if (code === '5' && !handleReplaced) {
-          newEntityLines.push(entityLines[i]); // push the "  5"
-          i++;
-          newEntityLines.push(handleHex); // replace old handle with new
-          handleReplaced = true;
-        } else if (code === '330' && !ownerReplaced && ownerHandle) {
-          newEntityLines.push(entityLines[i]);
-          i++;
-          newEntityLines.push(ownerHandle);
-          ownerReplaced = true;
-        } else if (code === '8' && !layerReplaced && (entityLines[i + 1] || '').trim().toUpperCase() === 'USINAGEM_18') {
-          newEntityLines.push(entityLines[i]);
-          i++;
-          newEntityLines.push(usinagemLayer);
-          layerReplaced = true;
-        } else if (code === '347' && handleReplaced) {
-          i++; // referência de material do template não existe no ITE — descartar par
-        } else {
-          newEntityLines.push(entityLines[i]);
+        for (let i = 0; i < entityLines.length; i++) {
+          const code = entityLines[i].trim();
+          if (code === '5' && !handleReplaced) {
+            newEntityLines.push(entityLines[i]); // push the "  5"
+            i++;
+            newEntityLines.push(handleHex); // replace old handle with new
+            handleReplaced = true;
+          } else if (code === '330' && !ownerReplaced && ownerHandle) {
+            newEntityLines.push(entityLines[i]);
+            i++;
+            newEntityLines.push(ownerHandle);
+            ownerReplaced = true;
+          } else if (code === '8' && !layerReplaced && (entityLines[i + 1] || '').trim().toUpperCase() === 'USINAGEM_18') {
+            newEntityLines.push(entityLines[i]);
+            i++;
+            newEntityLines.push(usinagemLayer);
+            layerReplaced = true;
+          } else if (code === '347' && handleReplaced) {
+            i++; // referência de material do template não existe no ITE — descartar par
+          } else {
+            newEntityLines.push(entityLines[i]);
+          }
         }
+      }
+    } else {
+      // Formato mínimo R12: LWPOLYLINE/handles não são suportados — converter cada
+      // entidade do template para POLYLINE/VERTEX/SEQEND no mesmo estilo do arquivo
+      for (const entity of fittingEntities) {
+        newEntityLines.push(...lwpolylineToOldStyle(entity.rawText, usinagemLayer));
       }
     }
 
