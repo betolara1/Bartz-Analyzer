@@ -795,15 +795,7 @@ ipcMain.handle("analyzer:start", async (_e, overrideCfg) => {
     const saved = currentCfg && Object.keys(currentCfg).length ? currentCfg : await loadCfg();
     const raw = overrideCfg && Object.keys(overrideCfg).length ? overrideCfg : saved;
 
-    const cfg = {
-      entrada: normalizeWin(raw.entrada),
-      exportacao: normalizeWin(raw.exportacao || raw.working),
-      ok: normalizeWin(raw.ok),
-      erro: normalizeWin(raw.erro),
-      enableAutoFix: !!raw.enableAutoFix,
-      drawings: normalizeWin(raw.drawings),
-      simplificado: normalizeWin(raw.simplificado),
-    };
+    const cfg = sanitizeCfg(raw);
 
     for (const k of ["entrada", "exportacao", "ok", "erro"]) {
       if (!cfg[k]) { send("error", { where: "start", message: `Config inválida: '${k}' vazio.` }); return false; }
