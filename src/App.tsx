@@ -25,9 +25,13 @@ export default function App() {
         const v = info?.version || "";
         // já baixando ou pronta para instalar — não voltar para a fase inicial
         if (stageRef.current === "downloading" || stageRef.current === "downloaded") return;
-        // usuário clicou "Depois" há menos de 1 hora para esta mesma versão — não insistir ainda
-        const s = snoozeRef.current;
-        if (s && s.version === v && Date.now() - s.at < 60 * 60 * 1000) return;
+        // se for verificação manual, ignora o snooze (botão "Depois")
+        const isManual = !!info?.isManual;
+        if (!isManual) {
+          // usuário clicou "Depois" há menos de 1 hora para esta mesma versão — não insistir ainda
+          const s = snoozeRef.current;
+          if (s && s.version === v && Date.now() - s.at < 60 * 60 * 1000) return;
+        }
         setUpdateVersion(v);
         setProgress(0);
         setUpdateStage("available");

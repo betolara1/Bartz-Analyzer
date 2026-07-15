@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { CircleHelp, FolderOpen, Clock, Trash2, Settings, Save, ArrowLeft } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Switch } from "./ui/switch";
+import { toast } from "sonner";
 
 export type FullConfig = {
   entrada: string;
@@ -141,7 +142,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
         setTestResults(res);
       }
     } catch (e: any) {
-      alert(`Erro ao testar caminhos: ${e.message || e}`);
+      toast.error(`Erro ao testar caminhos: ${e.message || e}`);
     } finally {
       setTesting(false);
     }
@@ -153,7 +154,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
       const times = form.schedulerTimes.split(",").map((t) => t.trim());
       for (const t of times) {
         if (!/^\d{2}:\d{2}$/.test(t)) {
-          alert(`Erro: O horário "${t}" é inválido. Use o formato HH:MM (ex: 11:30).`);
+          toast.error(`Erro: O horário "${t}" é inválido. Use o formato HH:MM (ex: 11:30).`);
           return;
         }
       }
@@ -162,13 +163,13 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     // Validação de horário da limpeza
     if (form.cleanupEnabled) {
       if (!/^\d{2}:\d{2}$/.test(form.cleanupTime.trim())) {
-        alert(`Erro: O horário da limpeza "${form.cleanupTime}" é inválido. Use o formato HH:MM (ex: 17:30).`);
+        toast.error(`Erro: O horário da limpeza "${form.cleanupTime}" é inválido. Use o formato HH:MM (ex: 17:30).`);
         return;
       }
     }
 
     await window.electron?.settings?.save(form);
-    alert("Configurações salvas!");
+    toast.success("Configurações salvas!");
   }
 
   const PathRow = (props: { label: string; field: keyof FullConfig; placeholder?: string; tooltip: string }) => (

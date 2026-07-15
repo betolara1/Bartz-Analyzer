@@ -3197,8 +3197,9 @@ let updateReadyToInstall = false;
 
 autoUpdater.on('update-available', (info) => {
   console.log('Update available:', info);
+  const isManual = manualCheckPending;
   manualCheckPending = false;
-  if (win) win.webContents.send('updater:available', info);
+  if (win) win.webContents.send('updater:available', { ...(info || {}), isManual });
   notifyUpdate(
     'Atualização disponível',
     `A versão ${info?.version || 'nova'} do Bartz Analyzer já está disponível.`
