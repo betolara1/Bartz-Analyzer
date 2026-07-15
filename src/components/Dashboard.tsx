@@ -13,7 +13,7 @@ import {
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
-  CircleHelp, Sliders
+  CircleHelp, Sliders, Search
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -182,6 +182,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     erro: "",
     drawings: "",
     simplificado: "",
+    busca: "",
     enableAutoFix: true,
   });
 
@@ -200,6 +201,72 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   // persistência do relatório: só salvar depois de restaurar o histórico do disco
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // XML Search State
+  const [searchXmlTerm, setSearchXmlTerm] = useState("");
+  const [searchXmlResults, setSearchXmlResults] = useState<{ name: string; fullPath: string }[]>([]);
+  const [selectedXmlPath, setSelectedXmlPath] = useState("");
+  const [copyingXml, setCopyingXml] = useState(false);
+
+  useEffect(() => {
+    const trimmed = searchXmlTerm.trim();
+    if (!trimmed) {
+      setSearchXmlResults([]);
+      setSelectedXmlPath("");
+      return;
+    }
+
+    let active = true;
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await (window as any).electron?.analyzer?.searchXmlFiles?.(trimmed);
+        if (!active) return;
+
+        if (res?.ok && res.results) {
+          setSearchXmlResults(res.results);
+          setSelectedXmlPath("");
+        } else {
+          setSearchXmlResults([]);
+          setSelectedXmlPath("");
+          if (res?.message) {
+            toast.error(`Erro na busca de XML: ${res.message}`);
+          }
+        }
+      } catch (e: any) {
+        if (active) {
+          toast.error(`Erro ao comunicar com o buscador: ${e.message || e}`);
+        }
+      }
+    }, 400);
+
+    return () => {
+      active = false;
+      clearTimeout(delayDebounce);
+    };
+  }, [searchXmlTerm]);
+
+  const handleImportXml = async () => {
+    if (!selectedXmlPath) return;
+    setCopyingXml(true);
+    const id = toast.loading("Copiando arquivo XML para a pasta de entrada...");
+    try {
+      const res = await (window as any).electron?.analyzer?.copyXmlToEntrada?.(selectedXmlPath);
+      if (res?.ok) {
+        toast.success("XML copiado e importado com sucesso!");
+        setSearchXmlTerm("");
+        setSearchXmlResults([]);
+        setSelectedXmlPath("");
+      } else {
+        toast.error(`Falha ao importar XML: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error(`Erro ao copiar arquivo: ${error.message || error}`);
+    } finally {
+      setCopyingXml(false);
+      toast.dismiss(id);
+    }
+  };
 
   function notifyFromPayload(p: any) {
     try {
@@ -628,7 +695,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.5.0
+                v5.7.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
@@ -651,6 +718,56 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <Sliders className="h-4 w-4" /> Opções
           </Button>
           <ThemeToggle />
+        </div>
+      </div>
+
+      {/* Sistema de Busca e Cópia de XML */}
+      <div className="px-6 mt-4">
+        <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Search className="h-4.5 w-4.5 text-[#F1C40F]" />
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa e Importação de XML</h4>
+              <p className="text-[10px] text-muted-foreground">Busque arquivos XML na pasta de busca configurada para copiar para a pasta de entrada.</p>
+            </div>
+          </div>
+          <div className="flex flex-1 max-w-2xl items-center gap-2">
+            <Input
+              type="text"
+              placeholder="Digite o nome do arquivo XML..."
+              value={searchXmlTerm}
+              onChange={(e) => setSearchXmlTerm(e.target.value)}
+              className="flex-1 min-w-[150px] bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
+            />
+            
+            <select
+              value={selectedXmlPath}
+              onChange={(e) => setSelectedXmlPath(e.target.value)}
+              className="flex-1 min-w-[200px] bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium"
+              disabled={searchXmlResults.length === 0}
+            >
+              {searchXmlResults.length === 0 ? (
+                <option value="">Nenhum resultado encontrado</option>
+              ) : (
+                <>
+                  <option value="">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
+                  {searchXmlResults.map((res, index) => (
+                    <option key={index} value={res.fullPath}>
+                      {res.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+
+            <Button
+              onClick={handleImportXml}
+              disabled={!selectedXmlPath || copyingXml}
+              className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              {copyingXml ? "Importando..." : "Importar"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -680,6 +797,19 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
                       style={{ colorScheme: "dark" }}
                     />
                   </div>
+                  {selectedDay !== getTodayISODate() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDay(getTodayISODate());
+                        setCurrentPage(1);
+                      }}
+                      className="h-6 px-2 text-[9px] text-[#27AE60] hover:text-[#2ECC71] font-bold uppercase tracking-wider bg-[#27AE60]/10 hover:bg-[#27AE60]/20 rounded-md border border-[#27AE60]/20"
+                    >
+                      Hoje
+                    </Button>
+                  )}
                   {selectedDay && (
                     <Button
                       variant="ghost"

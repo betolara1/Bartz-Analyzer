@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('electron', {
     },
     openDrawing: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawing', { drawingCode }),
     openDrawingFolder: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawingFolder', { drawingCode }),
+    searchXmlFiles: (searchTerm) => ipcRenderer.invoke('analyzer:searchXmlFiles', { searchTerm }),
+    copyXmlToEntrada: (sourceFullPath) => ipcRenderer.invoke('analyzer:copyXmlToEntrada', { sourceFullPath }),
     openMuxarabiDrawing: (sizeCode) => ipcRenderer.invoke('analyzer:openMuxarabiDrawing', { sizeCode })
   },
   settings: {

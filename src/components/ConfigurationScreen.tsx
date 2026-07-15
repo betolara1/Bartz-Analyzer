@@ -13,6 +13,7 @@ export type FullConfig = {
   erro: string;
   drawings: string;
   simplificado: string;
+  busca: string;
   enableAutoFix: boolean;
 
   // Scheduler Options
@@ -28,7 +29,7 @@ export type FullConfig = {
   cleanupCleanErro: boolean;
 };
 
-export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "simplificado";
+export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "simplificado" | "busca";
 
 export interface PathConfig {
   key: PathConfigKey;
@@ -73,6 +74,12 @@ export const PATH_CONFIGS: PathConfig[] = [
     label: "Pasta XML Simplificado",
     placeholder: "\\\\servidor\\orcamentos\\simplificado",
     tooltip: "Pasta onde será salvo o XML simplificado (somente os itens pais de ITENS_PEDIDO, sem os filhos), gerado automaticamente na primeira análise de cada arquivo."
+  },
+  {
+    key: "busca",
+    label: "Pasta de Busca XML",
+    placeholder: "\\\\servidor\\orcamentos\\busca_xmls",
+    tooltip: "Pasta de rede ou local contendo os arquivos XML a serem pesquisados no Dashboard para cópia e processamento."
   }
 ];
 
@@ -85,6 +92,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     erro: "",
     drawings: "",
     simplificado: "",
+    busca: "",
     enableAutoFix: true,
     schedulerEnabled: true,
     schedulerTimes: "11:30, 17:30",

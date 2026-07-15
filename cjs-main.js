@@ -1,5 +1,5 @@
 // main.js (CJS)
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require("electron");
 // Desabilitar aceleração de hardware para evitar erros de cache de GPU
 app.disableHardwareAcceleration();
 const path = require("path");
@@ -597,6 +597,7 @@ ipcMain.handle("settings:load", async () => {
     erro: normalizeWin(saved.erro || ""),
     drawings: normalizeWin(saved.drawings || ""),
     simplificado: normalizeWin(saved.simplificado || ""),
+    busca: normalizeWin(saved.busca || ""),
     enableAutoFix: saved.enableAutoFix !== undefined ? !!saved.enableAutoFix : true,
     schedulerEnabled: saved.schedulerEnabled !== undefined ? !!saved.schedulerEnabled : true,
     schedulerTimes: saved.schedulerTimes || "11:30, 17:30",
@@ -618,6 +619,7 @@ function sanitizeCfg(obj) {
     erro: normalizeWin(obj?.erro || ""),
     drawings: normalizeWin(obj?.drawings || ""),
     simplificado: normalizeWin(obj?.simplificado || ""),
+    busca: normalizeWin(obj?.busca || ""),
     enableAutoFix: obj?.enableAutoFix !== undefined ? !!obj.enableAutoFix : true,
     schedulerEnabled: obj?.schedulerEnabled !== undefined ? !!obj.schedulerEnabled : true,
     schedulerTimes: obj?.schedulerTimes || "11:30, 17:30",
@@ -645,7 +647,7 @@ async function testPaths(obj) {
   for (const k of ["entrada", "exportacao", "ok", "erro"]) {
     res[k] = await checkWrite(payload[k]);
   }
-  for (const k of ["drawings", "simplificado"]) {
+  for (const k of ["drawings", "simplificado", "busca"]) {
     res[k] = await checkWrite(payload[k]);
   }
   return res;
@@ -670,6 +672,90 @@ ipcMain.handle("settings:pickFolder", async (_e, initial) => {
   });
   if (res.canceled || !res.filePaths?.length) return null;
   return res.filePaths[0];
+});
+
+/** ================== IPC: BUSCA E CÓPIA DE ARQUIVOS XML ================== **/
+ipcMain.handle('analyzer:searchXmlFiles', async (_e, { searchTerm }) => {
+  try {
+    const cfg = currentCfg || (await loadCfg()) || {};
+    const searchFolder = cfg?.busca;
+    if (!searchFolder) {
+      return { ok: false, message: "A pasta de busca XML não está configurada." };
+    }
+    const folderExists = await fse.pathExists(searchFolder);
+    if (!folderExists) {
+      return { ok: false, message: `Pasta de busca não encontrada: ${searchFolder}` };
+    }
+
+    // Validar se a pasta raiz é legível
+    try {
+      await fse.readdir(searchFolder);
+    } catch (e) {
+      return { ok: false, message: `Sem permissão de leitura na pasta de busca: ${e.message}` };
+    }
+
+    const results = [];
+    const term = String(searchTerm || '').toLowerCase().trim();
+    if (!term) {
+      return { ok: true, results: [] };
+    }
+
+    // Função interna recursiva robusta para buscar arquivos xml correspondentes
+    async function scanDir(directory) {
+      if (results.length >= 100) return;
+      let items;
+      try {
+        items = await fse.readdir(directory, { withFileTypes: true });
+      } catch (e) {
+        return; // Ignora erros de leitura de subpastas individuais
+      }
+
+      for (const item of items) {
+        if (results.length >= 100) return;
+        const full = path.join(directory, item.name);
+        if (item.isDirectory()) {
+          await scanDir(full);
+        } else if (item.isFile()) {
+          if (item.name.toLowerCase().endsWith('.xml') && item.name.toLowerCase().includes(term)) {
+            results.push({
+              name: item.name,
+              fullPath: full
+            });
+          }
+        }
+      }
+    }
+
+    await scanDir(searchFolder);
+    return { ok: true, results };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
+ipcMain.handle('analyzer:copyXmlToEntrada', async (_e, { sourceFullPath }) => {
+  try {
+    if (!sourceFullPath) {
+      return { ok: false, message: "Caminho do arquivo de origem não especificado." };
+    }
+    const cfg = currentCfg || (await loadCfg()) || {};
+    const destFolder = cfg?.entrada;
+    if (!destFolder) {
+      return { ok: false, message: "A pasta de entrada não está configurada." };
+    }
+    const destFolderExists = await fse.pathExists(destFolder);
+    if (!destFolderExists) {
+      return { ok: false, message: `Pasta de entrada não encontrada: ${destFolder}` };
+    }
+
+    const fileName = path.basename(sourceFullPath);
+    const destFullPath = path.join(destFolder, fileName);
+
+    await fse.copy(sourceFullPath, destFullPath);
+    return { ok: true, destPath: destFullPath };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
 });
 
 /** ================== IPC: HISTÓRICO DE ANÁLISES (persistência entre sessões) ================== **/
@@ -3081,6 +3167,24 @@ ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
   }
 });
 
+/** Mostra a notificação nativa do Windows (Central de Ações) e foca a janela ao clicar. */
+function notifyUpdate(title, body) {
+  try {
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title, body, silent: false });
+    n.on('click', () => {
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+      }
+    });
+    n.show();
+  } catch (e) {
+    console.error('[Notification] Falha ao exibir notificação nativa:', String((e && e.message) || e));
+  }
+}
+
 /** ================== IPC: AUTO-UPDATER ================== **/
 autoUpdater.autoDownload = false; // Não baixa sozinho, pergunta antes
 autoUpdater.autoInstallOnAppQuit = true;
@@ -3095,6 +3199,10 @@ autoUpdater.on('update-available', (info) => {
   console.log('Update available:', info);
   manualCheckPending = false;
   if (win) win.webContents.send('updater:available', info);
+  notifyUpdate(
+    'Atualização disponível',
+    `A versão ${info?.version || 'nova'} do Bartz Analyzer já está disponível.`
+  );
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
@@ -3106,6 +3214,10 @@ autoUpdater.on('update-downloaded', (info) => {
   updateDownloadInProgress = false;
   updateReadyToInstall = true;
   if (win) win.webContents.send('updater:downloaded', info);
+  notifyUpdate(
+    'Atualização pronta',
+    `A versão ${info?.version || 'nova'} foi baixada. Reinicie o programa para instalar.`
+  );
 });
 
 autoUpdater.on('update-not-available', (info) => {
