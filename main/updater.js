@@ -102,7 +102,9 @@ ipcMain.handle('updater:start-download', () => {
 });
 
 ipcMain.handle('updater:install', () => {
-  autoUpdater.quitAndInstall();
+  // isSilent=true evita a tela de instalação do NSIS (roda com a flag /S, sem interação humana);
+  // isForceRunAfter=true reabre o programa sozinho assim que a instalação silenciosa terminar.
+  autoUpdater.quitAndInstall(true, true);
 });
 
 module.exports = { startPeriodicUpdateCheck };

@@ -280,6 +280,11 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
 
   const handleImportXml = async () => {
     if (!selectedXmlPath) return;
+
+    if (!monitoring) {
+      await start();
+    }
+
     setCopyingXml(true);
     const id = toast.loading("Copiando arquivo XML para a pasta de entrada...");
     try {
@@ -399,7 +404,26 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     mounted.current = true;
 
     window.electron?.settings?.load?.()
-      .then((sv: any) => sv && setCfg((c) => ({ ...c, ...sv, enableAutoFix: true })));
+      .then((sv: any) => {
+        if (sv) {
+          const merged = {
+            entrada: sv.entrada || "",
+            exportacao: sv.exportacao || "",
+            ok: sv.ok || "",
+            erro: sv.erro || "",
+            drawings: sv.drawings || "",
+            simplificado: sv.simplificado || "",
+            busca: sv.busca || "",
+            enableAutoFix: sv.enableAutoFix !== undefined ? sv.enableAutoFix : true,
+          };
+          setCfg(merged);
+          if (merged.entrada && merged.exportacao && merged.ok && merged.erro) {
+            window.electron?.analyzer?.start?.(merged).then((ok: boolean) => {
+              if (!ok) toast.error("Confira os caminhos e permissões.");
+            });
+          }
+        }
+      });
 
     // Restaurar análises da sessão anterior (persistidas em disco pelo processo principal).
     // Eventos que chegarem antes da restauração têm prioridade (merge por filename).
@@ -812,7 +836,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.7.0
+                v5.9.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
