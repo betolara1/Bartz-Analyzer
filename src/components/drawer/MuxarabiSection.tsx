@@ -19,14 +19,14 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
     }
     const id = toast.loading(`Buscando e abrindo desenho ${drawingCode}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.openDrawing?.(drawingCode);
+      const res = await window.electron?.analyzer?.openDrawing?.(drawingCode);
       if (res?.ok) {
         toast.success(`Desenho ${drawingCode} aberto com sucesso!`);
       } else {
         toast.error(`Não foi possível abrir o desenho: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao abrir desenho: ${error.message || error}`);
+      toast.error("Erro ao abrir desenho.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -39,14 +39,14 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
     }
     const id = toast.loading(`Buscando e localizando pasta do desenho ${drawingCode}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.openDrawingFolder?.(drawingCode);
+      const res = await window.electron?.analyzer?.openDrawingFolder?.(drawingCode);
       if (res?.ok) {
         toast.success(`Pasta do desenho ${drawingCode} aberta com sucesso!`);
       } else {
         toast.error(`Não foi possível abrir a pasta do desenho: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao abrir pasta: ${error.message || error}`);
+      toast.error("Erro ao abrir pasta.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -59,14 +59,14 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
     }
     const id = toast.loading(`Aplicando muxarabi ${sizeCode} (${thickness}mm) no desenho ${drawingCode}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.injectMuxarabi?.(drawingCode, sizeCode, thickness);
+      const res = await window.electron?.analyzer?.injectMuxarabi?.(drawingCode, sizeCode, thickness);
       if (res?.ok) {
         toast.success(`Muxarabi ${sizeCode} aplicado em ${drawingCode}: ${res.injectedCount} usinagens na layer ${res.layer} (peça ${res.pieceDimensions}).`);
       } else {
         toast.error(`Não foi possível aplicar o muxarabi: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao aplicar muxarabi: ${error.message || error}`);
+      toast.error("Erro ao aplicar muxarabi.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -79,14 +79,14 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
     }
     const id = toast.loading(`Buscando e abrindo desenho do Muxarabi ${sizeCode}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.openMuxarabiDrawing?.(sizeCode);
+      const res = await window.electron?.analyzer?.openMuxarabiDrawing?.(sizeCode);
       if (res?.ok) {
         toast.success(`Desenho Muxarabi ${sizeCode} aberto com sucesso!`);
       } else {
         toast.error(`Não foi possível abrir o Muxarabi: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao abrir Muxarabi: ${error.message || error}`);
+      toast.error("Erro ao abrir Muxarabi.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }

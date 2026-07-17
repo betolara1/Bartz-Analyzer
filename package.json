@@ -1,6 +1,6 @@
 {
   "name": "bartz-analyzer",
-  "version": "5.6.3",
+  "version": "5.7.0",
   "private": true,
   "main": "cjs-main.js",
   "type": "commonjs",
@@ -12,7 +12,8 @@
     "dist:win": "npm run build && electron-builder --win",
     "start": "electron .",
     "test": "vitest run",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc -p src/tsconfig.json --noEmit"
   },
   "build": {
     "productName": "Bartz Analyzer",
@@ -32,7 +33,7 @@
     "files": [
       "dist/**/*",
       "src/**/*",
-      "electron/**/*",
+      "main/**/*",
       "csv/**/*",
       "cjs-main.js",
       "preload.js",
@@ -43,7 +44,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "node_modules/app-builder-lib/templates/icons/proton-native/proton-native.ico"
+      "icon": "assets/icon/icon.ico"
     },
     "nsis": {
       "oneClick": false,

@@ -47,7 +47,7 @@ export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) 
     setIsSaving(true);
     const id = toast.loading("Salvando nova descrição...");
     try {
-      const res = await (window as any).electron?.analyzer?.replaceItemDescription?.(
+      const res = await window.electron?.analyzer?.replaceItemDescription?.(
         data.fullpath,
         selectedItem.ids || [selectedItem.id],
         newDescription.trim(),
@@ -62,7 +62,7 @@ export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) 
         toast.error(`Falha ao alterar descrição: ${res?.message || "erro desconhecido"}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao alterar: ${error.message || error}`);
+      toast.error("Erro ao alterar.", { description: String(error?.message || error) });
     } finally {
       setIsSaving(false);
       toast.dismiss(id);
@@ -76,14 +76,14 @@ export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) 
     }
     const id = toast.loading(`Buscando e abrindo desenho ${drawingCode}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.openDrawing?.(drawingCode);
+      const res = await window.electron?.analyzer?.openDrawing?.(drawingCode);
       if (res?.ok) {
         toast.success(`Desenho ${drawingCode} aberto com sucesso!`);
       } else {
         toast.error(`Não foi possível abrir o desenho: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao abrir desenho: ${error.message || error}`);
+      toast.error("Erro ao abrir desenho.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -96,14 +96,14 @@ export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) 
     }
     const id = toast.loading(`Buscando e localizando pasta do desenho ${drawingCode}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.openDrawingFolder?.(drawingCode);
+      const res = await window.electron?.analyzer?.openDrawingFolder?.(drawingCode);
       if (res?.ok) {
         toast.success(`Pasta do desenho ${drawingCode} aberta com sucesso!`);
       } else {
         toast.error(`Não foi possível abrir a pasta do desenho: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao abrir pasta: ${error.message || error}`);
+      toast.error("Erro ao abrir pasta.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }

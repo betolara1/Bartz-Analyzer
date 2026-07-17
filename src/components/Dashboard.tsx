@@ -167,6 +167,33 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     useState<"all" | "ok" | "erro" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "sem_codigo" | "autofix">("all");
   const [selectedDay, setSelectedDay] = useState<string>(getTodayISODate());
 
+  // Atualiza automaticamente a data selecionada se o dia mudar e o usuário estiver visualizando "Hoje"
+  useEffect(() => {
+    let lastToday = getTodayISODate();
+    
+    const checkDate = () => {
+      const currentToday = getTodayISODate();
+      if (currentToday !== lastToday) {
+        setSelectedDay((prevSelected) => {
+          // Se estava na data de hoje anterior, atualiza para o novo hoje
+          if (prevSelected === lastToday) {
+            return currentToday;
+          }
+          return prevSelected;
+        });
+        lastToday = currentToday;
+      }
+    };
+
+    const interval = setInterval(checkDate, 30000); // verifica a cada 30 segundos
+    window.addEventListener("focus", checkDate); // também verifica quando o app volta ao foco
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", checkDate);
+    };
+  }, []);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -196,7 +223,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   const [confirmBulkMoveOpen, setConfirmBulkMoveOpen] = useState(false);
 
   const mounted = useRef(true);
-  const isConnected = !!(window as any).electron?.analyzer;
+  const isConnected = !!window.electron?.analyzer;
 
   // persistência do relatório: só salvar depois de restaurar o histórico do disco
   const hydrated = useRef(false);
@@ -220,7 +247,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const res = await (window as any).electron?.analyzer?.searchXmlFiles?.(trimmed);
+        const res = await window.electron?.analyzer?.searchXmlFiles?.(trimmed);
         if (!active) return;
 
         if (res?.ok && res.results) {
@@ -235,7 +262,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
         }
       } catch (e: any) {
         if (active) {
-          toast.error(`Erro ao comunicar com o buscador: ${e.message || e}`);
+          toast.error("Erro ao comunicar com o buscador.", { description: String(e?.message || e) });
         }
       }
     }, 400);
@@ -251,7 +278,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     setCopyingXml(true);
     const id = toast.loading("Copiando arquivo XML para a pasta de entrada...");
     try {
-      const res = await (window as any).electron?.analyzer?.copyXmlToEntrada?.(selectedXmlPath);
+      const res = await window.electron?.analyzer?.copyXmlToEntrada?.(selectedXmlPath);
       if (res?.ok) {
         toast.success("XML copiado e importado com sucesso!");
         setSearchXmlTerm("");
@@ -261,7 +288,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
         toast.error(`Falha ao importar XML: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error(`Erro ao copiar arquivo: ${error.message || error}`);
+      toast.error("Erro ao copiar arquivo.", { description: String(error?.message || error) });
     } finally {
       setCopyingXml(false);
       toast.dismiss(id);
@@ -282,12 +309,12 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   useEffect(() => {
     mounted.current = true;
 
-    (window as any).electron?.settings?.load?.()
+    window.electron?.settings?.load?.()
       .then((sv: any) => sv && setCfg((c) => ({ ...c, ...sv, enableAutoFix: true })));
 
     // Restaurar análises da sessão anterior (persistidas em disco pelo processo principal).
     // Eventos que chegarem antes da restauração têm prioridade (merge por filename).
-    const historyPromise = (window as any).electron?.analyzer?.loadHistory?.();
+    const historyPromise = window.electron?.analyzer?.loadHistory?.();
     if (historyPromise && typeof historyPromise.then === "function") {
       historyPromise
         .then((saved: any) => {
@@ -312,7 +339,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
       hydrated.current = true; // preload sem suporte a histórico — segue sem persistência
     }
 
-    (window as any).electron?.analyzer?.onEvent?.((msg: any) => {
+    window.electron?.analyzer?.onEvent?.((msg: any) => {
       if (!mounted.current) return;
       const { evt, payload } = msg || {};
 
@@ -406,7 +433,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     if (!hydrated.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      (window as any).electron?.analyzer?.saveHistory?.(rows)?.catch?.(() => { });
+      window.electron?.analyzer?.saveHistory?.(rows)?.catch?.(() => { });
     }, 800);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [rows]);
@@ -476,11 +503,11 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   // ===== helpers/ações =====
 
   async function start() {
-    const ok = await (window as any).electron?.analyzer?.start?.(cfg);
+    const ok = await window.electron?.analyzer?.start?.(cfg);
     if (!ok) toast.error("Confira os caminhos e permissões.");
   }
-  async function stop() { await (window as any).electron?.analyzer?.stop?.(); }
-  async function scan() { await (window as any).electron?.analyzer?.scanOnce?.(); }
+  async function stop() { await window.electron?.analyzer?.stop?.(); }
+  async function scan() { await window.electron?.analyzer?.scanOnce?.(); }
 
   async function clearReport() {
     setConfirmClearOpen(true);
@@ -495,7 +522,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     setDetailOpen(false);
     setDetailData(null);
     // limpar também o histórico persistido em disco, imediatamente
-    (window as any).electron?.analyzer?.saveHistory?.([])?.catch?.(() => { });
+    window.electron?.analyzer?.saveHistory?.([])?.catch?.(() => { });
     toast.success("Relatório de Atividade limpo com sucesso!");
   }
 
@@ -507,7 +534,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     setConfirmExcluirOpen(false);
     const id = toast.loading("Excluindo arquivos...");
     try {
-      const res = await (window as any).electron?.analyzer?.clearTargetFolders?.();
+      const res = await window.electron?.analyzer?.clearTargetFolders?.();
       if (res?.ok) {
         toast.success(`Arquivos removidos com sucesso: ${res.count || 0}`);
         // Limpar o relatório de atividade junto com a exclusão física (inclusive o histórico em disco)
@@ -517,13 +544,13 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
         setCurrentPage(1);
         setDetailOpen(false);
         setDetailData(null);
-        (window as any).electron?.analyzer?.saveHistory?.([])?.catch?.(() => { });
+        window.electron?.analyzer?.saveHistory?.([])?.catch?.(() => { });
         scan();
       } else {
         toast.error(`Falha ao remover: ${res?.message || "erro desconhecido"}`);
       }
     } catch (e: any) {
-      toast.error(`Erro: ${e.message}`);
+      toast.error("Ocorreu um erro.", { description: String(e?.message || e) });
     } finally {
       toast.dismiss(id);
     }
@@ -549,7 +576,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
         targetDate
       };
 
-      const result = await (window as any).electron?.analyzer?.exportReport?.(reportData);
+      const result = await window.electron?.analyzer?.exportReport?.(reportData);
 
       if (result?.ok) {
         toast.dismiss(toastId);
@@ -566,28 +593,28 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
       }
     } catch (e: any) {
       toast.dismiss(toastId);
-      toast.error(`Erro ao exportar: ${String(e?.message || e)}`);
+      toast.error("Erro ao exportar relatório.", { description: String(e?.message || e) });
     }
   }
 
   const handleOpenFolder = useCallback(async (fullPath: string) => {
     try {
-      const ok = await (window as any).electron?.analyzer?.openInFolder?.(fullPath);
+      const ok = await window.electron?.analyzer?.openInFolder?.(fullPath);
       if (ok) toast.info("Abrindo pasta do arquivo…");
       else toast.warning("Não consegui abrir a pasta desse arquivo.");
     } catch (e: any) {
-      toast.error(`Falha ao abrir pasta: ${String(e?.message || e)}`);
+      toast.error("Falha ao abrir pasta.", { description: String(e?.message || e) });
     }
   }, []);
 
   const reprocessOne = useCallback(async (fullPath: string) => {
     const id = toast.loading("Processando arquivo…");
     try {
-      const ok = await (window as any).electron?.analyzer?.reprocessOne?.(fullPath);
+      const ok = await window.electron?.analyzer?.reprocessOne?.(fullPath);
       if (ok) toast.success("Arquivo processado — reavaliado e movido se necessário.");
       else toast.warning("Tentei reprocessar, mas não houve alteração.");
     } catch (e: any) {
-      toast.error(`Erro ao reprocessar: ${String(e?.message || e)}`);
+      toast.error("Erro ao reprocessar.", { description: String(e?.message || e) });
     } finally {
       toast.dismiss(id);
     }
@@ -651,15 +678,16 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     let fail = 0;
     for (const file of bulkMoveEligible) {
       try {
-        const res = await (window as any).electron?.analyzer?.moveToOk?.(file.fullpath);
+        const res = await window.electron?.analyzer?.moveToOk?.(file.fullpath);
         if (res?.ok) {
           success++;
-          if (res.destPath) {
+          const destPath = res.destPath;
+          if (destPath) {
             setRows(prev => {
               const copy = [...prev];
               const idx = copy.findIndex(r => r.fullpath === file.fullpath);
               if (idx !== -1) {
-                copy[idx] = { ...copy[idx], fullpath: res.destPath, filename: res.destPath.split(/[\\\/]/).pop() || copy[idx].filename, status: "OK", errors: [] };
+                copy[idx] = { ...copy[idx], fullpath: destPath, filename: destPath.split(/[\\\/]/).pop() || copy[idx].filename, status: "OK", errors: [] };
               }
               return copy;
             });
@@ -695,7 +723,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.6.3
+                v5.7.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
@@ -723,27 +751,31 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
 
       {/* Sistema de Busca e Cópia de XML */}
       <div className="px-6 mt-4">
-        <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <Search className="h-4.5 w-4.5 text-[#F1C40F]" />
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa e Importação de XML</h4>
-              <p className="text-[10px] text-muted-foreground">Busque arquivos XML na pasta de busca configurada para copiar para a pasta de entrada.</p>
-            </div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa e Importação de XML</h4>
           </div>
-          <div className="flex flex-1 max-w-2xl items-center gap-2">
-            <Input
-              type="text"
-              placeholder="Digite o nome do arquivo XML..."
-              value={searchXmlTerm}
-              onChange={(e) => setSearchXmlTerm(e.target.value)}
-              className="flex-1 min-w-[150px] bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
-            />
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+            <div className="relative flex-1 group">
+              <Input
+                type="text"
+                placeholder="Digite o nome do arquivo XML..."
+                value={searchXmlTerm}
+                onChange={(e) => setSearchXmlTerm(e.target.value)}
+                className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
+                style={{ paddingLeft: "2.5rem" }}
+              />
+              <Search 
+                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" 
+                style={{ top: "50%", transform: "translateY(-50%)" }}
+              />
+            </div>
             
             <select
               value={selectedXmlPath}
               onChange={(e) => setSelectedXmlPath(e.target.value)}
-              className="flex-1 min-w-[200px] bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium"
+              className="flex-1 md:flex-none md:w-80 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
               disabled={searchXmlResults.length === 0}
             >
               {searchXmlResults.length === 0 ? (
@@ -763,7 +795,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <Button
               onClick={handleImportXml}
               disabled={!selectedXmlPath || copyingXml}
-              className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9"
             >
               {copyingXml ? "Importando..." : "Importar"}
             </Button>

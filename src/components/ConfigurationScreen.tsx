@@ -142,7 +142,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
         setTestResults(res);
       }
     } catch (e: any) {
-      toast.error(`Erro ao testar caminhos: ${e.message || e}`);
+      toast.error("Erro ao testar caminhos.", { description: String(e?.message || e) });
     } finally {
       setTesting(false);
     }

@@ -57,7 +57,7 @@ export default function App() {
 
       window.electron.updater.onUpdateError((err) => {
         setUpdateStage(null);
-        toast.error(`Erro na atualização: ${err}`);
+        toast.error("Erro na atualização.", { description: String(err) });
       });
     }
   }, []);

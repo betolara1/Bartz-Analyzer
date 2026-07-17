@@ -220,7 +220,7 @@ export function useFileActions(
     setErpSearching(true);
     setErpSearchResults([]);
     try {
-      const res = await (window as any).electron?.analyzer?.searchErpProduct?.({
+      const res = await window.electron?.analyzer?.searchErpProduct?.({
         code: erpSearchCode,
         desc: erpSearchDesc,
         type: erpSearchType
@@ -242,7 +242,7 @@ export function useFileActions(
 
     if (setSearching) setSearching(true);
     try {
-      const res = await (window as any).electron?.analyzer?.searchErpProduct?.({ desc: acronym, type: 'CORINGA' });
+      const res = await window.electron?.analyzer?.searchErpProduct?.({ desc: acronym, type: 'CORINGA' });
       const results = res?.results || [];
       if (setOptions) setOptions(results);
       if (!results.length) toast.info("Nenhuma cor encontrada.");
@@ -259,7 +259,7 @@ export function useFileActions(
     for (const drawing of uniqueDrawings) {
       setDxfResults(prev => ({ ...prev, [drawing]: { status: 'searching' } }));
       try {
-        const result = await (window as any).electron?.analyzer?.findDrawingFile?.(drawing, data?.fullpath);
+        const result = await window.electron?.analyzer?.findDrawingFile?.(drawing, data?.fullpath);
         if (result?.found && result?.path) {
           setDxfResults(prev => ({
             ...prev,
@@ -293,12 +293,12 @@ export function useFileActions(
     setDxfFixing(prev => ({ ...prev, [drawing]: true }));
     const id = toast.loading(`Corrigindo ${drawing}...`);
     try {
-      const res = await (window as any).electron?.analyzer?.fixFresa37to18?.(dxfInfo.data.path);
+      const res = await window.electron?.analyzer?.fixFresa37to18?.(dxfInfo.data.path);
       if (res?.ok) {
         toast.success(`${drawing} corrigido com sucesso!`);
         if (onAction) onAction(data.fullpath, `[Automático] DXF: corrigido 37mm para 18mm no arquivo ${drawing}`);
         // Refresh info
-        const result = await (window as any).electron?.analyzer?.findDrawingFile?.(drawing, data.fullpath);
+        const result = await window.electron?.analyzer?.findDrawingFile?.(drawing, data.fullpath);
         if (result?.found && result?.path) {
           setDxfResults(prev => ({
             ...prev,
@@ -335,7 +335,7 @@ export function useFileActions(
 
     setLoadingComments(true);
     try {
-      const res = await (window as any).electron?.analyzer?.getOrderComments?.(num);
+      const res = await window.electron?.analyzer?.getOrderComments?.(num);
       if (res?.ok) {
         const rawComments = res.data || [];
         const filteredComments = rawComments.filter(
@@ -366,7 +366,7 @@ export function useFileActions(
     try {
       const opt = indCoringaOptions.find(o => o.code === coringaTo);
       const replacementValue = opt?.description || coringaTo;
-      const res = await (window as any).electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, replacementValue);
+      const res = await window.electron?.analyzer?.replaceCoringa?.(data.fullpath, coringaFrom, replacementValue);
       if (res?.ok) {
         toast.success(`Substituídos ${res.replaced || 0} ocorrência(s)`);
         if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído "${coringaFrom}" por "${replacementValue}" (${coringaTo})`);
@@ -390,12 +390,12 @@ export function useFileActions(
     const id = toast.loading('Aplicando CORINGA1...');
     try {
       const opt = coringa1Options.find(o => o.code === coringa1Selected);
-      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA1': opt?.description || coringa1Selected });
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA1': opt?.description || coringa1Selected });
       if (res?.ok) {
         toast.success('CORINGA1 substituído com sucesso.');
         if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA1 por "${opt?.description}" (${coringa1Selected})`);
         setCoringa1Done(true);
-        await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+        await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
       }
     } catch (e: any) { toast.error(String(e?.message || e)); }
     finally { toast.dismiss(id); }
@@ -406,12 +406,12 @@ export function useFileActions(
     const id = toast.loading('Aplicando CORINGA2...');
     try {
       const opt = coringa2Options.find(o => o.code === coringa2Selected);
-      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA2': opt?.description || coringa2Selected });
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA2': opt?.description || coringa2Selected });
       if (res?.ok) {
         toast.success('CORINGA2 substituído com sucesso.');
         if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA2 por "${opt?.description}" (${coringa2Selected})`);
         setCoringa2Done(true);
-        await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+        await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
       }
     } catch (e: any) { toast.error(String(e?.message || e)); }
     finally { toast.dismiss(id); }
@@ -421,12 +421,12 @@ export function useFileActions(
     if (!data || !cg1Replace) return;
     const id = toast.loading('Trocando CG1...');
     try {
-      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG1': cg1Replace.trim() });
       if (res?.ok) {
         toast.success('CG1 trocado com sucesso.');
         if (onAction) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG1 para "${cg1Replace}"`);
         setCg1Done(true);
-        await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+        await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
       }
     } catch (e: any) { toast.error(String(e?.message || e)); }
     finally { toast.dismiss(id); }
@@ -436,12 +436,12 @@ export function useFileActions(
     if (!data || !cg2Replace) return;
     const id = toast.loading('Trocando CG2...');
     try {
-      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CG2': cg2Replace.trim() });
       if (res?.ok) {
         toast.success('CG2 trocado com sucesso.');
         if (onAction) onAction(data.fullpath, `[Manual] Coringa Grupo: trocada sigla CG2 para "${cg2Replace}"`);
         setCg2Done(true);
-        await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+        await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
       }
     } catch (e: any) { toast.error(String(e?.message || e)); }
     finally { toast.dismiss(id); }
@@ -455,7 +455,7 @@ export function useFileActions(
     if (cg2Replace) map['CG2'] = cg2Replace;
     const id = toast.loading('Aplicando trocas CG1/CG2...');
     try {
-      const res = await (window as any).electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
       if (res?.ok) {
         const total = Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0);
         toast.success(`Substituições aplicadas (total: ${total})`);
@@ -478,7 +478,7 @@ export function useFileActions(
       const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
       const selDesc = selDescParts.join('|');
       const replacements = [{ id: selId, descricao: selDesc, value: refFillValue }];
-      const res = await (window as any).electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
+      const res = await window.electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
       if (res?.ok) {
         const total = Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0);
         toast.success(`Preenchidas ${total} ocorrência(s)`);
@@ -500,7 +500,7 @@ export function useFileActions(
     if (!data) return;
     const id = toast.loading("Movendo para OK...");
     try {
-      const res = await (window as any).electron?.analyzer?.moveToOk?.(data.fullpath);
+      const res = await window.electron?.analyzer?.moveToOk?.(data.fullpath);
       if (res?.ok) {
         toast.success("Arquivo movido para OK!");
         if (onAction) onAction(data.fullpath, "[Manual] Movido para pasta OK");
@@ -553,7 +553,7 @@ export function useFileActions(
     if (!data) return;
     const id = toast.loading("Reprocessando...");
     try {
-      await (window as any).electron?.analyzer?.reprocessOne?.(data.fullpath);
+      await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
       toast.success("Arquivo reprocessado.");
     } catch (e: any) {
       toast.error("Erro ao reprocessar.");
@@ -564,7 +564,7 @@ export function useFileActions(
 
   const handleOpenFolder = useCallback(async () => {
     if (!data) return;
-    await (window as any).electron?.analyzer?.openInFolder?.(data.fullpath);
+    await window.electron?.analyzer?.openInFolder?.(data.fullpath);
   }, [data]);
 
   return {
