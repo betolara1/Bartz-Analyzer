@@ -12,6 +12,7 @@ ipcMain.handle("settings:load", async () => {
     ok: normalizeWin(saved.ok || ""),
     erro: normalizeWin(saved.erro || ""),
     drawings: normalizeWin(saved.drawings || ""),
+    drawingsCopy: normalizeWin(saved.drawingsCopy || ""),
     simplificado: normalizeWin(saved.simplificado || ""),
     busca: normalizeWin(saved.busca || ""),
     enableAutoFix: saved.enableAutoFix !== undefined ? !!saved.enableAutoFix : true,

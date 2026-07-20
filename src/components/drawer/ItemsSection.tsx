@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Boxes, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen } from "lucide-react";
+import { Boxes, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
@@ -110,6 +110,26 @@ export function ItemsSection({ isOpen, onToggle, data }: ItemsSectionProps) {
     }
   };
 
+  const handleCopyToMirror = async (drawingCode: string) => {
+    if (!drawingCode) {
+      toast.error("Código de desenho inválido.");
+      return;
+    }
+    const id = toast.loading(`Copiando desenho ${drawingCode} para a pasta espelho...`);
+    try {
+      const res = await window.electron?.analyzer?.copyDrawingByCodeToMirror?.(drawingCode);
+      if (res?.ok) {
+        toast.success(`Desenho ${drawingCode} copiado para a pasta espelho!`);
+      } else {
+        toast.error(`Falha ao copiar desenho: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao copiar desenho.", { description: String(error?.message || error) });
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
   return (
     <section className="rounded-xl border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/5 overflow-hidden shadow-sm transition-all duration-300">
       <div
@@ -151,14 +171,14 @@ export function ItemsSection({ isOpen, onToggle, data }: ItemsSectionProps) {
 
           {filteredItems.length > 0 ? (
             <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner overflow-x-auto">
-              <table className="w-full text-xs min-w-[500px]">
+              <table className="w-full text-xs min-w-[600px]">
                 <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323]">
                   <tr>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base / Ref</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
-                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[240px]">Desenhos</th>
+                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[340px]">Desenhos</th>
                     <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[130px]">Ações</th>
                   </tr>
                 </thead>
@@ -197,6 +217,15 @@ export function ItemsSection({ isOpen, onToggle, data }: ItemsSectionProps) {
                           >
                             <FolderOpen className="h-3.5 w-3.5" />
                             Abrir Pasta
+                          </button>
+                          <button
+                            disabled={!item.desenho}
+                            onClick={() => handleCopyToMirror(item.desenho)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Copiar desenho para a pasta espelho"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            Copiar
                           </button>
                         </div>
                       </td>

@@ -13,6 +13,7 @@ export type FullConfig = {
   ok: string;
   erro: string;
   drawings: string;
+  drawingsCopy: string;
   simplificado: string;
   busca: string;
   enableAutoFix: boolean;
@@ -30,7 +31,7 @@ export type FullConfig = {
   cleanupCleanErro: boolean;
 };
 
-export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "simplificado" | "busca";
+export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "drawingsCopy" | "simplificado" | "busca";
 
 export interface PathConfig {
   key: PathConfigKey;
@@ -71,6 +72,12 @@ export const PATH_CONFIGS: PathConfig[] = [
     tooltip: "Pasta onde o sistema buscará os desenhos técnicos correspondentes."
   },
   {
+    key: "drawingsCopy",
+    label: "Pasta de Cópia de Desenhos",
+    placeholder: "\\\\Pc-alessandro\\dxf",
+    tooltip: "Pasta espelho para onde os desenhos podem ser copiados manualmente (botão \"Copiar\" na busca de desenhos). Correções automáticas do robô (fresa 37mm, muxarabi) também são replicadas aqui sozinhas, já que a alteração em si já foi automática. Deixe em branco para desativar."
+  },
+  {
     key: "simplificado",
     label: "Pasta XML Simplificado",
     placeholder: "\\\\servidor\\orcamentos\\simplificado",
@@ -92,6 +99,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     ok: "",
     erro: "",
     drawings: "",
+    drawingsCopy: "",
     simplificado: "",
     busca: "",
     enableAutoFix: true,

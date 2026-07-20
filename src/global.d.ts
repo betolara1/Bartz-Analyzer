@@ -31,6 +31,8 @@ declare global {
         searchDrawingFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;
         openDrawingByPath?: (fullPath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         showDrawingInFolder?: (fullPath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
+        copyDrawingToMirror?: (fullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
+        copyDrawingByCodeToMirror?: (drawingCode: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
         openMuxarabiDrawing?: (sizeCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         injectMuxarabi?: (drawingCode: string, sizeCode: string, thickness?: string) => Promise<{ ok: boolean; path?: string; message?: string; injectedCount?: number; totalInTemplate?: number; pieceDimensions?: string; thickness?: string; layer?: string }>;
         fixFresa37to18?: (dxfFilePath: string) => Promise<IpcResult & { changes?: any }>;

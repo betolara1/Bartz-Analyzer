@@ -10,7 +10,7 @@ const { validateXmlContent } = require(path.join(__dirname, "..", "src", "lib", 
 const { send } = require("./helpers");
 const { findFileRecursive } = require("./helpers");
 const { runErpValidation } = require("./erp-validation");
-const { doFixFresa37to18, doInjectMuxarabi } = require("./dxf-tools");
+const { doFixFresa37to18, doInjectMuxarabi, copyDrawingToMirror } = require("./dxf-tools");
 
 // --- VALIDATION lendo conteúdo do XML e usando cfg.enableAutoFix ---
 async function validateXml(fileFullPath, cfg = {}) {
@@ -139,6 +139,12 @@ async function processOne(fileFullPath, cfg) {
             fixedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
             analysis.autoFixes.push(`DXF: corrigido 37mm para 18mm no arquivo ${match.desenho}`);
+
+            // Desenho foi alterado pelo robô — replicar na pasta de cópia, se configurada
+            const mirrorRes = await copyDrawingToMirror(fullPath);
+            if (mirrorRes.ok) {
+              analysis.autoFixes.push(`DXF: cópia atualizada na pasta espelho (${match.desenho})`);
+            }
           } else if (res.message === 'Nenhuma alteração foi necessária') {
             fixedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
@@ -173,6 +179,14 @@ async function processOne(fileFullPath, cfg) {
             injectedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
             analysis.autoFixes.push(`DXF: Muxarabi ${sizeCode} (${thickness}mm) aplicado no desenho ${item.desenho}`);
+
+            // Desenho foi alterado pelo robô — replicar na pasta de cópia, se configurada
+            if (res.path) {
+              const mirrorRes = await copyDrawingToMirror(res.path);
+              if (mirrorRes.ok) {
+                analysis.autoFixes.push(`DXF: cópia atualizada na pasta espelho (${item.desenho})`);
+              }
+            }
           } else if (res.message && res.message.includes('já possui usinagens de muxarabi')) {
             injectedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];

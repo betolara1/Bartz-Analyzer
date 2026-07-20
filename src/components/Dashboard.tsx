@@ -13,7 +13,7 @@ import {
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
-  CircleHelp, Sliders, Search, FileSearch, Loader2
+  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -208,6 +208,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     ok: "",
     erro: "",
     drawings: "",
+    drawingsCopy: "",
     simplificado: "",
     busca: "",
     enableAutoFix: true,
@@ -311,6 +312,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   const [selectedDrawingPath, setSelectedDrawingPath] = useState("");
   const [openingDrawing, setOpeningDrawing] = useState(false);
   const [locatingDrawing, setLocatingDrawing] = useState(false);
+  const [copyingDrawingToMirror, setCopyingDrawingToMirror] = useState(false);
   const [searchingDrawings, setSearchingDrawings] = useState(false);
 
   useEffect(() => {
@@ -389,6 +391,25 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     }
   };
 
+  const handleCopyDrawingToMirror = async () => {
+    if (!selectedDrawingPath) return;
+    setCopyingDrawingToMirror(true);
+    const id = toast.loading("Copiando desenho para a pasta espelho...");
+    try {
+      const res = await window.electron?.analyzer?.copyDrawingToMirror?.(selectedDrawingPath);
+      if (res?.ok) {
+        toast.success("Desenho copiado para a pasta espelho com sucesso!");
+      } else {
+        toast.error(`Falha ao copiar desenho: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao copiar desenho.", { description: String(error?.message || error) });
+    } finally {
+      setCopyingDrawingToMirror(false);
+      toast.dismiss(id);
+    }
+  };
+
   function notifyFromPayload(p: any) {
     try {
       const base = (p?.arquivo || "").split(/[\\/]/).pop() || "arquivo";
@@ -412,6 +433,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             ok: sv.ok || "",
             erro: sv.erro || "",
             drawings: sv.drawings || "",
+            drawingsCopy: sv.drawingsCopy || "",
             simplificado: sv.simplificado || "",
             busca: sv.busca || "",
             enableAutoFix: sv.enableAutoFix !== undefined ? sv.enableAutoFix : true,
@@ -836,7 +858,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.9.0
+                v5.10.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
@@ -981,6 +1003,16 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
                 title="Abrir local do arquivo"
               >
                 <FolderOpen className="h-3.5 w-3.5" />
+              </Button>
+
+              <Button
+                onClick={handleCopyDrawingToMirror}
+                disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                variant="outline"
+                className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                title={cfg.drawingsCopy ? "Copiar para a pasta espelho" : "Configure a Pasta de Cópia de Desenhos em Opções para habilitar"}
+              >
+                <Copy className="h-3.5 w-3.5" />
               </Button>
 
               <Button

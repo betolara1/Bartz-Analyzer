@@ -774,6 +774,70 @@ ipcMain.handle('analyzer:showDrawingInFolder', async (_e, fullPath) => {
   }
 });
 
+/**
+ * Copia um desenho da Pasta de Desenhos para a Pasta de Cópia de Desenhos configurada,
+ * preservando a subpasta relativa (ex: ITE\ITE00000210A.dxf) para manter as duas em espelho.
+ * Usada tanto pelo botão manual "Copiar" quanto pelos auto-fixes (fresa 37mm, muxarabi) —
+ * nesses casos o robô já alterou o desenho sozinho, então a réplica também sai automática.
+ */
+async function copyDrawingToMirror(fullPath) {
+  try {
+    if (!fullPath) return { ok: false, message: 'Caminho do arquivo não informado.' };
+
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const mirrorRoot = cfg?.drawingsCopy;
+    if (!mirrorRoot) return { ok: false, message: 'A pasta de cópia de desenhos não está configurada nas preferências.' };
+
+    const exists = await fse.pathExists(fullPath);
+    if (!exists) return { ok: false, message: 'Arquivo não encontrado (pode ter sido movido ou renomeado).' };
+
+    const resolvedFile = path.resolve(fullPath);
+    let relative = path.basename(resolvedFile);
+    const drawingsRoot = cfg?.drawings;
+    if (drawingsRoot) {
+      const rel = path.relative(path.resolve(drawingsRoot), resolvedFile);
+      // só usa o caminho relativo se o arquivo realmente estiver dentro da Pasta de Desenhos configurada
+      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) relative = rel;
+    }
+
+    const destPath = path.join(mirrorRoot, relative);
+    await fse.ensureDir(path.dirname(destPath));
+    await fse.copy(resolvedFile, destPath, { overwrite: true });
+    console.log(`[Mirror] Desenho copiado: ${resolvedFile} -> ${destPath}`);
+    return { ok: true, destPath };
+  } catch (e) {
+    console.error('[Mirror] Erro ao copiar desenho para a pasta espelho:', String((e && e.message) || e));
+    return { ok: false, message: String((e && e.message) || e) };
+  }
+}
+
+/** ================== IPC: COPIAR DESENHO PARA A PASTA ESPELHO (MANUAL) ================== **/
+ipcMain.handle('analyzer:copyDrawingToMirror', async (_e, fullPath) => {
+  return await copyDrawingToMirror(fullPath);
+});
+
+/**
+ * Mesma cópia manual acima, mas localizando o arquivo pelo código do desenho
+ * (ex: "ESP00004702A") em vez do caminho completo — usada pelos botões "Copiar"
+ * espalhados nas tabelas de itens, que só conhecem o código, não o caminho.
+ */
+ipcMain.handle('analyzer:copyDrawingByCodeToMirror', async (_e, drawingCode) => {
+  try {
+    if (!drawingCode) return { ok: false, message: 'Código de desenho vazio ou inválido.' };
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const dxfFolderPath = cfg?.drawings;
+    if (!dxfFolderPath) return { ok: false, message: 'A pasta de desenhos não está configurada nas preferências.' };
+
+    const exactFilename = `${drawingCode.toLowerCase()}.dxf`;
+    const fullPath = await findFileRecursive(dxfFolderPath, exactFilename);
+    if (!fullPath) return { ok: false, message: `Desenho "${exactFilename}" não encontrado na pasta de desenhos ou subpastas.` };
+
+    return await copyDrawingToMirror(fullPath);
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
 /** ================== IPC: FIND DRAWING FILE ================== **/
 ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
   try {
@@ -1109,4 +1173,4 @@ ipcMain.handle('analyzer:fixFresa37to18', async (_e, dxfFilePath) => {
   return await doFixFresa37to18(dxfFilePath);
 });
 
-module.exports = { doFixFresa37to18, doInjectMuxarabi };
+module.exports = { doFixFresa37to18, doInjectMuxarabi, copyDrawingToMirror };
