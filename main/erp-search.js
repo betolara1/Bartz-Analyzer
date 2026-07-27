@@ -7,6 +7,7 @@ const fsp = fs.promises;
 const fse = require("fs-extra");
 const { ipcMain } = require("electron");
 const { send, removeAccents } = require("./helpers");
+const { ERP_BASE_URL, erpFetch, readErpJsonArray } = require("./erp-auth");
 
 ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
   try {
@@ -83,30 +84,19 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
       const searchDesc = (desc || '').trim().toUpperCase();
       const codeTerm = (code || '').trim().toUpperCase();
 
-      // Sempre buscar todas as cores com proteção de tamanho para fazer filtragem local com suporte a acentos
-      const url = `http://192.168.1.10:8081/api/cor?size=2000`;
+      // Sempre buscar todas as cores para fazer filtragem local com suporte a acentos
+      const url = `${ERP_BASE_URL}/cores`;
 
       console.log(`[COR API] Solicitando todos os registros para filtragem local: ${url}`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       try {
-        const response = await fetch(url, {
-          headers: { 'X-API-KEY': 'bartznewmoveisapi' },
-          signal: controller.signal
-        });
+        const response = await erpFetch(url, { signal: controller.signal });
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const data = await response.json();
-          let corResults = [];
-          if (Array.isArray(data)) {
-            corResults = data;
-          } else if (data && Array.isArray(data.content)) {
-            corResults = data.content;
-          } else if (data) {
-            corResults = [data];
-          }
+        {
+          const corResults = await readErpJsonArray(response);
 
           console.log(`[COR API] Resultados recebidos: ${corResults.length}`);
 
@@ -163,15 +153,15 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
       const searchTerms = searchDesc.split(/\s+/).filter(t => t.length > 0);
 
       if (codeTerm) {
-        url = `http://192.168.1.10:8081/api/item/search-code?q=${encodeURIComponent(codeTerm)}`;
+        url = `${ERP_BASE_URL}/itens/search?codigo=${encodeURIComponent(codeTerm)}`;
       } else if (searchDesc) {
         // Enviar o termo mais longo para o banco para ser mais permissivo na query inicial
         // e depois filtramos rigorosamente localmente com todos os termos.
         const longestTerm = searchTerms.reduce((a, b) => a.length > b.length ? a : b, '');
-        url = `http://192.168.1.10:8081/api/item/search-desc?q=${encodeURIComponent(longestTerm || searchDesc)}`;
+        url = `${ERP_BASE_URL}/itens/search?descricao=${encodeURIComponent(longestTerm || searchDesc)}`;
       } else if (type && typePrefixes[type]) {
         // Se não informou código nem descrição, mas selecionou um tipo, busca pelo prefixo do tipo
-        url = `http://192.168.1.10:8081/api/item/search-code?q=${encodeURIComponent(typePrefixes[type])}`;
+        url = `${ERP_BASE_URL}/itens/search?codigo=${encodeURIComponent(typePrefixes[type])}`;
       }
 
       if (url) {
@@ -182,15 +172,11 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
-          const response = await fetch(url, {
-            headers: { 'X-API-KEY': 'bartznewmoveisapi' },
-            signal: controller.signal
-          });
+          const response = await erpFetch(url, { signal: controller.signal });
           clearTimeout(timeoutId);
 
-          if (response.ok) {
-            const data = await response.json();
-            let erpResults = Array.isArray(data) ? data : (data ? [data] : []);
+          {
+            let erpResults = await readErpJsonArray(response);
 
             // Filtragem local inteligente com suporte a acentos
             erpResults = erpResults.filter(item => {

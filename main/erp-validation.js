@@ -4,6 +4,7 @@
 const fs = require("fs");
 const fsp = fs.promises;
 const fse = require("fs-extra");
+const { ERP_BASE_URL, erpFetch } = require("./erp-auth");
 
 function extractItemCodes(txt) {
   const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
@@ -87,9 +88,8 @@ async function checkCodeExistsInErp(codigo, cache = {}) {
     exists = cache.colors.has(upperCode);
   } else if (!exists) {
     try {
-      const url = `http://192.168.1.10:8081/api/cor?size=2000`;
-      const response = await fetch(url, {
-        headers: { 'X-API-KEY': 'bartznewmoveisapi' },
+      const url = `${ERP_BASE_URL}/cores`;
+      const response = await erpFetch(url, {
         signal: AbortSignal.timeout(15000)
       });
       if (response.ok) {
@@ -139,9 +139,8 @@ async function checkCodeExistsInErp(codigo, cache = {}) {
   // 3. Verificar API de itens do ERP
   if (!exists) {
     try {
-      const url = `http://192.168.1.10:8081/api/item/search-code?q=${encodeURIComponent(upperCode)}`;
-      const response = await fetch(url, {
-        headers: { 'X-API-KEY': 'bartznewmoveisapi' },
+      const url = `${ERP_BASE_URL}/itens/search?codigo=${encodeURIComponent(upperCode)}`;
+      const response = await erpFetch(url, {
         signal: AbortSignal.timeout(15000)
       });
       if (response.ok) {
