@@ -13,7 +13,7 @@ import {
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
-  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy
+  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -28,6 +28,7 @@ import {
 import FileDetailDrawer from "./FileDetailDrawer";
 import ThemeToggle from "./ThemeToggle";
 import { PATH_CONFIGS, type PathConfigKey } from "./ConfigurationScreen";
+import { BatchDrawingsModal } from "./BatchDrawingsModal";
 
 
 // ...
@@ -314,6 +315,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   const [locatingDrawing, setLocatingDrawing] = useState(false);
   const [copyingDrawingToMirror, setCopyingDrawingToMirror] = useState(false);
   const [searchingDrawings, setSearchingDrawings] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   useEffect(() => {
     const trimmed = searchDrawingTerm.trim();
@@ -947,9 +949,21 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
           </div>
 
           <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <FileSearch className="h-4.5 w-4.5 text-[#F1C40F]" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa de Desenhos</h4>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileSearch className="h-4.5 w-4.5 text-[#F1C40F]" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa de Desenhos</h4>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBatchModalOpen(true)}
+                className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-semibold"
+                title="Abrir ou copiar múltiplos desenhos de uma só vez"
+              >
+                <Files className="h-3.5 w-3.5" />
+                Abrir / Copiar em Lote
+              </Button>
             </div>
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
               <div className="relative flex-1 group">
@@ -1428,6 +1442,12 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BatchDrawingsModal
+        open={batchModalOpen}
+        onOpenChange={setBatchModalOpen}
+        defaultMirrorPath={cfg.drawingsCopy}
+      />
 
       {/* toasts */}
     </div>

@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electron', {
     showDrawingInFolder: (fullPath) => ipcRenderer.invoke('analyzer:showDrawingInFolder', fullPath),
     copyDrawingToMirror: (fullPath) => ipcRenderer.invoke('analyzer:copyDrawingToMirror', fullPath),
     copyDrawingByCodeToMirror: (drawingCode) => ipcRenderer.invoke('analyzer:copyDrawingByCodeToMirror', drawingCode),
+    batchProcessDrawings: (params) => ipcRenderer.invoke('analyzer:batchProcessDrawings', params),
     openMuxarabiDrawing: (sizeCode) => ipcRenderer.invoke('analyzer:openMuxarabiDrawing', { sizeCode }),
     injectMuxarabi: (drawingCode, sizeCode, thickness) => ipcRenderer.invoke('analyzer:injectMuxarabi', { drawingCode, sizeCode, thickness }),
     fixFresa37to18: (dxfFilePath) => ipcRenderer.invoke('analyzer:fixFresa37to18', dxfFilePath),

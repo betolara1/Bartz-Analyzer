@@ -876,6 +876,116 @@ ipcMain.handle('analyzer:copyDrawingByCodeToMirror', async (_e, drawingCode) => 
   }
 });
 
+/** ================== IPC: PROCESSAMENTO DE DESENHOS EM LOTE (ABRIR E/OU COPIAR) ================== **/
+ipcMain.handle('analyzer:batchProcessDrawings', async (_e, { items, open, copy, targetFolder }) => {
+  try {
+    if (!Array.isArray(items) || items.length === 0) {
+      return { ok: false, message: "Nenhum código ou nome de desenho fornecido." };
+    }
+
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const drawingsFolder = cfg?.drawings;
+    if (!drawingsFolder) {
+      return { ok: false, message: "A pasta de desenhos não está configurada nas Opções." };
+    }
+    if (!(await fse.pathExists(drawingsFolder))) {
+      return { ok: false, message: `Pasta de desenhos não encontrada: ${drawingsFolder}` };
+    }
+
+    let destFolder = null;
+    if (copy) {
+      destFolder = targetFolder && targetFolder.trim() ? targetFolder.trim() : cfg?.drawingsCopy;
+      if (!destFolder) {
+        return { ok: false, message: "Pasta de destino para cópia não informada e pasta espelho padrão não configurada." };
+      }
+      await fse.ensureDir(destFolder);
+    }
+
+    // Função interna para encontrar um desenho por nome/código (exato ou substring)
+    async function locateDrawingFile(searchTerm) {
+      const raw = String(searchTerm || '').trim();
+      if (!raw) return null;
+
+      // 1. Tentar busca exata por nome com .dxf
+      const targetFilename = raw.toLowerCase().endsWith('.dxf') ? raw.toLowerCase() : `${raw.toLowerCase()}.dxf`;
+      let found = await findFileRecursive(drawingsFolder, targetFilename);
+      if (found) return found;
+
+      // 2. Tentar busca por inclusão (substring)
+      const cleanTerm = raw.toLowerCase();
+      async function scanForSub(directory) {
+        let entries;
+        try {
+          entries = await fse.readdir(directory, { withFileTypes: true });
+        } catch {
+          return null;
+        }
+        for (const entry of entries) {
+          const full = path.join(directory, entry.name);
+          if (entry.isDirectory()) {
+            const sub = await scanForSub(full);
+            if (sub) return sub;
+          } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.dxf')) {
+            if (entry.name.toLowerCase().includes(cleanTerm)) {
+              return full;
+            }
+          }
+        }
+        return null;
+      }
+
+      return await scanForSub(drawingsFolder);
+    }
+
+    let openedCount = 0;
+    let copiedCount = 0;
+    const notFound = [];
+    const errors = [];
+
+    // Limpar duplicados mantendo a ordem
+    const uniqueItems = Array.from(new Set(items.map(i => String(i).trim()))).filter(Boolean);
+
+    for (const item of uniqueItems) {
+      try {
+        const filePath = await locateDrawingFile(item);
+        if (!filePath) {
+          notFound.push(item);
+          continue;
+        }
+
+        if (copy && destFolder) {
+          const fileName = path.basename(filePath);
+          const destPath = path.join(destFolder, fileName);
+          await fse.copy(filePath, destPath, { overwrite: true });
+          copiedCount++;
+        }
+
+        if (open) {
+          const openErr = await shell.openPath(filePath);
+          if (openErr) {
+            errors.push({ item, message: `Erro ao abrir: ${openErr}` });
+          } else {
+            openedCount++;
+          }
+        }
+      } catch (err) {
+        errors.push({ item, message: String(err && err.message || err) });
+      }
+    }
+
+    return {
+      ok: true,
+      processed: uniqueItems.length,
+      openedCount,
+      copiedCount,
+      notFound,
+      errors,
+    };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
 /** ================== IPC: FIND DRAWING FILE ================== **/
 ipcMain.handle('analyzer:findDrawingFile', async (_e, obj) => {
   try {
