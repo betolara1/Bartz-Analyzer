@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Package, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
+import { Input } from "../ui/input";
 
 interface SpecialItemsSectionProps {
   isOpen: boolean;
@@ -154,16 +155,19 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
       {isOpen && (
         <div className="px-5 pb-5 pt-2 space-y-3">
           {specialItems.length > 0 && (
-            <div className="relative max-w-md">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
-                <Search className="h-3.5 w-3.5" />
-              </span>
-              <input
+            <div className="relative max-w-md group">
+              <Input
                 type="text"
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
+                onClear={() => setFilterText("")}
                 placeholder="Buscar por item, desenho, dimensão ou descrição..."
-                className="w-full bg-[#111] border border-[#232323] text-white pl-9 pr-3 py-2 rounded-lg text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium"
+                className="w-full bg-muted/50 border-border text-foreground h-9 rounded-lg text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium"
+                style={{ paddingLeft: "2.5rem" }}
+              />
+              <Search
+                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-purple-400 transition-colors pointer-events-none z-10"
+                style={{ top: "50%", transform: "translateY(-50%)" }}
               />
             </div>
           )}
@@ -273,9 +277,10 @@ export function SpecialItemsSection({ isOpen, onToggle, data }: SpecialItemsSect
 
               <div className="space-y-1.5">
                 <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Nova Descrição</label>
-                <input
+                <Input
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
+                  onClear={() => setNewDescription("")}
                   placeholder="Digite a nova descrição do item..."
                   className="w-full bg-[#0E0E0E] border border-[#2C2C2C] text-white px-3 py-2.5 rounded-lg text-xs outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 transition-all font-medium"
                   autoFocus

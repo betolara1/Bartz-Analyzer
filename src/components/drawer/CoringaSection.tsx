@@ -2,6 +2,7 @@ import React from "react";
 import { AlertTriangle, ChevronDown, CheckCircle, Search, RefreshCw, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
+import { Input } from "../ui/input";
 
 interface CoringaSectionProps {
   isOpen: boolean;
@@ -132,10 +133,11 @@ export function CoringaSection({
                   <div className="space-y-1.5 w-full">
                     <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
                     <div className="relative">
-                      <input
+                      <Input
                         placeholder="Ex: 10.01.0000"
                         value={indCoringaAcronym}
                         onChange={(e) => setIndCoringaAcronym(e.target.value.toUpperCase())}
+                        onClear={() => setIndCoringaAcronym("")}
                         onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(indCoringaAcronym, 3); }}
                         className="w-full bg-background border border-border text-foreground px-3 py-2 pr-8 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
                       />
@@ -208,10 +210,11 @@ export function CoringaSection({
                     {hasCoringa1 && (
                       <>
                         <div className="relative flex-1">
-                          <input
+                          <Input
                             value={coringa1Acronym}
                             disabled={coringa1Done || hasIndividualCoringas}
                             onChange={(e) => setCoringa1Acronym(e.target.value.toUpperCase())}
+                            onClear={() => setCoringa1Acronym("")}
                             onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(coringa1Acronym, 1); }}
                             placeholder="Cor (Ex: Branco)"
                             className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50"
@@ -267,10 +270,11 @@ export function CoringaSection({
                           ) : (
                             <div className="flex gap-2 w-full">
                               <div className="relative flex-1 max-w-[150px]">
-                                <input
+                                <Input
                                   value={cg1Acronym}
                                   disabled={cg1Done || hasIndividualCoringas}
                                   onChange={(e) => setCg1Acronym(e.target.value.toUpperCase())}
+                                  onClear={() => setCg1Acronym("")}
                                   onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(cg1Acronym, 4); }}
                                   placeholder="Branco"
                                   className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50"
@@ -320,10 +324,11 @@ export function CoringaSection({
                     {hasCoringa2 && (
                       <>
                         <div className="relative flex-1">
-                          <input
+                          <Input
                             value={coringa2Acronym}
                             disabled={coringa2Done || hasIndividualCoringas}
                             onChange={(e) => setCoringa2Acronym(e.target.value.toUpperCase())}
+                            onClear={() => setCoringa2Acronym("")}
                             onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(coringa2Acronym, 2); }}
                             className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50"
                           />
@@ -366,7 +371,7 @@ export function CoringaSection({
                           ) : (
                             <div className="flex gap-2 w-full">
                               <div className="relative flex-1 max-w-[150px]">
-                                <input value={cg2Acronym} disabled={cg2Done || hasIndividualCoringas} onChange={(e) => setCg2Acronym(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(cg2Acronym, 5); }} className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50" />
+                                <Input value={cg2Acronym} disabled={cg2Done || hasIndividualCoringas} onChange={(e) => setCg2Acronym(e.target.value.toUpperCase())} onClear={() => setCg2Acronym("")} onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(cg2Acronym, 5); }} className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50" />
                                 <button onClick={() => onCoringaSearch(cg2Acronym, 5)} disabled={cg2Done || hasIndividualCoringas} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 disabled:opacity-50"><Search className="h-3 w-3" /></button>
                               </div>
                               <select value={cg2Replace} onChange={(e) => setCg2Replace(e.target.value)} disabled={cg2Options.length === 0 || cg2Done || hasIndividualCoringas} className="flex-1 min-w-[120px] bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] font-mono disabled:opacity-50">

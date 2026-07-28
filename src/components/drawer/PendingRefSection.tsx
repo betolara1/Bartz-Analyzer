@@ -1,6 +1,7 @@
 import React from "react";
 import { AlertTriangle, ChevronDown, Package, CheckCircle } from "lucide-react";
 import { Row } from "../../types";
+import { Input } from "../ui/input";
 
 interface PendingRefSectionProps {
   isOpen: boolean;
@@ -18,13 +19,11 @@ export function PendingRefSection({
 }: PendingRefSectionProps) {
 
   const referenciaEmpty = (data?.meta?.referenciaEmpty || []) as any[];
-  const hasRefError = (data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO"));
-  const showSection = (referenciaEmpty.length > 0 || hasRefError);
 
-  if (!showSection) return null;
+  if (referenciaEmpty.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/5 overflow-hidden shadow-sm dark:shadow-[0_4px_20px_rgba(244,63,94,0.1)] transition-all duration-300">
+    <section className="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/5 overflow-hidden shadow-sm transition-all duration-300">
       <div
         className="px-5 py-4 flex items-center justify-between cursor-pointer group"
         onClick={onToggle}
@@ -34,16 +33,16 @@ export function PendingRefSection({
             <AlertTriangle className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground tracking-tight leading-none">Itens com Referência Pendente</h3>
-            <p className="text-[10px] dark:text-rose-300/60 text-muted-foreground font-medium uppercase tracking-widest mt-1">
-              Vínculo de códigos ERP para componentes sem referência
+            <h3 className="text-sm font-bold text-foreground tracking-tight">Referências Pendentes</h3>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+              {referenciaEmpty.length} item(ns) sem código de referência ERP
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] animate-pulse" />
-          <div className={`p-2 rounded-full bg-rose-500/5 border border-rose-500/10 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-            <ChevronDown className="h-4 w-4 text-rose-400/50" />
+          <div className={`p-2 rounded-full bg-[#111] border border-[#232323] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+            <ChevronDown className="h-4 w-4 text-[#666]" />
           </div>
         </div>
       </div>
@@ -60,7 +59,7 @@ export function PendingRefSection({
               <select
                 value={selectedRefSingle ?? ''}
                 onChange={(e) => setSelectedRefSingle(e.target.value || null)}
-                className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs outline-none focus:border-rose-500 transition-all font-bold"
+                className="w-full bg-muted/50 border border-border text-foreground px-3 py-2 rounded-lg text-xs outline-none focus:border-rose-500 transition-all font-bold"
               >
                 <option value="">-- SELECIONE O COMPONENTE --</option>
                 {referenciaEmpty.filter(r => !!r.id).map((r, i) => {
@@ -98,11 +97,12 @@ export function PendingRefSection({
 
             <div className="space-y-1.5">
               <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Novo Código de Referência (ERP)</label>
-              <input
+              <Input
                 value={refFillValue}
                 onChange={(e) => setRefFillValue(e.target.value)}
+                onClear={() => setRefFillValue('')}
                 placeholder="Ex: 10.01.2023"
-                className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-rose-500 transition-all font-mono"
+                className="w-full bg-muted/50 border-border text-foreground px-3 py-2 rounded-lg text-sm outline-none focus:border-rose-500 transition-all font-mono"
               />
             </div>
           </div>

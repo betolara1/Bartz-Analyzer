@@ -2,6 +2,7 @@ import React from "react";
 import { Search, ChevronDown, RefreshCw, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
+import { Input } from "../ui/input";
 
 interface ErpSearchSectionProps {
   isOpen: boolean;
@@ -20,8 +21,19 @@ interface ErpSearchSectionProps {
 }
 
 export function ErpSearchSection({
-  isOpen, onToggle, data, erpSearchCode, setErpSearchCode, erpSearchDesc, setErpSearchDesc,
-  erpSearchType, setErpSearchType, erpSearching, erpSearchResults, onSearch, onSelectCode
+  isOpen,
+  onToggle,
+  data,
+  erpSearchCode,
+  setErpSearchCode,
+  erpSearchDesc,
+  setErpSearchDesc,
+  erpSearchType,
+  setErpSearchType,
+  erpSearching,
+  erpSearchResults,
+  onSearch,
+  onSelectCode,
 }: ErpSearchSectionProps) {
   
   const showSection = ((data?.meta?.coringaMatches?.length || 0) > 0) || 
@@ -31,20 +43,20 @@ export function ErpSearchSection({
   if (!showSection) return null;
 
   return (
-    <section className="rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/5 overflow-hidden shadow-sm dark:shadow-[0_4px_20px_rgba(59,130,246,0.1)] transition-all duration-300">
-      <div
-        className="px-5 py-4 flex items-center justify-between cursor-pointer group"
+    <div className="border border-blue-500/20 bg-blue-500/5 rounded-xl overflow-hidden shadow-sm">
+      <div 
         onClick={onToggle}
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-500/10 transition-colors select-none"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+          <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
             <Search className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground tracking-tight leading-none">Conexão Direta ERP: Busca de Produto</h3>
-            <p className="text-[10px] dark:text-blue-300/60 text-muted-foreground font-medium uppercase tracking-widest mt-1">
-              Pesquisa no servidor por códigos originais
-            </p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-blue-300">Consulta ERP / CSV</h3>
+            </div>
+            <p className="text-xs text-blue-400/80">Buscador de códigos e descrições no banco de dados ERP</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -64,7 +76,7 @@ export function ErpSearchSection({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Código do Produto</label>
-              <input
+              <Input
                 placeholder="Ex: 10.01.0001"
                 value={erpSearchCode}
                 onChange={(e) => {
@@ -74,8 +86,9 @@ export function ErpSearchSection({
                     setErpSearchType('');
                   }
                 }}
+                onClear={() => setErpSearchCode('')}
                 disabled={!!erpSearchDesc || !!erpSearchType}
-                className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all font-mono"
+                className="w-full bg-muted/50 border-border text-foreground px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all font-mono"
               />
             </div>
             <div className="space-y-1.5">
@@ -87,7 +100,7 @@ export function ErpSearchSection({
                   if (e.target.value) setErpSearchCode('');
                 }}
                 disabled={!!erpSearchCode}
-                className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold"
+                className="w-full bg-muted/50 border border-border text-foreground px-3 py-2 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold"
               >
                 <option value="">TODOS OS TIPOS</option>
                 <option value="CHAPAS">CHAPAS</option>
@@ -101,15 +114,16 @@ export function ErpSearchSection({
 
           <div className="space-y-1.5">
             <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Descrição (Cor, Acabamento, Espessura)</label>
-            <input
+            <Input
               placeholder="Ex: BRANCO SUPREMO 18MM"
               value={erpSearchDesc}
               onChange={(e) => {
                 setErpSearchDesc(e.target.value);
                 if (e.target.value) setErpSearchCode('');
               }}
+              onClear={() => setErpSearchDesc('')}
               disabled={!!erpSearchCode}
-              className="w-full bg-[#111] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all"
+              className="w-full bg-muted/50 border-border text-foreground px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all"
             />
           </div>
 
@@ -167,6 +181,6 @@ export function ErpSearchSection({
           )}
         </div>
       )}
-    </section>
+    </div>
   );
 }

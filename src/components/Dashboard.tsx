@@ -860,7 +860,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.13.0
+                v5.15.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
@@ -901,16 +901,17 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
                   placeholder="Digite o nome do arquivo XML..."
                   value={searchXmlTerm}
                   onChange={(e) => setSearchXmlTerm(e.target.value)}
+                  onClear={() => setSearchXmlTerm("")}
                   className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
                   style={{ paddingLeft: "2.5rem" }}
                 />
                 <Search
-                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors"
+                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
                   style={{ top: "50%", transform: "translateY(-50%)" }}
                 />
                 {searchingXml && (
                   <Loader2
-                    className="absolute right-3 h-3.5 w-3.5 text-primary animate-spin"
+                    className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
                     style={{ top: "50%", transform: "translateY(-50%)" }}
                   />
                 )}
@@ -972,16 +973,17 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
                   placeholder="Digite o nome do desenho..."
                   value={searchDrawingTerm}
                   onChange={(e) => setSearchDrawingTerm(e.target.value)}
+                  onClear={() => setSearchDrawingTerm("")}
                   className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
                   style={{ paddingLeft: "2.5rem" }}
                 />
                 <FileSearch
-                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors"
+                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
                   style={{ top: "50%", transform: "translateY(-50%)" }}
                 />
                 {searchingDrawings && (
                   <Loader2
-                    className="absolute right-3 h-3.5 w-3.5 text-primary animate-spin"
+                    className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
                     style={{ top: "50%", transform: "translateY(-50%)" }}
                   />
                 )}
@@ -1197,11 +1199,12 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
                 placeholder="Buscar arquivo, erro, tag..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                onClear={() => { setSearch(""); setCurrentPage(1); }}
                 className="w-80 bg-muted/50 border-border text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                 style={{ paddingLeft: "2.5rem" }}
               />
               <Filter 
-                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" 
+                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10" 
                 style={{ top: "50%", transform: "translateY(-50%)" }}
               />
             </div>

@@ -199,6 +199,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
         <Input
           value={String(form[props.field] || "")}
           onChange={(e) => setVal(props.field, e.target.value)}
+          onClear={() => setVal(props.field, "")}
           placeholder={props.placeholder}
           className="bg-[#151515] border-[#2C2C2C] w-[680px]"
         />

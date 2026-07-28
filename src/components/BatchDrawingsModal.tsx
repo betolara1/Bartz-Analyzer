@@ -229,6 +229,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
                     setCustomFolder(e.target.value);
                     setUseCustomFolder(true);
                   }}
+                  onClear={() => setCustomFolder("")}
                   placeholder="C:\Caminho\Da\Sua\Pasta..."
                   className="h-8 text-xs font-mono bg-background flex-1"
                 />
