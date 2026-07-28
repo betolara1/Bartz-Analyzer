@@ -1,5 +1,5 @@
 import React from "react";
-import { Layers, ChevronDown, FileText, Wand2, FolderOpen, Copy } from "lucide-react";
+import { Layers, ChevronDown, FileText, Wand2, FolderOpen, FolderCheck, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
@@ -47,6 +47,26 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
       }
     } catch (error: any) {
       toast.error("Erro ao abrir pasta.", { description: String(error?.message || error) });
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
+  const handleOpenMirrorFolder = async (drawingCode: string) => {
+    if (!drawingCode) {
+      toast.error("Código de desenho inválido.");
+      return;
+    }
+    const id = toast.loading(`Buscando pasta espelho do desenho ${drawingCode}...`);
+    try {
+      const res = await window.electron?.analyzer?.openMirrorFolder?.(drawingCode);
+      if (res?.ok) {
+        toast.success(`Pasta espelho aberta com sucesso!`);
+      } else {
+        toast.error(`Não foi possível abrir a pasta espelho: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao abrir pasta espelho.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -139,9 +159,9 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
       {isOpen && (
         <div className="px-5 pb-5 pt-2">
           {muxarabiItems.length > 0 ? (
-            <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner overflow-x-auto">
+            <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[360px] overflow-y-auto overflow-x-auto custom-scrollbar">
               <table className="w-full text-xs min-w-[450px]">
-                <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323]">
+                <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
                   <tr>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
@@ -178,10 +198,19 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
                               disabled={!item.desenho}
                               onClick={() => handleOpenDrawingFolder(item.desenho)}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta do desenho"
+                              title="Abrir pasta de origem do desenho"
                             >
                               <FolderOpen className="h-3.5 w-3.5" />
                               Abrir Pasta
+                            </button>
+                            <button
+                              disabled={!item.desenho}
+                              onClick={() => handleOpenMirrorFolder(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta espelho do desenho"
+                            >
+                              <FolderCheck className="h-3.5 w-3.5" />
+                              Pasta Espelho
                             </button>
                             <button
                               disabled={!item.desenho}

@@ -1302,6 +1302,41 @@ ipcMain.handle('analyzer:openDrawingFolder', async (_e, arg) => {
   }
 });
 
+/** ================== IPC: OPEN MIRROR FOLDER FOR A DRAWING ================== **/
+ipcMain.handle('analyzer:openMirrorFolder', async (_e, arg) => {
+  try {
+    const drawingCode = (typeof arg === 'string') ? arg : (arg?.drawingCode || '');
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const mirrorRoot = cfg?.drawingsCopy;
+
+    if (!mirrorRoot) {
+      return { ok: false, message: "A pasta espelho (cópia de desenhos) não está configurada nas preferências." };
+    }
+
+    const folderExists = await fse.pathExists(mirrorRoot);
+    if (!folderExists) {
+      return { ok: false, message: `Pasta espelho não encontrada: ${mirrorRoot}` };
+    }
+
+    if (drawingCode) {
+      const exactFilename = `${drawingCode.toLowerCase()}.dxf`;
+      const fullPath = await findFileRecursive(mirrorRoot, exactFilename);
+      if (fullPath) {
+        shell.showItemInFolder(fullPath);
+        return { ok: true, path: fullPath };
+      }
+    }
+
+    const errorMsg = await shell.openPath(mirrorRoot);
+    if (errorMsg) {
+      return { ok: false, message: `Erro ao abrir a pasta espelho: ${errorMsg}` };
+    }
+    return { ok: true, path: mirrorRoot };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
 /** ================== IPC: OPEN MUXARABI DRAWING FILE ================== **/
 ipcMain.handle('analyzer:injectMuxarabi', async (_e, arg) => {
   return await doInjectMuxarabi(arg);

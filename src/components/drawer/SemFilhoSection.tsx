@@ -63,9 +63,9 @@ export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendi
           {(data?.meta?.semFilhoItems || []).length > 0 && (
             <div className="space-y-2">
               <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest px-1">Itens Identificados:</p>
-              <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden">
+              <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden max-h-[350px] overflow-y-auto overflow-x-auto custom-scrollbar">
                 <table className="w-full text-[11px]">
-                  <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323]">
+                  <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
                     <tr>
                       <th className="text-left px-3 py-2 uppercase font-bold tracking-widest text-[8px]">Referência</th>
                       <th className="text-left px-3 py-2 uppercase font-bold tracking-widest text-[8px]">ID</th>

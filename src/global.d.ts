@@ -26,6 +26,7 @@ declare global {
         findDrawingFile?: (drawingCode: string, xmlFilePath?: string) => Promise<{ found: boolean; path: string | null; name?: string; panelInfo?: any; fresaInfo?: any; message?: string }>;
         openDrawing?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         openDrawingFolder?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
+        openMirrorFolder?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         searchXmlFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;
         copyXmlToEntrada?: (sourceFullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
         searchDrawingFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;

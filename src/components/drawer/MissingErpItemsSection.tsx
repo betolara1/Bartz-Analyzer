@@ -38,9 +38,9 @@ export function MissingErpItemsSection({ isOpen, onToggle, data }: MissingErpIte
       
       {isOpen && (
         <div className="px-5 pb-5 pt-2 space-y-3">
-          <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner overflow-x-auto">
+          <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[360px] overflow-y-auto overflow-x-auto custom-scrollbar">
             <table className="w-full text-xs">
-              <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323]">
+              <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
                 <tr>
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[180px]">Código</th>
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Zap, ChevronDown, FileText, FolderOpen, Copy, RefreshCw, Check, AlertTriangle } from "lucide-react";
+import { Zap, ChevronDown, FileText, FolderOpen, FolderCheck, Copy, RefreshCw, Check, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
@@ -95,6 +95,26 @@ export function Es08Section({
     }
   };
 
+  const handleOpenMirrorFolder = async (drawingCode: string) => {
+    if (!drawingCode) {
+      toast.error("Código de desenho inválido.");
+      return;
+    }
+    const id = toast.loading(`Buscando pasta espelho do desenho ${drawingCode}...`);
+    try {
+      const res = await window.electron?.analyzer?.openMirrorFolder?.(drawingCode);
+      if (res?.ok) {
+        toast.success(`Pasta espelho aberta com sucesso!`);
+      } else {
+        toast.error(`Não foi possível abrir a pasta espelho: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao abrir pasta espelho.", { description: String(error?.message || error) });
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
   const handleCopyToMirror = async (drawingCode: string) => {
     if (!drawingCode) {
       toast.error("Código de desenho inválido.");
@@ -157,9 +177,9 @@ export function Es08Section({
             </button>
           </div>
 
-          <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner overflow-x-auto">
+          <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[360px] overflow-y-auto overflow-x-auto custom-scrollbar">
             <table className="w-full text-xs min-w-[650px]">
-              <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323]">
+              <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
                 <tr>
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">ID do Item</th>
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Ref</th>
@@ -216,10 +236,19 @@ export function Es08Section({
                             disabled={!drawing}
                             onClick={() => handleOpenDrawingFolder(drawing)}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta do desenho"
+                            title="Abrir pasta de origem do desenho"
                           >
                             <FolderOpen className="h-3.5 w-3.5" />
                             Pasta
+                          </button>
+                          <button
+                            disabled={!drawing}
+                            onClick={() => handleOpenMirrorFolder(drawing)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Abrir pasta espelho do desenho"
+                          >
+                            <FolderCheck className="h-3.5 w-3.5" />
+                            Pasta Espelho
                           </button>
                           <button
                             disabled={!drawing}
