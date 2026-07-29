@@ -47,40 +47,46 @@ O **Bartz Analyzer** é uma aplicação **Desktop Cross-Platform de Missão Crí
 A aplicação foi projetada seguindo padrões modernos de arquitetura de software Desktop, garantindo **segurança de processos, alta disponibilidade e desacoplamento de responsabilidades**.
 
 ```mermaid
-flowgraph TD
+graph TD
     subgraph Monitoramento ["🛰️ Camada de Entrada & Watcher"]
-        A[Diretório de Entrada / Redes UNC] -->|Debounced File Event| B[Chokidar File Watcher]
+        A["Diretório de Entrada / Redes UNC"] -->|Debounced File Event| B["Chokidar File Watcher"]
     end
 
     subgraph CoreEngine ["🔬 Motor de Processamento (Main Process)"]
-        B --> C[XML Parser & Inspector - xml-logic.js]
-        C --> D{Validações de Engenharia}
+        B --> C["XML Parser & Inspector - xml-logic.js"]
+        C --> D{"Validações de Engenharia"}
         
-        D -->|1. Validação de Preços & Qtd| E[Auto-Fix XML Attributes]
-        D -->|2. Checagem de Códigos & ERP| F[ERP HTTP API /api/item & /api/cor]
-        D -->|3. Fresa 37mm / ES08| G[DXF Vector Rewriter - dxf-tools.js]
-        D -->|4. Injeção de Muxarabi / MX008| H[DXF Grid Template Injector]
-        D -->|5. Checagem de Máquinas| I[Filtro de Plugins ASPAN / NCB612]
+        D -->|1. Validação de Preços & Qtd| E["Auto-Fix XML Attributes"]
+        D -->|2. Checagem de Códigos & ERP| F["ERP HTTP API /api/item & /api/cor"]
+        D -->|3. Fresa 37mm / ES08| G["DXF Vector Rewriter - dxf-tools.js"]
+        D -->|4. Injeção de Muxarabi / MX008| H["DXF Grid Template Injector"]
+        D -->|5. Checagem de Máquinas| I["Filtro de Plugins ASPAN / NCB612"]
         
-        E & F & G & H & I --> J{Decisão do Pipeline}
+        E --> J{"Decisão do Pipeline"}
+        F --> J
+        G --> J
+        H --> J
+        I --> J
     end
 
     subgraph OutputRouting ["📁 Roteamento de Arquivos"]
-        J -->|Sem Erros Graves| K[Mover para Pasta OK]
-        J -->|Erros Impeditivos| L[Mover para Pasta ERRO]
-        J -->|Geração de Cópia| M[XML Simplificado / Resumido]
-        G & H -->|Sincronização| N[Atualizar Pasta Espelho DXF (Mirror)]
+        J -->|Sem Erros Graves| K["Mover para Pasta OK"]
+        J -->|Erros Impeditivos| L["Mover para Pasta ERRO"]
+        J -->|Geração de Cópia| M["XML Simplificado / Resumido"]
+        G --> N["Atualizar Pasta Espelho DXF (Mirror)"]
+        H --> N
     end
 
     subgraph UserInterface ["🎨 Processo de Renderização (React UI)"]
-        K & L -->|IPC Main -> Renderer| O[Dashboard React em Tempo Real]
-        O --> P[Fila de Atividade, KPIs & Logs]
-        O --> Q[Drawer de Edição Interativa & Backup/Undo]
+        K --> O["Dashboard React em Tempo Real"]
+        L --> O
+        O --> P["Fila de Atividade, KPIs & Logs"]
+        O --> Q["Drawer de Edição Interativa & Backup/Undo"]
     end
 
     subgraph Automation ["⏰ Tarefas Agendadas"]
-        R[Scheduler Interno] -->|11:30 & 17:30| S[Exportação Diária CSV - UTF-8 BOM]
-        R -->|17:30| T[Faxina Automática de Pastas Temporárias]
+        R["Scheduler Interno"] -->|11:30 & 17:30| S["Exportação Diária CSV - UTF-8 BOM"]
+        R -->|17:30| T["Faxina Automática de Pastas Temporárias"]
     end
 ```
 
