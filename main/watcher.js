@@ -96,6 +96,204 @@ ipcMain.handle('analyzer:copyXmlToEntrada', async (_e, { sourceFullPath }) => {
   }
 });
 
+/** ================== IPC: DOWNLOAD .PROMOB DO PEDIDOS ONLINE ================== **/
+ipcMain.handle('analyzer:downloadPromob', async (_e, { xmlFilename }) => {
+  try {
+    if (!xmlFilename) {
+      return { ok: false, message: "Nome do arquivo XML não especificado." };
+    }
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const downloadFolder = cfg?.downloadPromob;
+    if (!downloadFolder) {
+      return { ok: false, message: "Configure a Pasta de Download Promob nas Configurações antes de baixar." };
+    }
+
+    // Garante que a pasta de download exista
+    await fse.ensureDir(downloadFolder);
+
+    // Extrai número do pedido do nome do arquivo (ex: "69371" de "69371a__...")
+    const orderMatch = xmlFilename.match(/^(\d{4,6})/);
+    const orderNumber = orderMatch ? orderMatch[1] : (xmlFilename.match(/\b(\d{4,6})\b/)?.[1] || null);
+
+    // Extrai prefixo de data/hora do nome do arquivo se disponível (ex: "2026-07-15_18-27")
+    const dateMatch = xmlFilename.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})/);
+    let datePrefix = dateMatch ? dateMatch[1] : null;
+
+    const https = require('https');
+    const http = require('http');
+    const querystring = require('querystring');
+
+    // Helper HTTP POST
+    const httpPost = (targetUrl, dataObj, cookieHeader = '') => new Promise((resolve, reject) => {
+      const postData = querystring.stringify(dataObj);
+      const isHttps = targetUrl.startsWith('https');
+      const client = isHttps ? https : http;
+      const parsedUrl = new URL(targetUrl);
+
+      const reqOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BartzAnalyzer/1.0',
+          ...(cookieHeader ? { 'Cookie': cookieHeader } : {})
+        },
+        timeout: 20000,
+      };
+
+      const req = client.request(reqOptions, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout na conexão.')); });
+      req.write(postData);
+      req.end();
+    });
+
+    // Helper HTTP GET (Buffer)
+    const httpGetBuffer = (targetUrl, cookieHeader = '') => new Promise((resolve, reject) => {
+      const isHttps = targetUrl.startsWith('https');
+      const client = isHttps ? https : http;
+      const parsedUrl = new URL(targetUrl);
+
+      const reqOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BartzAnalyzer/1.0',
+          ...(cookieHeader ? { 'Cookie': cookieHeader } : {})
+        },
+        timeout: 30000,
+      };
+
+      const req = client.request(reqOptions, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          let redirectUrl = res.headers.location;
+          if (!redirectUrl.startsWith('http')) {
+            redirectUrl = new URL(redirectUrl, targetUrl).toString();
+          }
+          httpGetBuffer(redirectUrl, cookieHeader).then(resolve).catch(reject);
+          return;
+        }
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        res.on('data', chunk => chunks.push(chunk));
+        res.on('end', () => resolve(Buffer.concat(chunks)));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout no download.')); });
+      req.end();
+    });
+
+    // 1. Efetuar Login no Pedidos Online (roberto / 1234)
+    let sessionCookie = '';
+    try {
+      const loginRes = await httpPost('https://pedidosbartzmoveis.com.br/executa/processo_login.php', {
+        txt_login: 'roberto',
+        txt_senha: '1234'
+      });
+      const setCookies = loginRes.headers['set-cookie'];
+      if (setCookies && setCookies.length > 0) {
+        sessionCookie = setCookies.map(c => c.split(';')[0]).join('; ');
+      }
+    } catch (e) {
+      return { ok: false, message: `Falha ao realizar login no Pedidos Online: ${e.message}` };
+    }
+
+    if (!sessionCookie) {
+      return { ok: false, message: "Não foi possível obter a sessão de login no Pedidos Online." };
+    }
+
+    let targetPromobName = null;
+
+    // 2. Tentar localizar o .promob buscando pelo número do pedido (ex: 69371)
+    if (orderNumber) {
+      try {
+        const searchUrl = `https://pedidosbartzmoveis.com.br/include/pd/consultas/busca_pedidos.php?filtro=${encodeURIComponent(orderNumber)}`;
+        const searchBuf = await httpGetBuffer(searchUrl, sessionCookie);
+        const searchJson = JSON.parse(searchBuf.toString('utf8'));
+
+        if (searchJson && Array.isArray(searchJson.aaData) && searchJson.aaData.length > 0) {
+          const row = searchJson.aaData.find((r) => r.Pedido === String(orderNumber)) || searchJson.aaData[0];
+          const pkPedido = row.DT_RowId; // ex: 69217
+
+          if (pkPedido) {
+            // Abrir a página de detalhes do pedido
+            const pedInfoUrl = `https://pedidosbartzmoveis.com.br/index.php?form=ped_info&filtro=${encodeURIComponent(pkPedido)}`;
+            const pedInfoBuf = await httpGetBuffer(pedInfoUrl, sessionCookie);
+            const pedInfoHtml = pedInfoBuf.toString('utf8');
+
+            // Extrair id_arquivo do onclick (ex: onclick='arquivo_detalhes(112914);')
+            const fileIdMatch = pedInfoHtml.match(/arquivo_detalhes\((\d+)\)/i);
+            if (fileIdMatch && fileIdMatch[1]) {
+              const idArquivo = fileIdMatch[1];
+              // Chamar busca_arquivo_detalhes.php para pegar nome_promob
+              const detRes = await httpPost('https://pedidosbartzmoveis.com.br/include/pd/consultas/busca_arquivo_detalhes.php', {
+                id_arquivo: idArquivo
+              }, sessionCookie);
+              const detJson = JSON.parse(detRes.body);
+              if (Array.isArray(detJson) && detJson[6]) {
+                targetPromobName = detJson[6]; // ex: 2026-07-15_18-27_244882.promob
+              }
+            }
+
+            // Se não encontrou via busca_arquivo_detalhes, procurar direto por .promob no HTML de ped_info
+            if (!targetPromobName) {
+              const matchPromob = pedInfoHtml.match(/([A-Za-z0-9_.-]+\.promob)/i);
+              if (matchPromob) {
+                targetPromobName = matchPromob[1];
+              }
+            }
+          }
+        }
+      } catch (errSearch) {
+        console.error("[downloadPromob] Erro na consulta do pedido:", errSearch.message);
+      }
+    }
+
+    // 3. Se ainda não encontrou e temos um prefixo de data/hora no nome do XML, montar o nome padrão .promob
+    if (!targetPromobName && datePrefix) {
+      targetPromobName = `${datePrefix}.promob`;
+    }
+
+    if (!targetPromobName) {
+      const idStr = orderNumber ? `pedido "${orderNumber}"` : `arquivo "${xmlFilename}"`;
+      return { ok: false, message: `Não foi possível localizar o arquivo .promob para o ${idStr} no Pedidos Online.` };
+    }
+
+    // 4. Efetuar o download do arquivo .promob do servidor usando a sessão autenticada
+    const downloadUrl = `https://pedidosbartzmoveis.com.br/arquivos/promob/${encodeURIComponent(targetPromobName)}`;
+    const destPath = path.join(downloadFolder, targetPromobName);
+
+    try {
+      const promobBuffer = await httpGetBuffer(downloadUrl, sessionCookie);
+      await fsp.writeFile(destPath, promobBuffer);
+
+      return {
+        ok: true,
+        filename: targetPromobName,
+        destPath: destPath,
+        count: 1,
+        files: [{ filename: targetPromobName, destPath }]
+      };
+    } catch (dlErr) {
+      return { ok: false, message: `Falha ao baixar ${targetPromobName}: ${dlErr.message}` };
+    }
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
 /** ================== IPC: ANALYZER (watcher) ================== **/
 ipcMain.handle("analyzer:start", async (_e, overrideCfg) => {
   try {

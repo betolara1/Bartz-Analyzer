@@ -15,6 +15,7 @@ ipcMain.handle("settings:load", async () => {
     drawingsCopy: normalizeWin(saved.drawingsCopy || ""),
     simplificado: normalizeWin(saved.simplificado || ""),
     busca: normalizeWin(saved.busca || ""),
+    downloadPromob: normalizeWin(saved.downloadPromob || ""),
     enableAutoFix: saved.enableAutoFix !== undefined ? !!saved.enableAutoFix : true,
     schedulerEnabled: saved.schedulerEnabled !== undefined ? !!saved.schedulerEnabled : true,
     schedulerTimes: saved.schedulerTimes || "11:30, 17:30",

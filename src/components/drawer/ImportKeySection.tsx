@@ -1,5 +1,5 @@
-import React from "react";
-import { Send, CheckCircle, Copy } from "lucide-react";
+import React, { useState } from "react";
+import { Send, CheckCircle, Copy, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
@@ -9,11 +9,42 @@ interface ImportKeySectionProps {
 
 export function ImportKeySection({ data }: ImportKeySectionProps) {
   const key = data?.meta?.importKey;
+  const [downloading, setDownloading] = useState(false);
 
   const handleCopy = () => {
     if (!key) return;
     navigator.clipboard.writeText(key);
     toast.success("Chave copiada para a área de transferência!");
+  };
+
+  const handleDownloadPromob = async () => {
+    if (!data?.filename) return;
+
+    setDownloading(true);
+    const id = toast.loading("Buscando arquivo .promob no Pedidos Online...");
+    try {
+      const res = await window.electron?.analyzer?.downloadPromob?.(data.filename);
+      if (res?.ok) {
+        if (res.count && res.count > 1) {
+          toast.success(`${res.count} arquivo(s) .promob baixado(s) com sucesso!`, {
+            description: `Salvo em: ${res.destPath}`,
+          });
+        } else {
+          toast.success(`Arquivo .promob baixado com sucesso!`, {
+            description: `${res.filename} → ${res.destPath}`,
+          });
+        }
+      } else {
+        toast.error(res?.message || "Erro ao baixar o arquivo .promob.");
+      }
+    } catch (error: any) {
+      toast.error("Erro ao baixar .promob.", {
+        description: String(error?.message || error),
+      });
+    } finally {
+      setDownloading(false);
+      toast.dismiss(id);
+    }
   };
 
   return (
@@ -42,6 +73,25 @@ export function ImportKeySection({ data }: ImportKeySectionProps) {
           )}
         </div>
       </div>
+
+      {/* Botão Baixar .promob */}
+      <button
+        onClick={handleDownloadPromob}
+        disabled={downloading}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {downloading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Baixando...
+          </>
+        ) : (
+          <>
+            <Download className="h-4 w-4" />
+            Baixar .promob
+          </>
+        )}
+      </button>
     </section>
   );
 }

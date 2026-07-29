@@ -16,6 +16,7 @@ export type FullConfig = {
   drawingsCopy: string;
   simplificado: string;
   busca: string;
+  downloadPromob: string;
   enableAutoFix: boolean;
 
   // Scheduler Options
@@ -31,7 +32,7 @@ export type FullConfig = {
   cleanupCleanErro: boolean;
 };
 
-export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "drawingsCopy" | "simplificado" | "busca";
+export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "drawingsCopy" | "simplificado" | "busca" | "downloadPromob";
 
 export interface PathConfig {
   key: PathConfigKey;
@@ -88,6 +89,12 @@ export const PATH_CONFIGS: PathConfig[] = [
     label: "Pasta de Busca XML",
     placeholder: "\\\\servidor\\orcamentos\\busca_xmls",
     tooltip: "Pasta de rede ou local contendo os arquivos XML a serem pesquisados no Dashboard para cópia e processamento."
+  },
+  {
+    key: "downloadPromob",
+    label: "Pasta de Download Promob",
+    placeholder: "C:\\Downloads\\Promob",
+    tooltip: "Pasta onde os arquivos .promob baixados do Pedidos Online serão salvos. Se não estiver configurada, o botão de download não funcionará."
   }
 ];
 
@@ -102,6 +109,7 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     drawingsCopy: "",
     simplificado: "",
     busca: "",
+    downloadPromob: "",
     enableAutoFix: true,
     schedulerEnabled: true,
     schedulerTimes: "11:30, 17:30",

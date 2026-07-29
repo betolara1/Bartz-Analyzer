@@ -212,6 +212,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
     drawingsCopy: "",
     simplificado: "",
     busca: "",
+    downloadPromob: "",
     enableAutoFix: true,
   });
 
@@ -438,6 +439,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             drawingsCopy: sv.drawingsCopy || "",
             simplificado: sv.simplificado || "",
             busca: sv.busca || "",
+            downloadPromob: sv.downloadPromob || "",
             enableAutoFix: sv.enableAutoFix !== undefined ? sv.enableAutoFix : true,
           };
           setCfg(merged);
@@ -860,7 +862,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.16.0
+                v5.17.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}

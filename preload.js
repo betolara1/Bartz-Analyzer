@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electron', {
     clearTargetFolders: () => ipcRenderer.invoke('analyzer:clearTargetFolders'),
     loadHistory: () => ipcRenderer.invoke('analyzer:loadHistory'),
     saveHistory: (rows) => ipcRenderer.invoke('analyzer:saveHistory', rows),
+    downloadPromob: (xmlFilename) => ipcRenderer.invoke('analyzer:downloadPromob', { xmlFilename }),
   },
 
   settings: {

@@ -48,6 +48,7 @@ function sanitizeCfg(obj) {
     drawingsCopy: normalizeWin(obj?.drawingsCopy || ""),
     simplificado: normalizeWin(obj?.simplificado || ""),
     busca: normalizeWin(obj?.busca || ""),
+    downloadPromob: normalizeWin(obj?.downloadPromob || ""),
     enableAutoFix: obj?.enableAutoFix !== undefined ? !!obj.enableAutoFix : true,
     schedulerEnabled: obj?.schedulerEnabled !== undefined ? !!obj.schedulerEnabled : true,
     schedulerTimes: obj?.schedulerTimes || "11:30, 17:30",
@@ -75,7 +76,7 @@ async function testPaths(obj) {
   for (const k of ["entrada", "exportacao", "ok", "erro"]) {
     res[k] = await checkWrite(payload[k]);
   }
-  for (const k of ["drawings", "drawingsCopy", "simplificado", "busca"]) {
+  for (const k of ["drawings", "drawingsCopy", "simplificado", "busca", "downloadPromob"]) {
     res[k] = await checkWrite(payload[k]);
   }
   return res;

@@ -46,6 +46,7 @@ declare global {
         clearTargetFolders?: () => Promise<IpcResult & { clearedCount?: number }>;
         loadHistory?: () => Promise<any[]>;
         saveHistory?: (rows: any[]) => Promise<{ ok: boolean; count?: number; message?: string }>;
+        downloadPromob?: (xmlFilename: string) => Promise<{ ok: boolean; filename?: string; destPath?: string; count?: number; files?: { filename: string; destPath: string }[]; message?: string }>;
       };
       settings?: {
         load: () => Promise<any>;
