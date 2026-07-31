@@ -64,6 +64,11 @@ declare global {
         startDownload: () => Promise<void>;
         installUpdate: () => Promise<void>;
       };
+      auth?: {
+        login: (username: string, password: string) => Promise<IpcResult & { user?: any }>;
+        getSession: () => Promise<IpcResult & { user?: any }>;
+        logout: () => Promise<IpcResult>;
+      };
     };
   }
 }

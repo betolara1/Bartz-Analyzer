@@ -38,6 +38,7 @@ ipcMain.on('renderer-error', (_, err) => {
 });
 
 // Cada módulo se auto-registra (ipcMain.handle) ao ser importado.
+require("./main/auth");
 require("./main/settings");
 require("./main/history");
 require("./main/erp-search");

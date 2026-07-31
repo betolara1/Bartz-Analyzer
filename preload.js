@@ -76,6 +76,12 @@ contextBridge.exposeInMainWorld('electron', {
     startDownload: () => ipcRenderer.invoke('updater:start-download'),
     installUpdate: () => ipcRenderer.invoke('updater:install'),
   },
+
+  auth: {
+    login: (username, password) => ipcRenderer.invoke('auth:login', { username, password }),
+    getSession: () => ipcRenderer.invoke('auth:getSession'),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+  },
 });
 
 // Capturar erros do renderer (React/JS) e enviar para o processo principal (terminal)

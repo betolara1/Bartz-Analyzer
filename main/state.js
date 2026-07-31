@@ -18,5 +18,7 @@ state.HISTORY_FILE = path.join(app.getPath("userData"), "analysis-history.json")
 state.HISTORY_MAX_ROWS = 3000;
 state.REPLACE_BACKUP_DIR = path.join(app.getPath("userData"), "backups");
 state.REPLACE_HISTORY_FILE = path.join(app.getPath("userData"), "replace-history.json");
+state.USER_SESSION_FILE = path.join(app.getPath("userData"), "user-session.json");
 
 module.exports = state;
+

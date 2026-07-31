@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { CircleHelp, FolderOpen, Clock, Trash2, Settings, Save, ArrowLeft } from "lucide-react";
+import { CircleHelp, FolderOpen, Clock, Trash2, Settings, Save, ArrowLeft, User, LogOut, Database, ShieldCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Switch } from "./ui/switch";
 import { toast } from "sonner";
@@ -30,7 +30,20 @@ export type FullConfig = {
   cleanupRetentionDays: number;
   cleanupCleanOk: boolean;
   cleanupCleanErro: boolean;
+
+  // Database MySQL
+  dbHost: string;
+  dbPort: number;
+  dbUser: string;
+  dbPassword?: string;
+  dbName: string;
 };
+
+export interface ConfigurationScreenProps {
+  onBack: () => void;
+  currentUser?: any;
+  onLogout?: () => void;
+}
 
 export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "drawingsCopy" | "simplificado" | "busca" | "downloadPromob";
 
@@ -98,8 +111,8 @@ export const PATH_CONFIGS: PathConfig[] = [
   }
 ];
 
-export default function ConfigurationScreen({ onBack }: { onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<"paths" | "automations">("paths");
+export default function ConfigurationScreen({ onBack, currentUser, onLogout }: ConfigurationScreenProps) {
+  const [activeTab, setActiveTab] = useState<"paths" | "automations" | "account">("paths");
   const [form, setForm] = useState<FullConfig>({
     entrada: "",
     exportacao: "",
@@ -119,6 +132,11 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     cleanupRetentionDays: 0,
     cleanupCleanOk: true,
     cleanupCleanErro: true,
+    dbHost: "mysql55-farm2.uni5.net",
+    dbPort: 3306,
+    dbUser: "bartzpedidosph",
+    dbPassword: "mangaROSA2006",
+    dbName: "bartzpedidosph",
   });
 
   const [testResults, setTestResults] = useState<Record<string, { exist: boolean; write: boolean; error?: string }> | null>(null);
@@ -415,6 +433,113 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
     </div>
   );
 
+  const renderAccount = () => (
+    <div className="space-y-6 max-w-[920px]">
+      {/* Conta do Usuário */}
+      <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-[#2C2C2C] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                {currentUser?.txt_nome || currentUser?.txt_login || "Usuário Conectado"}
+                <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-normal">
+                  Sessão Ativa
+                </span>
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Login: <code className="text-purple-300 font-mono">{currentUser?.txt_login || "--"}</code>
+              </p>
+            </div>
+          </div>
+
+          {onLogout && (
+            <Button
+              variant="destructive"
+              onClick={onLogout}
+              className="gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold h-9 shadow-md active:scale-95 transition-all"
+            >
+              <LogOut className="h-4 w-4" /> Deslogar
+            </Button>
+          )}
+        </div>
+
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          Ao clicar em <strong>Deslogar</strong>, a sessão salva em cache local será encerrada e a tela de login será exibida imediatamente.
+        </div>
+      </div>
+
+      {/* Conexão com o Banco de Dados MySQL */}
+      <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-5">
+        <div className="border-b border-[#2C2C2C] pb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
+            <Database className="h-4 w-4 text-blue-400" />
+            Conexão com Banco de Dados MySQL (Pedidos Online)
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Configuração da conexão onde a tabela <code className="bg-[#222] px-1 py-0.5 rounded text-blue-300">tab_usuario</code> é verificada para autenticação.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-300">Host (Servidor MySQL)</label>
+            <Input
+              value={form.dbHost || ""}
+              onChange={(e) => setVal("dbHost", e.target.value)}
+              placeholder="192.168.1.10"
+              className="bg-[#151515] border-[#2C2C2C] w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-300">Porta</label>
+            <Input
+              type="number"
+              value={form.dbPort || 3306}
+              onChange={(e) => setVal("dbPort", parseInt(e.target.value) || 3306)}
+              placeholder="3306"
+              className="bg-[#151515] border-[#2C2C2C] w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-300">Usuário do Banco</label>
+            <Input
+              value={form.dbUser || ""}
+              onChange={(e) => setVal("dbUser", e.target.value)}
+              placeholder="root"
+              className="bg-[#151515] border-[#2C2C2C] w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-300">Senha do Banco</label>
+            <Input
+              type="password"
+              value={form.dbPassword || ""}
+              onChange={(e) => setVal("dbPassword", e.target.value)}
+              placeholder="••••••••"
+              className="bg-[#151515] border-[#2C2C2C] w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-xs font-semibold text-gray-300">Nome do Banco de Dados</label>
+            <Input
+              value={form.dbName || ""}
+              onChange={(e) => setVal("dbName", e.target.value)}
+              placeholder="bartzpedidosph"
+              className="bg-[#151515] border-[#2C2C2C] w-full"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-6 text-white min-h-screen bg-background">
       <div className="mb-4">
@@ -450,11 +575,21 @@ export default function ConfigurationScreen({ onBack }: { onBack: () => void }) 
         >
           <Clock className="h-4 w-4" /> Automação & Agendamentos
         </button>
+        <button
+          onClick={() => setActiveTab("account")}
+          className={`px-4 py-2.5 text-sm font-semibold transition-all border-b-2 -mb-px flex items-center gap-2 ${
+            activeTab === "account"
+              ? "border-yellow-500 text-yellow-500 font-bold"
+              : "border-transparent text-gray-400 hover:text-white"
+          }`}
+        >
+          <User className="h-4 w-4" /> Conta & Banco MySQL
+        </button>
       </div>
 
-      {/* Contens */}
+      {/* Contents */}
       <div className="mb-6">
-        {activeTab === "paths" ? renderPaths() : renderAutomations()}
+        {activeTab === "paths" ? renderPaths() : activeTab === "automations" ? renderAutomations() : renderAccount()}
       </div>
 
       {/* Ações */}

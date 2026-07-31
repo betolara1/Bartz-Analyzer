@@ -1,6 +1,6 @@
 {
   "name": "bartz-analyzer",
-  "version": "5.17.0",
+  "version": "5.18.0",
   "private": true,
   "main": "cjs-main.js",
   "type": "commonjs",
@@ -102,6 +102,7 @@
     "fast-xml-parser": "^5.2.5",
     "fs-extra": "^11.3.1",
     "lucide-react": "^0.542.0",
+    "mysql2": "^3.23.2",
     "react": "^18",
     "react-dom": "^18",
     "react-router-dom": "^6",

@@ -13,7 +13,7 @@ import {
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
-  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files
+  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -113,7 +113,7 @@ const hasCurvo = (r: Row) =>
   (r.tags || []).includes("curvo") ||
   (r.warnings || []).some(w => /curvo/i.test(String(w)));
 
-const normalizeTagForMatch = (t: string) => 
+const normalizeTagForMatch = (t: string) =>
   (t || "").toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -160,7 +160,15 @@ const getPathIcon = (key: string) => {
   }
 };
 
-export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?: () => void }) {
+export default function Dashboard({
+  onNavigateToConfig,
+  currentUser,
+  onLogout,
+}: {
+  onNavigateToConfig?: () => void;
+  currentUser?: any;
+  onLogout?: () => void;
+}) {
   // tabela / filtros
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
@@ -171,7 +179,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
   // Atualiza automaticamente a data selecionada se o dia mudar e o usuário estiver visualizando "Hoje"
   useEffect(() => {
     let lastToday = getTodayISODate();
-    
+
     const checkDate = () => {
       const currentToday = getTodayISODate();
       if (currentToday !== lastToday) {
@@ -719,8 +727,8 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
 
       if (result?.ok) {
         toast.dismiss(toastId);
-        const label = selectedDay 
-          ? selectedDay.split('-').reverse().join('-') 
+        const label = selectedDay
+          ? selectedDay.split('-').reverse().join('-')
           : `Completo_${todayStr.split('-').reverse().join('-')}`;
         toast.success(`Relatório exportado com sucesso!\n${result.filesCount || targetRows.length} arquivo(s) processado(s)`, {
           duration: 5000,
@@ -862,7 +870,7 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <div className="text-lg font-semibold flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.17.0
+                v5.18.0
               </span>
             </div>
             {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
@@ -885,6 +893,29 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
             <Sliders className="h-4 w-4" /> Opções
           </Button>
           <ThemeToggle />
+
+          {currentUser && (
+            <div className="flex items-center gap-2 pl-1 border-l border-border/60 ml-1">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 border border-border text-xs">
+                <User className="h-3.5 w-3.5 text-purple-400" />
+                <span className="font-semibold text-foreground max-w-[120px] truncate" title={currentUser.txt_nome || currentUser.txt_login}>
+                  {currentUser.txt_nome || currentUser.txt_login}
+                </span>
+              </div>
+              {onLogout && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onLogout}
+                  className="h-8 px-2 text-xs border-red-500/30 hover:bg-red-500/10 text-red-500 gap-1"
+                  title="Deslogar do sistema"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Sair</span>
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1205,8 +1236,8 @@ export default function Dashboard({ onNavigateToConfig }: { onNavigateToConfig?:
                 className="w-80 bg-muted/50 border-border text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                 style={{ paddingLeft: "2.5rem" }}
               />
-              <Filter 
-                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10" 
+              <Filter
+                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
                 style={{ top: "50%", transform: "translateY(-50%)" }}
               />
             </div>

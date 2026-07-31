@@ -25,6 +25,11 @@ ipcMain.handle("settings:load", async () => {
     cleanupRetentionDays: saved.cleanupRetentionDays !== undefined ? Number(saved.cleanupRetentionDays) : 0,
     cleanupCleanOk: saved.cleanupCleanOk !== undefined ? !!saved.cleanupCleanOk : true,
     cleanupCleanErro: saved.cleanupCleanErro !== undefined ? !!saved.cleanupCleanErro : true,
+    dbHost: saved.dbHost !== undefined ? String(saved.dbHost).trim() : "mysql55-farm2.uni5.net",
+    dbPort: saved.dbPort !== undefined ? Number(saved.dbPort) || 3306 : 3306,
+    dbUser: saved.dbUser !== undefined ? String(saved.dbUser).trim() : "bartzpedidosph",
+    dbPassword: saved.dbPassword !== undefined ? String(saved.dbPassword) : "mangaROSA2006",
+    dbName: saved.dbName !== undefined ? String(saved.dbName).trim() : "bartzpedidosph",
   };
 });
 

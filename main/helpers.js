@@ -58,6 +58,11 @@ function sanitizeCfg(obj) {
     cleanupRetentionDays: obj?.cleanupRetentionDays !== undefined ? Number(obj.cleanupRetentionDays) : 0,
     cleanupCleanOk: obj?.cleanupCleanOk !== undefined ? !!obj.cleanupCleanOk : true,
     cleanupCleanErro: obj?.cleanupCleanErro !== undefined ? !!obj.cleanupCleanErro : true,
+    dbHost: obj?.dbHost !== undefined ? String(obj.dbHost).trim() : "mysql55-farm2.uni5.net",
+    dbPort: obj?.dbPort !== undefined ? Number(obj.dbPort) || 3306 : 3306,
+    dbUser: obj?.dbUser !== undefined ? String(obj.dbUser).trim() : "bartzpedidosph",
+    dbPassword: obj?.dbPassword !== undefined ? String(obj.dbPassword) : "mangaROSA2006",
+    dbName: obj?.dbName !== undefined ? String(obj.dbName).trim() : "bartzpedidosph",
   };
 }
 

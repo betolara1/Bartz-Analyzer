@@ -1,15 +1,51 @@
-// src/App.tsx
 import { useState, useEffect, useRef } from "react";
 import Dashboard from "./components/Dashboard";
 import ConfigurationScreen from "./components/ConfigurationScreen";
+import LoginModal from "./components/LoginModal";
 import { Toaster, toast } from "sonner";
 import { Button } from "./components/ui/button";
-import { Download, RefreshCw, Rocket } from "lucide-react";
+import { Download, RefreshCw, Rocket, Loader2 } from "lucide-react";
 
 type UpdateStage = "available" | "downloading" | "downloaded";
 
 export default function App() {
   const [screen, setScreen] = useState<'dash' | 'cfg'>('dash');
+
+  // Controle de autenticação
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  // Verificar cache de sessão ao abrir o programa
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.electron?.auth?.getSession();
+        if (res?.ok && res.user) {
+          setCurrentUser(res.user);
+          setIsLoginOpen(false);
+        } else {
+          setIsLoginOpen(true);
+        }
+      } catch (e) {
+        console.error("Erro ao verificar sessão do usuário:", e);
+        setIsLoginOpen(true);
+      } finally {
+        setCheckingAuth(false);
+      }
+    })();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await window.electron?.auth?.logout();
+      setCurrentUser(null);
+      setIsLoginOpen(true);
+      toast.info("Você deslogou da sua conta.");
+    } catch (e) {
+      console.error("Erro ao deslogar:", e);
+    }
+  };
 
   // popup de atualização
   const [updateStage, setUpdateStage] = useState<UpdateStage | null>(null);
@@ -73,11 +109,29 @@ export default function App() {
     setUpdateStage(null);
   }
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        <p className="text-sm font-medium text-muted-foreground">Carregando sessão do usuário...</p>
+      </div>
+    );
+  }
+
   return (
     <>
       {screen === 'dash'
-        ? <Dashboard onNavigateToConfig={() => setScreen('cfg')} />
-        : <ConfigurationScreen onBack={() => setScreen('dash')} />}
+        ? <Dashboard onNavigateToConfig={() => setScreen('cfg')} currentUser={currentUser} onLogout={handleLogout} />
+        : <ConfigurationScreen onBack={() => setScreen('dash')} currentUser={currentUser} onLogout={handleLogout} />}
+
+      {/* Modal de Login (solicita quando deslogado ou primeira abertura) */}
+      <LoginModal
+        open={isLoginOpen}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setIsLoginOpen(false);
+        }}
+      />
 
       {/* Popup de atualização — aparece por cima de tudo, mesmo com o programa em uso */}
       {updateStage && (
