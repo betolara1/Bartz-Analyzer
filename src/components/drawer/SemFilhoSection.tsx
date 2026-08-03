@@ -9,9 +9,10 @@ interface SemFilhoSectionProps {
   isResolved: boolean;
   otherPendingCount: number;
   onResolve: () => void;
+  hasAdminPermission?: boolean;
 }
 
-export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendingCount, onResolve }: SemFilhoSectionProps) {
+export function SemFilhoSection({ isOpen, onToggle, data, isResolved, otherPendingCount, onResolve, hasAdminPermission }: SemFilhoSectionProps) {
   const hasError = data?.tags?.includes('sem_filho');
 
   if (!hasError) return null;

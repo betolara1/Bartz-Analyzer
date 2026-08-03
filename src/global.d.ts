@@ -42,6 +42,12 @@ declare global {
         searchCsvProduct?: (colorName: string, productType: string) => Promise<IpcResult & { results?: any[]; count?: number }>;
         searchErpProduct?: (params: { code?: string; desc?: string; type?: string }) => Promise<IpcResult & { results?: any[]; count?: number }>;
         getOrderComments?: (numPedido: string) => Promise<IpcResult & { data?: any[] }>;
+        getSpecialOrders?: () => Promise<IpcResult & { data?: any[] }>;
+        completeEngineeringOrder?: (params: { pk_pedido_engenharia: number; pk_usuario_alteracao?: number }) => Promise<IpcResult>;
+        sendNotification?: (params: { title: string; body: string; count?: number }) => Promise<IpcResult>;
+        setTaskbarBadge?: (count: number) => Promise<IpcResult>;
+        downloadCommentFile?: (filename: string) => Promise<IpcResult & { destPath?: string }>;
+        openFile?: (filePath: string) => Promise<IpcResult>;
         moveToOk?: (filePath: string) => Promise<IpcResult & { destPath?: string }>;
         clearTargetFolders?: () => Promise<IpcResult & { clearedCount?: number }>;
         loadHistory?: () => Promise<any[]>;

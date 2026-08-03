@@ -5,9 +5,11 @@ const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
 const fse = require("fs-extra");
-const { ipcMain } = require("electron");
-const { send, removeAccents } = require("./helpers");
+const { ipcMain, dialog, shell, Notification, nativeImage } = require("electron");
+const { send, removeAccents, loadCfg } = require("./helpers");
 const { ERP_BASE_URL, erpFetch, readErpJsonArray } = require("./erp-auth");
+const mysql = require("mysql2/promise");
+const state = require("./state");
 
 ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
   try {
@@ -254,6 +256,293 @@ ipcMain.handle('analyzer:getOrderComments', async (_e, numPedido) => {
   } catch (e) {
     console.error(`[Order API Error] ${e.message}`);
     return { ok: false, message: `Erro ao buscar pedido: ${e.message}` };
+  }
+});
+
+ipcMain.handle('analyzer:getSpecialOrders', async () => {
+  let connection;
+  try {
+    const cfg = state.currentCfg || (await loadCfg());
+    const dbHost = (cfg.dbHost || "mysql55-farm2.uni5.net").trim();
+    const dbPort = Number(cfg.dbPort) || 3306;
+    const dbUser = (cfg.dbUser || "bartzpedidosph").trim();
+    const dbPassword = cfg.dbPassword !== undefined && cfg.dbPassword !== "" ? cfg.dbPassword : "mangaROSA2006";
+    const dbName = (cfg.dbName || "bartzpedidosph").trim();
+
+    connection = await mysql.createConnection({
+      host: dbHost,
+      port: dbPort,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName,
+      connectTimeout: 8000,
+    });
+
+    const [orders] = await connection.execute(`
+      SELECT 
+        e.pk_pedido_engenharia, 
+        e.pk_pedido, 
+        p.num_pedido, 
+        e.txt_status AS status_engenharia, 
+        e.bit_lido,
+        DATE_FORMAT(COALESCE(e.dat_data_modificacao, e.dat_data), '%d/%m/%Y %H:%i') AS dat_envio, 
+        s.txt_descricao AS situacao_pedido,
+        u.txt_nome AS nome_usuario
+      FROM tab_pedido_engenharia e
+      LEFT JOIN tab_pedido p ON e.pk_pedido = p.pk_pedido
+      LEFT JOIN tab_situacao s ON p.pk_situacao = s.pk_situacao
+      LEFT JOIN tab_usuario u ON e.pk_usuario = u.pk_usuario
+      ORDER BY e.pk_pedido_engenharia DESC
+    `);
+
+    if (!Array.isArray(orders) || orders.length === 0) {
+      await connection.end();
+      return { ok: true, data: [] };
+    }
+
+    const pedidoIds = orders.map(o => o.pk_pedido).filter(Boolean);
+
+    let commentsByPedido = {};
+    if (pedidoIds.length > 0) {
+      const placeholders = pedidoIds.map(() => '?').join(',');
+      const [comments] = await connection.execute(`
+        SELECT 
+          c.pk_pedido_comentario, 
+          c.pk_pedido, 
+          c.txt_titulo, 
+          c.txt_comentario,
+          c.int_situacao,
+          DATE_FORMAT(c.dat_data, '%d/%m/%Y %H:%i') AS dat_data,
+          u.txt_nome AS nome_usuario,
+          o.txt_arquivo
+        FROM tab_pedido_comentario c
+        LEFT JOIN tab_usuario u ON c.pk_usuario = u.pk_usuario
+        LEFT JOIN tab_pedido_xml_outros o ON c.pk_pedido_comentario = o.pk_pedido_comentario
+        WHERE c.pk_pedido IN (${placeholders})
+        ORDER BY c.dat_data DESC, c.pk_pedido_comentario DESC
+      `, pedidoIds);
+
+      if (Array.isArray(comments)) {
+        comments.forEach(c => {
+          if (!commentsByPedido[c.pk_pedido]) {
+            commentsByPedido[c.pk_pedido] = [];
+          }
+          commentsByPedido[c.pk_pedido].push(c);
+        });
+      }
+    }
+
+    await connection.end();
+
+    const result = orders.map(order => ({
+      ...order,
+      comentarios: commentsByPedido[order.pk_pedido] || []
+    }));
+
+    return { ok: true, data: result };
+  } catch (e) {
+    if (connection) await connection.end().catch(() => {});
+    console.error(`[Special Orders API Error] ${e.message}`);
+    return { ok: false, message: `Erro ao buscar pedidos especiais: ${e.message}`, data: [] };
+  }
+});
+
+ipcMain.handle('analyzer:downloadCommentFile', async (_e, { filename }) => {
+  try {
+    if (!filename) return { ok: false, message: 'Nome do arquivo não informado.' };
+
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Salvar anexo do comentário',
+      defaultPath: filename,
+    });
+
+    if (canceled || !filePath) {
+      return { ok: false, message: 'Download cancelado pelo usuário.' };
+    }
+
+    // 1. Tentar cópia de arquivo local / rede primeiramente
+    const localPaths = [
+      path.join('C:', 'xampp', 'htdocs', 'pedidos', 'arquivos', 'outros', filename),
+      `\\\\192.168.1.10\\pedidos\\arquivos\\outros\\${filename}`,
+      `\\\\192.168.1.10\\c$\\xampp\\htdocs\\pedidos\\arquivos\\outros\\${filename}`,
+    ];
+
+    for (const localP of localPaths) {
+      try {
+        if (await fse.pathExists(localP)) {
+          console.log(`[Download Comment File] Encontrado localmente em: ${localP}`);
+          await fse.copy(localP, filePath);
+          return { ok: true, destPath: filePath };
+        }
+      } catch (errLocal) {
+        // ignora erro e tenta proxima fonte
+      }
+    }
+
+    // 2. Tentar via HTTP em várias rotas possíveis (com /pedidos e sem /pedidos, portas 8080 e 80)
+    const cfg = state.currentCfg || (await loadCfg());
+    const dbHost = (cfg.dbHost || "192.168.1.10").trim();
+    const cleanHost = dbHost.includes("uni5.net") ? "192.168.1.10" : dbHost;
+
+    const urlsToTry = [
+      `https://pedidosbartzmoveis.com.br/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://pedidosbartzmoveis.com.br/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://${cleanHost}:8080/pedidos/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://${cleanHost}/pedidos/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://${cleanHost}:8080/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://${cleanHost}/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://192.168.1.10:8080/pedidos/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://192.168.1.10/pedidos/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://192.168.1.10:8080/arquivos/outros/${encodeURIComponent(filename)}`,
+      `http://192.168.1.10/arquivos/outros/${encodeURIComponent(filename)}`,
+    ];
+
+    let downloadedBuffer = null;
+    let lastError = null;
+
+    for (const fileUrl of urlsToTry) {
+      try {
+        console.log(`[Download Comment File] Solicitando: ${fileUrl}`);
+        const response = await fetch(fileUrl);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          downloadedBuffer = Buffer.from(arrayBuffer);
+          break;
+        } else {
+          lastError = `HTTP ${response.status}`;
+        }
+      } catch (fetchErr) {
+        lastError = fetchErr.message;
+      }
+    }
+
+    if (downloadedBuffer) {
+      await fsp.writeFile(filePath, downloadedBuffer);
+      return { ok: true, destPath: filePath };
+    }
+
+    return { ok: false, message: `Erro ao baixar arquivo do servidor (${lastError || 'HTTP 404'}).` };
+  } catch (err) {
+    console.error("[Download Comment File Error]", err.message);
+    return { ok: false, message: `Erro ao baixar arquivo: ${err.message}` };
+  }
+});
+
+ipcMain.handle('analyzer:openFile', async (_e, filePath) => {
+  try {
+    if (filePath && await fse.pathExists(filePath)) {
+      await shell.openPath(filePath);
+      return { ok: true };
+    }
+    return { ok: false, message: 'Arquivo não encontrado.' };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+});
+
+ipcMain.handle('analyzer:completeEngineeringOrder', async (_e, { pk_pedido_engenharia, pk_usuario_alteracao }) => {
+  let connection;
+  try {
+    if (!pk_pedido_engenharia) {
+      return { ok: false, message: 'ID da engenharia do pedido não informado.' };
+    }
+
+    let userId = pk_usuario_alteracao;
+    if (!userId) {
+      try {
+        if (await fse.pathExists(state.USER_SESSION_FILE)) {
+          const session = await fse.readJson(state.USER_SESSION_FILE);
+          userId = session?.pk_usuario || null;
+        }
+      } catch (e) {}
+    }
+
+    const cfg = state.currentCfg || (await loadCfg());
+    const dbHost = (cfg.dbHost || "mysql55-farm2.uni5.net").trim();
+    const dbPort = Number(cfg.dbPort) || 3306;
+    const dbUser = (cfg.dbUser || "bartzpedidosph").trim();
+    const dbPassword = cfg.dbPassword !== undefined && cfg.dbPassword !== "" ? cfg.dbPassword : "mangaROSA2006";
+    const dbName = (cfg.dbName || "bartzpedidosph").trim();
+
+    connection = await mysql.createConnection({
+      host: dbHost,
+      port: dbPort,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName,
+      connectTimeout: 8000,
+    });
+
+    await connection.execute(
+      `UPDATE tab_pedido_engenharia 
+       SET txt_status = 'Concluido', 
+           pk_usuario_alteracao = ?, 
+           dat_data_modificacao = NOW() 
+       WHERE pk_pedido_engenharia = ?`,
+      [userId || null, pk_pedido_engenharia]
+    );
+
+    await connection.end();
+
+    return { ok: true, message: 'Pedido marcado como Concluído com sucesso!' };
+  } catch (err) {
+    if (connection) await connection.end().catch(() => {});
+    console.error("[Complete Engineering Order Error]", err.message);
+    return { ok: false, message: `Erro ao atualizar status: ${err.message}` };
+  }
+});
+
+function createBadgeOverlay(count) {
+  if (!count || count <= 0) return null;
+  const countStr = count > 99 ? "99+" : String(count);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+    <circle cx="16" cy="16" r="14" fill="#e11d48" stroke="#ffffff" stroke-width="2"/>
+    <text x="16" y="21" font-size="16" font-weight="bold" font-family="Arial, sans-serif" fill="#ffffff" text-anchor="middle">${countStr}</text>
+  </svg>`;
+  return nativeImage.createFromBuffer(Buffer.from(svg));
+}
+
+ipcMain.handle("analyzer:sendNotification", async (_e, { title, body, count }) => {
+  try {
+    if (Notification.isSupported()) {
+      const notif = new Notification({
+        title: title || "Bartz Analisador",
+        body: body || "",
+      });
+      notif.on("click", () => {
+        if (state.win) {
+          if (state.win.isMinimized()) state.win.restore();
+          state.win.focus();
+        }
+      });
+      notif.show();
+    }
+
+    if (state.win && !state.win.isFocused()) {
+      state.win.flashFrame(true);
+    }
+
+    if (state.win && typeof count === "number") {
+      const img = createBadgeOverlay(count);
+      state.win.setOverlayIcon(img, `${count} notificações`);
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[Notification Error]", err.message);
+    return { ok: false, message: err.message };
+  }
+});
+
+ipcMain.handle("analyzer:setTaskbarBadge", async (_e, count) => {
+  try {
+    if (state.win) {
+      const img = createBadgeOverlay(count);
+      state.win.setOverlayIcon(img, count > 0 ? `${count} pendentes` : "");
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message };
   }
 });
 

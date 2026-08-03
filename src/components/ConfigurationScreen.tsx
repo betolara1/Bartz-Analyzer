@@ -1,5 +1,5 @@
 // src/components/ConfigurationScreen.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { CircleHelp, FolderOpen, Clock, Trash2, Settings, Save, ArrowLeft, User, LogOut, Database, ShieldCheck } from "lucide-react";
@@ -142,14 +142,25 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
   const [testResults, setTestResults] = useState<Record<string, { exist: boolean; write: boolean; error?: string }> | null>(null);
   const [testing, setTesting] = useState(false);
 
+  // Permissão 37 - Admin Analisador
+  const isAdminAnalisador = useMemo(() => {
+    if (!currentUser) return false;
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map(Number).includes(37);
+  }, [currentUser]);
+
   useEffect(() => {
     (async () => {
       const cur = await window.electron?.settings?.load();
       if (cur) {
-        setForm((prev) => ({ ...prev, ...cur }));
+        setForm((prev) => ({
+          ...prev,
+          ...cur,
+          enableAutoFix: isAdminAnalisador ? (cur.enableAutoFix !== undefined ? cur.enableAutoFix : true) : false,
+        }));
       }
     })();
-  }, []);
+  }, [isAdminAnalisador]);
 
   function setVal(key: keyof FullConfig, v: any) {
     setForm((p) => ({ ...p, [key]: v }));
@@ -202,7 +213,12 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
       }
     }
 
-    await window.electron?.settings?.save(form);
+    const payload = {
+      ...form,
+      enableAutoFix: isAdminAnalisador ? form.enableAutoFix : false,
+    };
+
+    await window.electron?.settings?.save(payload);
     toast.success("Configurações salvas!");
   }
 
@@ -269,27 +285,29 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
 
   const renderAutomations = () => (
     <div className="space-y-6 max-w-[920px]">
-      {/* Bloco 1: Auto-Fix Geral */}
-      <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-[#2C2C2C] pb-3 mb-1">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
-              <Settings className="h-4 w-4 text-emerald-400" />
-              Robô Auto-Fix
-            </h3>
-            <p className="text-xs text-muted-foreground">Regula o comportamento automático de correção dos arquivos.</p>
+      {/* Bloco 1: Auto-Fix Geral (Apenas para Permissão 37 - Admin Analisador) */}
+      {isAdminAnalisador && (
+        <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-[#2C2C2C] pb-3 mb-1">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
+                <Settings className="h-4 w-4 text-emerald-400" />
+                Robô Auto-Fix
+              </h3>
+              <p className="text-xs text-muted-foreground">Regula o comportamento automático de correção dos arquivos.</p>
+            </div>
+            <Switch
+              checked={form.enableAutoFix}
+              onCheckedChange={(val) => setVal("enableAutoFix", val)}
+            />
           </div>
-          <Switch
-            checked={form.enableAutoFix}
-            onCheckedChange={(val) => setVal("enableAutoFix", val)}
-          />
+          <div className="text-xs text-muted-foreground">
+            {form.enableAutoFix
+              ? "O robô irá tentar corrigir automaticamente as cores coringas, itens sem cadastro e tamanhos de chapas nos XMLs de entrada."
+              : "O sistema irá apenas identificar e alertar sobre inconformidades, sem alterar os arquivos."}
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {form.enableAutoFix
-            ? "O robô irá tentar corrigir automaticamente as cores coringas, itens sem cadastro e tamanhos de chapas nos XMLs de entrada."
-            : "O sistema irá apenas identificar e alertar sobre inconformidades, sem alterar os arquivos."}
-        </div>
-      </div>
+      )}
 
       {/* Bloco 2: Agendador de Relatórios */}
       <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-5">
@@ -471,72 +489,74 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
         </div>
       </div>
 
-      {/* Conexão com o Banco de Dados MySQL */}
-      <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-5">
-        <div className="border-b border-[#2C2C2C] pb-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
-            <Database className="h-4 w-4 text-blue-400" />
-            Conexão com Banco de Dados MySQL (Pedidos Online)
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Configuração da conexão onde a tabela <code className="bg-[#222] px-1 py-0.5 rounded text-blue-300">tab_usuario</code> é verificada para autenticação.
-          </p>
+      {/* Conexão com o Banco de Dados MySQL (Visível apenas se possuir a permissão 37 - Admin Analisador) */}
+      {isAdminAnalisador && (
+        <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-5">
+          <div className="border-b border-[#2C2C2C] pb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-white">
+              <Database className="h-4 w-4 text-blue-400" />
+              Conexão com Banco de Dados MySQL (Pedidos Online)
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Configuração da conexão onde a tabela <code className="bg-[#222] px-1 py-0.5 rounded text-blue-300">tab_usuario</code> é verificada para autenticação.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-300">Host (Servidor MySQL)</label>
+              <Input
+                value={form.dbHost || ""}
+                onChange={(e) => setVal("dbHost", e.target.value)}
+                placeholder="192.168.1.10"
+                className="bg-[#151515] border-[#2C2C2C] w-full"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-300">Porta</label>
+              <Input
+                type="number"
+                value={form.dbPort || 3306}
+                onChange={(e) => setVal("dbPort", parseInt(e.target.value) || 3306)}
+                placeholder="3306"
+                className="bg-[#151515] border-[#2C2C2C] w-full"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-300">Usuário do Banco</label>
+              <Input
+                value={form.dbUser || ""}
+                onChange={(e) => setVal("dbUser", e.target.value)}
+                placeholder="root"
+                className="bg-[#151515] border-[#2C2C2C] w-full"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-300">Senha do Banco</label>
+              <Input
+                type="password"
+                value={form.dbPassword || ""}
+                onChange={(e) => setVal("dbPassword", e.target.value)}
+                placeholder="••••••••"
+                className="bg-[#151515] border-[#2C2C2C] w-full"
+              />
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-semibold text-gray-300">Nome do Banco de Dados</label>
+              <Input
+                value={form.dbName || ""}
+                onChange={(e) => setVal("dbName", e.target.value)}
+                placeholder="bartzpedidosph"
+                className="bg-[#151515] border-[#2C2C2C] w-full"
+              />
+            </div>
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-300">Host (Servidor MySQL)</label>
-            <Input
-              value={form.dbHost || ""}
-              onChange={(e) => setVal("dbHost", e.target.value)}
-              placeholder="192.168.1.10"
-              className="bg-[#151515] border-[#2C2C2C] w-full"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-300">Porta</label>
-            <Input
-              type="number"
-              value={form.dbPort || 3306}
-              onChange={(e) => setVal("dbPort", parseInt(e.target.value) || 3306)}
-              placeholder="3306"
-              className="bg-[#151515] border-[#2C2C2C] w-full"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-300">Usuário do Banco</label>
-            <Input
-              value={form.dbUser || ""}
-              onChange={(e) => setVal("dbUser", e.target.value)}
-              placeholder="root"
-              className="bg-[#151515] border-[#2C2C2C] w-full"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-300">Senha do Banco</label>
-            <Input
-              type="password"
-              value={form.dbPassword || ""}
-              onChange={(e) => setVal("dbPassword", e.target.value)}
-              placeholder="••••••••"
-              className="bg-[#151515] border-[#2C2C2C] w-full"
-            />
-          </div>
-
-          <div className="space-y-1.5 md:col-span-2">
-            <label className="text-xs font-semibold text-gray-300">Nome do Banco de Dados</label>
-            <Input
-              value={form.dbName || ""}
-              onChange={(e) => setVal("dbName", e.target.value)}
-              placeholder="bartzpedidosph"
-              className="bg-[#151515] border-[#2C2C2C] w-full"
-            />
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 
@@ -583,7 +603,7 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
               : "border-transparent text-gray-400 hover:text-white"
           }`}
         >
-          <User className="h-4 w-4" /> Conta & Banco MySQL
+          <User className="h-4 w-4" /> {isAdminAnalisador ? "Conta & Banco MySQL" : "Conta do Usuário"}
         </button>
       </div>
 

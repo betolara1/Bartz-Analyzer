@@ -13,7 +13,8 @@ import {
   Play, Pause, RefreshCw, Calendar, Save,
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
-  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut
+  CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut, Sparkles,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -29,6 +30,7 @@ import FileDetailDrawer from "./FileDetailDrawer";
 import ThemeToggle from "./ThemeToggle";
 import { PATH_CONFIGS, type PathConfigKey } from "./ConfigurationScreen";
 import { BatchDrawingsModal } from "./BatchDrawingsModal";
+import { SpecialOrdersModal } from "./SpecialOrdersModal";
 
 
 // ...
@@ -206,6 +208,22 @@ export default function Dashboard({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const handlePrevDay = useCallback(() => {
+    const baseDate = selectedDay ? new Date(selectedDay + "T00:00:00") : new Date();
+    baseDate.setDate(baseDate.getDate() - 1);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setSelectedDay(`${baseDate.getFullYear()}-${pad(baseDate.getMonth() + 1)}-${pad(baseDate.getDate())}`);
+    setCurrentPage(1);
+  }, [selectedDay]);
+
+  const handleNextDay = useCallback(() => {
+    const baseDate = selectedDay ? new Date(selectedDay + "T00:00:00") : new Date();
+    baseDate.setDate(baseDate.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setSelectedDay(`${baseDate.getFullYear()}-${pad(baseDate.getMonth() + 1)}-${pad(baseDate.getDate())}`);
+    setCurrentPage(1);
+  }, [selectedDay]);
+
   // controle do watcher
   const [monitoring, setMonitoring] = useState(false);
   const [watchRoot, setWatchRoot] = useState<string | null>(null);
@@ -228,10 +246,11 @@ export default function Dashboard({
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailData, setDetailData] = useState<Row | null>(null);
 
-  // confirmações
+  // confirmações e modais
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmExcluirOpen, setConfirmExcluirOpen] = useState(false);
   const [confirmBulkMoveOpen, setConfirmBulkMoveOpen] = useState(false);
+  const [specialOrdersOpen, setSpecialOrdersOpen] = useState(false);
 
   const mounted = useRef(true);
   const isConnected = !!window.electron?.analyzer;
@@ -246,6 +265,131 @@ export default function Dashboard({
   const [selectedXmlPath, setSelectedXmlPath] = useState("");
   const [copyingXml, setCopyingXml] = useState(false);
   const [searchingXml, setSearchingXml] = useState(false);
+
+  // Special Orders Background Monitor
+  const [specialOrders, setSpecialOrders] = useState<any[]>([]);
+  const isFirstSpecialOrdersCheck = useRef(true);
+  const knownSpecialOrderIds = useRef<Set<number>>(new Set());
+  const knownSpecialCommentIds = useRef<Set<number>>(new Set());
+
+  // Permissão 36 - Botão Especiais
+  const hasSpecialOrdersPermission = useMemo(() => {
+    if (!currentUser) return false;
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map(Number).includes(36);
+  }, [currentUser]);
+
+  // Permissão 37 - Admin Analisador
+  const hasAdminPermission = useMemo(() => {
+    if (!currentUser) return false;
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map(Number).includes(37);
+  }, [currentUser]);
+
+  const checkSpecialOrdersUpdates = useCallback(async () => {
+    if (!hasSpecialOrdersPermission) return;
+
+    try {
+      const res = await window.electron?.analyzer?.getSpecialOrders?.();
+      if (res?.ok && Array.isArray(res.data)) {
+        const fetchedOrders = res.data as any[];
+        setSpecialOrders(fetchedOrders);
+
+        const openCount = fetchedOrders.filter((o) =>
+          String(o.status_engenharia || "").toLowerCase().includes("aberto")
+        ).length;
+
+        // Sync Windows Taskbar Badge Overlay Icon
+        window.electron?.analyzer?.setTaskbarBadge?.(openCount);
+
+        if (isFirstSpecialOrdersCheck.current) {
+          const orderIds = new Set<number>();
+          const commentIds = new Set<number>();
+
+          fetchedOrders.forEach((o) => {
+            orderIds.add(o.pk_pedido_engenharia);
+            (o.comentarios || []).forEach((c: any) => commentIds.add(c.pk_pedido_comentario));
+          });
+
+          knownSpecialOrderIds.current = orderIds;
+          knownSpecialCommentIds.current = commentIds;
+          isFirstSpecialOrdersCheck.current = false;
+        } else {
+          fetchedOrders.forEach((order) => {
+            // Detect new special order
+            if (!knownSpecialOrderIds.current.has(order.pk_pedido_engenharia)) {
+              knownSpecialOrderIds.current.add(order.pk_pedido_engenharia);
+
+              const notifTitle = `🔔 Novo Pedido Especial recebido!`;
+              const notifBody = `Pedido #${order.num_pedido || order.pk_pedido} (${order.situacao_pedido || "Engenharia"})`;
+
+              // Send Windows Native Notification + Flash Taskbar
+              window.electron?.analyzer?.sendNotification?.({
+                title: notifTitle,
+                body: notifBody,
+                count: openCount,
+              });
+
+              toast.info(notifTitle, {
+                description: notifBody,
+                duration: 10000,
+                action: {
+                  label: "Visualizar",
+                  onClick: () => setSpecialOrdersOpen(true),
+                },
+              });
+            }
+
+            // Detect new comment on special order
+            (order.comentarios || []).forEach((comment: any) => {
+              if (!knownSpecialCommentIds.current.has(comment.pk_pedido_comentario)) {
+                knownSpecialCommentIds.current.add(comment.pk_pedido_comentario);
+
+                const cleanComment = (comment.txt_comentario || "")
+                  .replace(/<div[^>]*style=['"][^'"]*border-top:[^'"]*['"][^>]*>[\s\S]*?\[Alterado para[\s\S]*?<\/div>/gi, "")
+                  .replace(/\[Alterado para[^\]]*\]/gi, "")
+                  .trim();
+
+                const notifTitle = `💬 Novo comentário no Pedido #${order.num_pedido || order.pk_pedido}`;
+                const notifBody = comment.txt_titulo || cleanComment.substring(0, 60) || "Arquivo anexado ou comentário";
+
+                // Send Windows Native Notification + Flash Taskbar
+                window.electron?.analyzer?.sendNotification?.({
+                  title: notifTitle,
+                  body: notifBody,
+                  count: openCount,
+                });
+
+                toast.info(notifTitle, {
+                  description: notifBody,
+                  duration: 9000,
+                  action: {
+                    label: "Ver Pedido",
+                    onClick: () => setSpecialOrdersOpen(true),
+                  },
+                });
+              }
+            });
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[SpecialOrders Background Check]", err);
+    }
+  }, [hasSpecialOrdersPermission]);
+
+  useEffect(() => {
+    if (!hasSpecialOrdersPermission) return;
+    checkSpecialOrdersUpdates();
+    const interval = setInterval(checkSpecialOrdersUpdates, 5000);
+    return () => clearInterval(interval);
+  }, [hasSpecialOrdersPermission, checkSpecialOrdersUpdates]);
+
+  const openOrdersCount = useMemo(() => {
+    return specialOrders.filter((o) =>
+      String(o.status_engenharia || "").toLowerCase().includes("aberto")
+    ).length;
+  }, [specialOrders]);
 
   useEffect(() => {
     const trimmed = searchXmlTerm.trim();
@@ -863,59 +1007,154 @@ export default function Dashboard({
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4 flex items-center justify-between">
+      <div className="border-b border-border bg-card/80 backdrop-blur-md px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+        {/* App Title & Info */}
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold shadow-sm">B</div>
+          <div className="h-9 w-9 bg-purple-600 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md border border-purple-500/30">
+            B
+          </div>
           <div>
-            <div className="text-lg font-semibold flex items-center gap-2">
+            <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
-              <span className="text-xs font-normal text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                v5.18.0
+              <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
+                v5.19.0
               </span>
             </div>
-            {watchRoot && <div className="text-xs text-muted-foreground">Monitorando: {watchRoot}</div>}
+            {watchRoot && (
+              <div className="text-xs text-muted-foreground max-w-xs truncate" title={watchRoot}>
+                Monitorando: <span className="font-mono text-foreground/80">{watchRoot}</span>
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {!monitoring ? (
-              <Button onClick={start} className="gap-2 bg-green-600 hover:bg-green-700 text-white border-0"><Play className="h-4 w-4" /> Iniciar</Button>
-            ) : (
-              <Button onClick={stop} className="gap-2 bg-red-600 hover:bg-red-700 text-white border-0"><Pause className="h-4 w-4" /> Parar</Button>
-            )}
-            <Button variant="outline" onClick={exportReport} className="gap-2 border-blue-600/30 hover:bg-blue-600/10 text-blue-600 dark:text-blue-400"><Download className="h-4 w-4" /> Exportar</Button>
-            <Button variant="outline" onClick={clearReport} className="gap-2 border-amber-600/30 hover:bg-amber-600/10 text-amber-600 dark:text-amber-400"><AlertCircle className="h-4 w-4" /> Limpar</Button>
-            <Button variant="outline" onClick={handleClearFolders} className="gap-2 border-red-600/30 hover:bg-red-600/10 text-red-600 dark:text-red-500"><XCircle className="h-4 w-4" /> Excluir arquivos</Button>
-          </div>
-          <div className="h-8 w-px bg-border mx-1" />
-          <Button variant="outline" onClick={() => window.electron?.updater?.checkForUpdates?.()} className="gap-2 border-border hover:bg-muted text-muted-foreground"><RefreshCw className="h-4 w-4" /> Atualizar</Button>
-          <Button variant="outline" onClick={onNavigateToConfig} className="gap-2 border-border hover:bg-muted text-muted-foreground">
-            <Sliders className="h-4 w-4" /> Opções
-          </Button>
-          <ThemeToggle />
 
-          {currentUser && (
-            <div className="flex items-center gap-2 pl-1 border-l border-border/60 ml-1">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 border border-border text-xs">
-                <User className="h-3.5 w-3.5 text-purple-400" />
-                <span className="font-semibold text-foreground max-w-[120px] truncate" title={currentUser.txt_nome || currentUser.txt_login}>
-                  {currentUser.txt_nome || currentUser.txt_login}
-                </span>
+        {/* Action Controls Toolbar */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Main Hero Actions: Iniciar / Parar & Especiais */}
+          <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-xl border border-border/50">
+            {!monitoring ? (
+              <Button
+                onClick={start}
+                className="h-8.5 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                Iniciar
+              </Button>
+            ) : (
+              <Button
+                onClick={stop}
+                className="h-8.5 px-3.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold border-0 gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Pause className="h-3.5 w-3.5 fill-current animate-pulse" />
+                Parar
+              </Button>
+            )}
+
+            {hasSpecialOrdersPermission && (
+              <Button
+                variant="outline"
+                onClick={() => setSpecialOrdersOpen(true)}
+                className={`h-8.5 px-3 text-xs gap-1.5 font-bold transition-all border-purple-500/40 text-purple-400 hover:bg-purple-500/10 cursor-pointer ${
+                  openOrdersCount > 0
+                    ? "bg-purple-950/50 border-purple-500/80 shadow-md shadow-purple-500/20 text-purple-200"
+                    : ""
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                Especiais
+                {openOrdersCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold animate-pulse ml-0.5 shadow-sm">
+                    {openOrdersCount}
+                  </span>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Maintenance & Report Actions */}
+          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/50">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exportReport}
+              className="h-8.5 px-2.5 text-xs text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 gap-1.5 font-medium cursor-pointer"
+              title="Exportar Relatório"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearReport}
+              className="h-8.5 px-2.5 text-xs text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5 font-medium cursor-pointer"
+              title="Limpar Tabela"
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              Limpar
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFolders}
+              className="h-8.5 px-2.5 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 gap-1.5 font-medium cursor-pointer"
+              title="Excluir Arquivos"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              Excluir arquivos
+            </Button>
+          </div>
+
+          {/* Settings & User Profile Group */}
+          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/50">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.electron?.updater?.checkForUpdates?.()}
+              className="h-8.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
+              title="Verificar Atualizações"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Atualizar</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onNavigateToConfig}
+              className="h-8.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
+              title="Opções de Configuração"
+            >
+              <Sliders className="h-3.5 w-3.5" />
+              <span>Opções</span>
+            </Button>
+
+            <ThemeToggle />
+
+            {currentUser && (
+              <div className="flex items-center gap-1 pl-2 border-l border-border/40 ml-1">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border/60 text-xs font-semibold text-foreground">
+                  <User className="h-3.5 w-3.5 text-purple-400" />
+                  <span className="max-w-[110px] truncate" title={currentUser.txt_nome || currentUser.txt_login}>
+                    {currentUser.txt_nome || currentUser.txt_login}
+                  </span>
+                </div>
+                {onLogout && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLogout}
+                    className="h-8.5 w-8.5 p-0 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-lg cursor-pointer"
+                    title="Sair do sistema"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
-              {onLogout && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onLogout}
-                  className="h-8 px-2 text-xs border-red-500/30 hover:bg-red-500/10 text-red-500 gap-1"
-                  title="Deslogar do sistema"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Sair</span>
-                </Button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -1054,15 +1293,17 @@ export default function Dashboard({
                 <FolderOpen className="h-3.5 w-3.5" />
               </Button>
 
-              <Button
-                onClick={handleCopyDrawingToMirror}
-                disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
-                variant="outline"
-                className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                title={cfg.drawingsCopy ? "Enviar para a pasta espelho" : "Configure a Pasta de Cópia de Desenhos em Opções para habilitar"}
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
+              {hasAdminPermission && (
+                <Button
+                  onClick={handleCopyDrawingToMirror}
+                  disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                  variant="outline"
+                  className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                  title={cfg.drawingsCopy ? "Enviar para a pasta espelho" : "Configure a Pasta de Cópia de Desenhos em Opções para habilitar"}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              )}
 
               <Button
                 onClick={handleOpenDrawingFromSearch}
@@ -1075,6 +1316,16 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Drawer de detalhes */}
+      <FileDetailDrawer
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        data={detailData}
+        onFileMoved={handleFileMoved}
+        onAction={handleManualAction}
+        currentUser={currentUser}
+      />
 
       {/* Relatório + KPIs (2 colunas) */}
       <div className="px-6 mt-4">
@@ -1089,7 +1340,16 @@ export default function Dashboard({
                   <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados do Dia</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handlePrevDay}
+                    title="Dia anterior"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
                   <div className="relative">
                     <input
                       type="date"
@@ -1098,10 +1358,19 @@ export default function Dashboard({
                         setSelectedDay(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="bg-muted hover:bg-muted/80 text-muted-foreground text-[10.5px] font-bold py-1 px-3.5 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all"
+                      className="bg-muted hover:bg-muted/80 text-muted-foreground text-[10.5px] font-bold py-1 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all"
                       style={{ colorScheme: "dark" }}
                     />
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNextDay}
+                    title="Próximo dia"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                   {selectedDay !== getTodayISODate() && (
                     <Button
                       variant="ghost"
@@ -1483,6 +1752,14 @@ export default function Dashboard({
         open={batchModalOpen}
         onOpenChange={setBatchModalOpen}
         defaultMirrorPath={cfg.drawingsCopy}
+      />
+
+      <SpecialOrdersModal
+        open={specialOrdersOpen}
+        onOpenChange={setSpecialOrdersOpen}
+        currentUser={currentUser}
+        specialOrders={specialOrders}
+        onRefresh={checkSpecialOrdersUpdates}
       />
 
       {/* toasts */}

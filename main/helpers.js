@@ -39,6 +39,19 @@ function send(evt, payload) {
 
 /** Prepara objeto de config pronto para salvar (sanitizado) **/
 function sanitizeCfg(obj) {
+  let autoFix = obj?.enableAutoFix !== undefined ? !!obj.enableAutoFix : true;
+
+  // Se o usuário logado na sessão não possui a permissão 37, o robô auto-fix fica desligado por padrão (false)
+  try {
+    if (fse.pathExistsSync(state.USER_SESSION_FILE)) {
+      const session = fse.readJsonSync(state.USER_SESSION_FILE);
+      const perms = Array.isArray(session?.permissions) ? session.permissions.map(Number) : [];
+      if (!perms.includes(37)) {
+        autoFix = false;
+      }
+    }
+  } catch (e) {}
+
   return {
     entrada: normalizeWin(obj?.entrada || ""),
     exportacao: normalizeWin(obj?.exportacao || obj?.working || ""),
@@ -49,7 +62,7 @@ function sanitizeCfg(obj) {
     simplificado: normalizeWin(obj?.simplificado || ""),
     busca: normalizeWin(obj?.busca || ""),
     downloadPromob: normalizeWin(obj?.downloadPromob || ""),
-    enableAutoFix: obj?.enableAutoFix !== undefined ? !!obj.enableAutoFix : true,
+    enableAutoFix: autoFix,
     schedulerEnabled: obj?.schedulerEnabled !== undefined ? !!obj.schedulerEnabled : true,
     schedulerTimes: obj?.schedulerTimes || "11:30, 17:30",
     schedulerDays: obj?.schedulerDays || "seg-sex",

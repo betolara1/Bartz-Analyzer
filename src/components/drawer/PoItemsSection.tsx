@@ -8,9 +8,10 @@ interface PoItemsSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   data: Row | null;
+  hasAdminPermission?: boolean;
 }
 
-export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) {
+export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: PoItemsSectionProps) {
   const poItems = (data?.meta?.poItems || []) as any[];
 
   // Filter State
@@ -234,34 +235,40 @@ export function PoItemsSection({ isOpen, onToggle, data }: PoItemsSectionProps) 
                             <FolderOpen className="h-3.5 w-3.5" />
                             Abrir Pasta
                           </button>
-                          <button
-                            disabled={!item.desenho}
-                            onClick={() => handleOpenMirrorFolder(item.desenho)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta espelho do desenho"
-                          >
-                            <FolderCheck className="h-3.5 w-3.5" />
-                            Pasta Espelho
-                          </button>
-                          <button
-                            disabled={!item.desenho}
-                            onClick={() => handleCopyToMirror(item.desenho)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Enviar desenho para a pasta espelho"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            Enviar para
-                          </button>
+                          {hasAdminPermission && (
+                            <button
+                              disabled={!item.desenho}
+                              onClick={() => handleOpenMirrorFolder(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta espelho do desenho"
+                            >
+                              <FolderCheck className="h-3.5 w-3.5" />
+                              Pasta Espelho
+                            </button>
+                          )}
+                          {hasAdminPermission && (
+                            <button
+                              disabled={!item.desenho}
+                              onClick={() => handleCopyToMirror(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Enviar desenho para a pasta espelho"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              Enviar para
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleOpenEditModal(item)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 active:scale-[0.97] transition-all"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                          Trocar Descrição
-                        </button>
+                        {hasAdminPermission && (
+                          <button
+                            onClick={() => handleOpenEditModal(item)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 active:scale-[0.97] transition-all"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                            Trocar Descrição
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

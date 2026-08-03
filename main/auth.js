@@ -79,6 +79,20 @@ async function authenticateUser(username, password) {
       return { ok: false, message: "Senha incorreta." };
     }
 
+    // Buscar permissões do usuário em tab_usuario_permissao
+    let permissions = [];
+    try {
+      const [permRows] = await connection.execute(
+        "SELECT pk_permissao FROM tab_usuario_permissao WHERE pk_usuario = ?",
+        [userRow.pk_usuario]
+      );
+      if (Array.isArray(permRows)) {
+        permissions = permRows.map((r) => Number(r.pk_permissao));
+      }
+    } catch (permErr) {
+      console.error("[Auth] Erro ao buscar permissões do usuário:", permErr.message);
+    }
+
     // Login bem-sucedido — salvar sessão em cache local
     const sessionData = {
       pk_usuario: userRow.pk_usuario,
@@ -87,12 +101,13 @@ async function authenticateUser(username, password) {
       num_tipo_usuario: userRow.num_tipo_usuario,
       pk_representante: userRow.pk_representante,
       pk_ponto_venda: userRow.pk_ponto_venda,
+      permissions: permissions,
       loggedAt: new Date().toISOString(),
     };
 
     await fse.ensureFile(state.USER_SESSION_FILE);
     await fse.writeJson(state.USER_SESSION_FILE, sessionData, { spaces: 2 });
-    console.log(`[Auth] Usuário '${userRow.txt_login}' logado com sucesso!`);
+    console.log(`[Auth] Usuário '${userRow.txt_login}' logado com permissões:`, permissions);
 
     return { ok: true, user: sessionData };
   } catch (queryErr) {
@@ -121,6 +136,37 @@ ipcMain.handle("auth:getSession", async () => {
     if (await fse.pathExists(state.USER_SESSION_FILE)) {
       const session = await fse.readJson(state.USER_SESSION_FILE);
       if (session && session.txt_login) {
+        // Tentar atualizar permissões ao iniciar
+        try {
+          const cfg = state.currentCfg || (await loadCfg());
+          const dbHost = (cfg.dbHost || "mysql55-farm2.uni5.net").trim();
+          const dbPort = Number(cfg.dbPort) || 3306;
+          const dbUser = (cfg.dbUser || "bartzpedidosph").trim();
+          const dbPassword = cfg.dbPassword !== undefined && cfg.dbPassword !== "" ? cfg.dbPassword : "mangaROSA2006";
+          const dbName = (cfg.dbName || "bartzpedidosph").trim();
+
+          const conn = await mysql.createConnection({
+            host: dbHost,
+            port: dbPort,
+            user: dbUser,
+            password: dbPassword,
+            database: dbName,
+            connectTimeout: 4000,
+          });
+
+          const [permRows] = await conn.execute(
+            "SELECT pk_permissao FROM tab_usuario_permissao WHERE pk_usuario = ?",
+            [session.pk_usuario]
+          );
+          if (Array.isArray(permRows)) {
+            session.permissions = permRows.map((r) => Number(r.pk_permissao));
+          }
+          await conn.end();
+          await fse.writeJson(state.USER_SESSION_FILE, session, { spaces: 2 });
+        } catch (e) {
+          // Mantém as permissões existentes no cache local se falhar a atualização off-line
+        }
+
         return { ok: true, user: session };
       }
     }

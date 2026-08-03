@@ -44,9 +44,10 @@ interface FileDetailTabsProps {
   actions: ReturnType<typeof useFileActions>;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
+  hasAdminPermission?: boolean;
 }
 
-export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDetailTabsProps) {
+export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission }: FileDetailTabsProps) {
   const hasCG1 = !!data?.meta?.cg1_detected;
   const hasCG2 = !!data?.meta?.cg2_detected;
   const hasCoringa1 = !!data?.meta?.coringa1_detected;
@@ -63,6 +64,7 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDe
     hasCG1 || hasCG2 || hasCoringa1 || hasCoringa2 ||
     hasReferenciaEmpty;
 
+  const showActionsTab = !!hasAdminPermission && hasActions;
 
   const hasSemFilho = !!data?.tags?.includes('sem_filho');
   const hasEs08 = (data?.meta?.es08Matches || []).length > 0;
@@ -76,15 +78,15 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDe
     { key: "overview", label: "Visão Geral", icon: <Eye className="h-3.5 w-3.5" /> },
     ...(hasComponents ? [{ key: "components", label: "Componentes", icon: <Boxes className="h-3.5 w-3.5" /> } as TabDef] : []),
     ...(hasAllItems ? [{ key: "items", label: "Itens", icon: <List className="h-3.5 w-3.5" /> } as TabDef] : []),
-    ...(hasActions ? [{ key: "actions", label: "Ações Manuais", icon: <Wrench className="h-3.5 w-3.5" /> } as TabDef] : []),
+    ...(showActionsTab ? [{ key: "actions", label: "Ações Manuais", icon: <Wrench className="h-3.5 w-3.5" /> } as TabDef] : []),
   ];
 
   // If actions tab is active but no longer available, switch to overview
   React.useEffect(() => {
-    if (activeTab === "actions" && !hasActions) {
+    if (activeTab === "actions" && !showActionsTab) {
       onTabChange("overview");
     }
-  }, [hasActions, activeTab, onTabChange]);
+  }, [showActionsTab, activeTab, onTabChange]);
 
   // If components tab is active but no longer available, switch to overview
   React.useEffect(() => {
@@ -138,10 +140,10 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange }: FileDe
             <OverviewTab data={data} actions={actions} />
           )}
           {activeTab === "components" && (
-            <ComponentsTab data={data} actions={actions} />
+            <ComponentsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} />
           )}
           {activeTab === "items" && (
-            <ItemsTab data={data} actions={actions} />
+            <ItemsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} />
           )}
           {activeTab === "actions" && (
             <ActionsTab data={data} actions={actions} />
@@ -192,7 +194,7 @@ function OverviewTab({ data, actions }: { data: Row | null; actions: ReturnType<
 }
 
 /* ─── TAB: Componentes ─── */
-function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnType<typeof useFileActions> }) {
+function ComponentsTab({ data, actions, hasAdminPermission }: { data: Row | null; actions: ReturnType<typeof useFileActions>; hasAdminPermission?: boolean }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <div className="lg:col-span-2">
@@ -203,6 +205,7 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
           isResolved={actions.resolvedProblems.has('sem_filho')}
           otherPendingCount={actions.unresolvedProblems.filter(p => p !== 'sem_filho').length}
           onResolve={() => actions.resolveAndMaybeMove('sem_filho')}
+          hasAdminPermission={hasAdminPermission}
         />
       </div>
       <div className="lg:col-span-2">
@@ -222,6 +225,7 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
           isResolved={actions.resolvedProblems.has('es08')}
           otherPendingCount={actions.unresolvedProblems.filter(p => p !== 'es08').length}
           onResolve={() => actions.resolveAndMaybeMove('es08')}
+          hasAdminPermission={hasAdminPermission}
         />
       </div>
       <div className="lg:col-span-2">
@@ -229,6 +233,7 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
           isOpen={actions.specialItemsOpen}
           onToggle={() => actions.setSpecialItemsOpen(!actions.specialItemsOpen)}
           data={data}
+          hasAdminPermission={hasAdminPermission}
         />
       </div>
       <div className="lg:col-span-2">
@@ -236,6 +241,7 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
           isOpen={actions.poItemsOpen}
           onToggle={() => actions.setPoItemsOpen(!actions.poItemsOpen)}
           data={data}
+          hasAdminPermission={hasAdminPermission}
         />
       </div>
       <div className="lg:col-span-2">
@@ -243,6 +249,7 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
           isOpen={actions.muxarabiOpen}
           onToggle={() => actions.setMuxarabiOpen(!actions.muxarabiOpen)}
           data={data}
+          hasAdminPermission={hasAdminPermission}
         />
       </div>
     </div>
@@ -250,13 +257,14 @@ function ComponentsTab({ data, actions }: { data: Row | null; actions: ReturnTyp
 }
 
 /* ─── TAB: Itens ─── */
-function ItemsTab({ data, actions }: { data: Row | null; actions: ReturnType<typeof useFileActions> }) {
+function ItemsTab({ data, actions, hasAdminPermission }: { data: Row | null; actions: ReturnType<typeof useFileActions>; hasAdminPermission?: boolean }) {
   return (
     <div className="space-y-6">
       <ItemsSection
         isOpen={true}
         onToggle={() => {}}
         data={data}
+        hasAdminPermission={hasAdminPermission}
       />
     </div>
   );

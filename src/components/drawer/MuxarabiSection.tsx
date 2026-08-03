@@ -7,9 +7,10 @@ interface MuxarabiSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   data: Row | null;
+  hasAdminPermission?: boolean;
 }
 
-export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps) {
+export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: MuxarabiSectionProps) {
   const muxarabiItems = (data?.meta?.muxarabiItems || []) as any[];
 
   const handleOpenDrawing = async (drawingCode: string) => {
@@ -203,24 +204,28 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
                               <FolderOpen className="h-3.5 w-3.5" />
                               Abrir Pasta
                             </button>
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleOpenMirrorFolder(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta espelho do desenho"
-                            >
-                              <FolderCheck className="h-3.5 w-3.5" />
-                              Pasta Espelho
-                            </button>
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleCopyToMirror(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Enviar desenho para a pasta espelho"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                              Enviar para
-                            </button>
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!item.desenho}
+                                onClick={() => handleOpenMirrorFolder(item.desenho)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Abrir pasta espelho do desenho"
+                              >
+                                <FolderCheck className="h-3.5 w-3.5" />
+                                Pasta Espelho
+                              </button>
+                            )}
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!item.desenho}
+                                onClick={() => handleCopyToMirror(item.desenho)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Enviar desenho para a pasta espelho"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                                Enviar para
+                              </button>
+                            )}
                             <button
                               disabled={!sizeCode}
                               onClick={() => handleOpenMuxarabi(sizeCode)}
@@ -230,15 +235,17 @@ export function MuxarabiSection({ isOpen, onToggle, data }: MuxarabiSectionProps
                               <FileText className="h-3.5 w-3.5" />
                               Abrir Muxarabi
                             </button>
-                            <button
-                              disabled={!item.desenho || !sizeCode}
-                              onClick={() => handleInjectMuxarabi(item.desenho, sizeCode!, thickness)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title={`Injetar as usinagens do muxarabi ${sizeCode || 'desconhecido'} (chapa ${thickness}mm) no desenho ITE automaticamente (50mm da borda)`}
-                            >
-                              <Wand2 className="h-3.5 w-3.5" />
-                              Aplicar Muxarabi
-                            </button>
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!item.desenho || !sizeCode}
+                                onClick={() => handleInjectMuxarabi(item.desenho, sizeCode!, thickness)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={`Injetar as usinagens do muxarabi ${sizeCode || 'desconhecido'} (chapa ${thickness}mm) no desenho ITE automaticamente (50mm da borda)`}
+                              >
+                                <Wand2 className="h-3.5 w-3.5" />
+                                Aplicar Muxarabi
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

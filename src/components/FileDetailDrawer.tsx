@@ -27,12 +27,19 @@ interface FileDetailDrawerProps {
   data: Row | null;
   onAction?: (path: string, action: string) => void;
   onFileMoved?: (oldPath: string, newPath: string) => void;
+  currentUser?: any;
 }
 
-function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved }: FileDetailDrawerProps) {
+function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, currentUser }: FileDetailDrawerProps) {
   const actions = useFileActions(data, open, onAction, onFileMoved);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [isMaximized, setIsMaximized] = useState(false);
+
+  const hasAdminPermission = React.useMemo(() => {
+    if (!currentUser) return false;
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map(Number).includes(37);
+  }, [currentUser]);
 
   // Reset UI state when drawer closes
   React.useEffect(() => {
@@ -108,6 +115,7 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved }: F
               actions={actions}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              hasAdminPermission={hasAdminPermission}
             />
 
             {/* Resize Grip */}

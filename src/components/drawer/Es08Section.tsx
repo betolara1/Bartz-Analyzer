@@ -19,6 +19,7 @@ interface Es08SectionProps {
   isResolved: boolean;
   otherPendingCount: number;
   onResolve: () => void;
+  hasAdminPermission?: boolean;
 }
 
 function drawingNeedsFix(info: any): boolean {
@@ -34,7 +35,7 @@ function drawingNeedsFix(info: any): boolean {
 export function Es08Section({
   isOpen, onToggle, data, uniqueDrawings, dxfSearching, dxfResults, dxfFixing,
   onSearchAll, onFix, onMoveToOk, onOpenConfirmMove, onOpenConfirmMoveOk,
-  isResolved, otherPendingCount, onResolve
+  isResolved, otherPendingCount, onResolve, hasAdminPermission
 }: Es08SectionProps) {
   const matches = (data?.meta?.es08Matches || []) as any[];
 
@@ -241,37 +242,43 @@ export function Es08Section({
                             <FolderOpen className="h-3.5 w-3.5" />
                             Pasta
                           </button>
-                          <button
-                            disabled={!drawing}
-                            onClick={() => handleOpenMirrorFolder(drawing)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta espelho do desenho"
-                          >
-                            <FolderCheck className="h-3.5 w-3.5" />
-                            Pasta Espelho
-                          </button>
-                          <button
-                            disabled={!drawing}
-                            onClick={() => handleCopyToMirror(drawing)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Enviar desenho para a pasta espelho"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            Enviar para
-                          </button>
-                          <button
-                            disabled={!needsFix || isFixing}
-                            onClick={() => onFix(drawing)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-rose-500/10 disabled:text-rose-400 disabled:border disabled:border-rose-500/20"
-                            title={needsFix ? "Corrigir fresa/usinagem/painel (37mm → 18mm / 31mm → 15mm)" : "Nenhuma correção necessária"}
-                          >
-                            {isFixing ? (
-                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Zap className="h-3.5 w-3.5" />
-                            )}
-                            Corrigir
-                          </button>
+                          {hasAdminPermission && (
+                            <button
+                              disabled={!drawing}
+                              onClick={() => handleOpenMirrorFolder(drawing)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta espelho do desenho"
+                            >
+                              <FolderCheck className="h-3.5 w-3.5" />
+                              Pasta Espelho
+                            </button>
+                          )}
+                          {hasAdminPermission && (
+                            <button
+                              disabled={!drawing}
+                              onClick={() => handleCopyToMirror(drawing)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Enviar desenho para a pasta espelho"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              Enviar para
+                            </button>
+                          )}
+                          {hasAdminPermission && (
+                            <button
+                              disabled={!needsFix || isFixing}
+                              onClick={() => onFix(drawing)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-rose-500/10 disabled:text-rose-400 disabled:border disabled:border-rose-500/20"
+                              title={needsFix ? "Corrigir fresa/usinagem/painel (37mm → 18mm / 31mm → 15mm)" : "Nenhuma correção necessária"}
+                            >
+                              {isFixing ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Zap className="h-3.5 w-3.5" />
+                              )}
+                              Corrigir
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
