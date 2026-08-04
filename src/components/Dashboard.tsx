@@ -14,7 +14,7 @@ import {
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
   CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut, Sparkles,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, ChevronDown
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -177,6 +177,7 @@ export default function Dashboard({
   const [filter, setFilter] =
     useState<"all" | "ok" | "erro" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "sem_codigo" | "autofix">("all");
   const [selectedDay, setSelectedDay] = useState<string>(getTodayISODate());
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
 
   // Atualiza automaticamente a data selecionada se o dia mudar e o usuário estiver visualizando "Hoje"
   useEffect(() => {
@@ -1017,7 +1018,7 @@ export default function Dashboard({
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v5.19.0
+                v5.20.0
               </span>
             </div>
             {watchRoot && (
@@ -1160,6 +1161,27 @@ export default function Dashboard({
 
       {/* Sistema de Busca e Cópia de XML + Busca de Desenhos */}
       <div className="px-6 mt-4">
+        <button
+          onClick={() => setSearchPanelOpen(!searchPanelOpen)}
+          className="w-full flex items-center justify-between bg-card hover:bg-card/80 border border-border rounded-xl px-5 py-3 transition-all duration-200 group cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-[#F1C40F]">
+              <Search className="h-4 w-4" />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+              Pesquisa de XML e Desenhos
+            </span>
+          </div>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${searchPanelOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        <div
+          className={`grid transition-all duration-300 ease-in-out ${
+            searchPanelOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0 mt-0'
+          }`}
+        >
+          <div className="overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -1238,81 +1260,90 @@ export default function Dashboard({
                 Abrir / Copiar em Lote
               </Button>
             </div>
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
-              <div className="relative flex-1 group">
-                <Input
-                  type="text"
-                  placeholder="Digite o nome do desenho..."
-                  value={searchDrawingTerm}
-                  onChange={(e) => setSearchDrawingTerm(e.target.value)}
-                  onClear={() => setSearchDrawingTerm("")}
-                  className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
-                  style={{ paddingLeft: "2.5rem" }}
-                />
-                <FileSearch
-                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
-                  style={{ top: "50%", transform: "translateY(-50%)" }}
-                />
-                {searchingDrawings && (
-                  <Loader2
-                    className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
+            <div className="space-y-2.5">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+                <div className="relative flex-1 group">
+                  <Input
+                    type="text"
+                    placeholder="Digite o nome do desenho..."
+                    value={searchDrawingTerm}
+                    onChange={(e) => setSearchDrawingTerm(e.target.value)}
+                    onClear={() => setSearchDrawingTerm("")}
+                    className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
+                    style={{ paddingLeft: "2.5rem" }}
+                  />
+                  <FileSearch
+                    className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
                     style={{ top: "50%", transform: "translateY(-50%)" }}
                   />
-                )}
+                  {searchingDrawings && (
+                    <Loader2
+                      className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
+                      style={{ top: "50%", transform: "translateY(-50%)" }}
+                    />
+                  )}
+                </div>
+
+                <select
+                  value={selectedDrawingPath}
+                  onChange={(e) => setSelectedDrawingPath(e.target.value)}
+                  className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
+                  disabled={searchingDrawings || searchDrawingResults.length === 0}
+                >
+                  {searchingDrawings ? (
+                    <option value="">Buscando...</option>
+                  ) : searchDrawingResults.length === 0 ? (
+                    <option value="">Nenhum resultado encontrado</option>
+                  ) : (
+                    <>
+                      <option value="">Selecione um desenho ({searchDrawingResults.length} encontrados)...</option>
+                      {searchDrawingResults.map((res, index) => (
+                        <option key={index} value={res.fullPath}>
+                          {res.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
               </div>
 
-              <select
-                value={selectedDrawingPath}
-                onChange={(e) => setSelectedDrawingPath(e.target.value)}
-                className="flex-1 md:flex-none md:w-64 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
-                disabled={searchingDrawings || searchDrawingResults.length === 0}
-              >
-                {searchingDrawings ? (
-                  <option value="">Buscando...</option>
-                ) : searchDrawingResults.length === 0 ? (
-                  <option value="">Nenhum resultado encontrado</option>
-                ) : (
-                  <>
-                    <option value="">Selecione um desenho ({searchDrawingResults.length} encontrados)...</option>
-                    {searchDrawingResults.map((res, index) => (
-                      <option key={index} value={res.fullPath}>
-                        {res.name}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-
-              <Button
-                onClick={handleShowDrawingInFolder}
-                disabled={!selectedDrawingPath || locatingDrawing}
-                variant="outline"
-                className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                title="Abrir local do arquivo"
-              >
-                <FolderOpen className="h-3.5 w-3.5" />
-              </Button>
-
-              {hasAdminPermission && (
+              <div className="flex items-center justify-end gap-2">
                 <Button
-                  onClick={handleCopyDrawingToMirror}
-                  disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                  onClick={handleShowDrawingInFolder}
+                  disabled={!selectedDrawingPath || locatingDrawing}
                   variant="outline"
                   className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title={cfg.drawingsCopy ? "Enviar para a pasta espelho" : "Configure a Pasta de Cópia de Desenhos em Opções para habilitar"}
+                  title="Abrir local do arquivo"
                 >
-                  <Copy className="h-3.5 w-3.5" />
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  Abrir Pasta Padrão
                 </Button>
-              )}
 
-              <Button
-                onClick={handleOpenDrawingFromSearch}
-                disabled={!selectedDrawingPath || openingDrawing}
-                className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9"
-              >
-                {openingDrawing ? "Abrindo..." : "Abrir"}
-              </Button>
+                {hasAdminPermission && (
+                  <Button
+                    onClick={handleCopyDrawingToMirror}
+                    disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                    variant="outline"
+                    className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                    title={cfg.drawingsCopy ? "Enviar para a pasta espelho" : "Configure a Pasta de Cópia de Desenhos em Opções para habilitar"}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Colar Cópia DXF
+                  </Button>
+                )}
+
+                <Button
+                  onClick={handleOpenDrawingFromSearch}
+                  disabled={!selectedDrawingPath || openingDrawing}
+                  className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  {openingDrawing ? "Abrindo..." : "Abrir"}
+                </Button>
+              </div>
             </div>
+          </div>
+        </div>
           </div>
         </div>
       </div>

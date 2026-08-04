@@ -34,7 +34,7 @@ declare global {
         showDrawingInFolder?: (fullPath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         copyDrawingToMirror?: (fullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
         copyDrawingByCodeToMirror?: (drawingCode: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
-        batchProcessDrawings?: (params: { items: string[]; open?: boolean; copy?: boolean; targetFolder?: string }) => Promise<{ ok: boolean; processed?: number; openedCount?: number; copiedCount?: number; notFound?: string[]; errors?: { item: string; message: string }[]; message?: string }>;
+        batchProcessDrawings?: (params: { items: string[]; open?: boolean; copy?: boolean; openFolder?: boolean; targetFolder?: string }) => Promise<{ ok: boolean; processed?: number; openedCount?: number; copiedCount?: number; folderOpenedCount?: number; notFound?: string[]; errors?: { item: string; message: string }[]; message?: string }>;
         openMuxarabiDrawing?: (sizeCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         injectMuxarabi?: (drawingCode: string, sizeCode: string, thickness?: string) => Promise<{ ok: boolean; path?: string; message?: string; injectedCount?: number; totalInTemplate?: number; pieceDimensions?: string; thickness?: string; layer?: string }>;
         fixFresa37to18?: (dxfFilePath: string) => Promise<IpcResult & { changes?: any }>;

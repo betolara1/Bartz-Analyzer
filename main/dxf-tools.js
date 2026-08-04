@@ -877,7 +877,7 @@ ipcMain.handle('analyzer:copyDrawingByCodeToMirror', async (_e, drawingCode) => 
 });
 
 /** ================== IPC: PROCESSAMENTO DE DESENHOS EM LOTE (ABRIR E/OU COPIAR) ================== **/
-ipcMain.handle('analyzer:batchProcessDrawings', async (_e, { items, open, copy, targetFolder }) => {
+ipcMain.handle('analyzer:batchProcessDrawings', async (_e, { items, open, copy, openFolder, targetFolder }) => {
   try {
     if (!Array.isArray(items) || items.length === 0) {
       return { ok: false, message: "Nenhum código ou nome de desenho fornecido." };
@@ -939,6 +939,7 @@ ipcMain.handle('analyzer:batchProcessDrawings', async (_e, { items, open, copy, 
 
     let openedCount = 0;
     let copiedCount = 0;
+    let folderOpenedCount = 0;
     const notFound = [];
     const errors = [];
 
@@ -968,6 +969,11 @@ ipcMain.handle('analyzer:batchProcessDrawings', async (_e, { items, open, copy, 
             openedCount++;
           }
         }
+
+        if (openFolder) {
+          shell.showItemInFolder(filePath);
+          folderOpenedCount++;
+        }
       } catch (err) {
         errors.push({ item, message: String(err && err.message || err) });
       }
@@ -978,6 +984,7 @@ ipcMain.handle('analyzer:batchProcessDrawings', async (_e, { items, open, copy, 
       processed: uniqueItems.length,
       openedCount,
       copiedCount,
+      folderOpenedCount,
       notFound,
       errors,
     };

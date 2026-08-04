@@ -41,6 +41,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
     processed: number;
     openedCount: number;
     copiedCount: number;
+    folderOpenedCount: number;
     notFound: string[];
     errors: { item: string; message: string }[];
   } | null>(null);
@@ -67,14 +68,15 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
     }
   };
 
-  const handleExecute = async (action: "open" | "copy" | "both") => {
+  const handleExecute = async (action: "open" | "copy" | "openFolder") => {
     if (items.length === 0) {
       toast.warning("Por favor, cole ou digite pelo menos um nome de desenho.");
       return;
     }
 
-    const doOpen = action === "open" || action === "both";
-    const doCopy = action === "copy" || action === "both";
+    const doOpen = action === "open";
+    const doCopy = action === "copy";
+    const doOpenFolder = action === "openFolder";
 
     if (doCopy && !targetFolder) {
       toast.error(
@@ -86,7 +88,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
     setProcessing(true);
     setLastResult(null);
 
-    const actionText = action === "both" ? "Processando" : action === "open" ? "Abrindo" : "Copiando";
+    const actionText = action === "openFolder" ? "Localizando pasta de" : action === "open" ? "Abrindo" : "Copiando";
     const toastId = toast.loading(`${actionText} ${items.length} desenho(s)...`);
 
     try {
@@ -94,6 +96,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
         items,
         open: doOpen,
         copy: doCopy,
+        openFolder: doOpenFolder,
         targetFolder: doCopy ? targetFolder : undefined,
       });
 
@@ -104,6 +107,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
           processed: res.processed || 0,
           openedCount: res.openedCount || 0,
           copiedCount: res.copiedCount || 0,
+          folderOpenedCount: res.folderOpenedCount || 0,
           notFound: res.notFound || [],
           errors: res.errors || [],
         });
@@ -114,6 +118,9 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
         }
         if (doCopy && res.copiedCount) {
           successMsgs.push(`${res.copiedCount} copiado(s)`);
+        }
+        if (doOpenFolder && res.folderOpenedCount) {
+          successMsgs.push(`${res.folderOpenedCount} pasta(s) localizada(s)`);
         }
 
         if (successMsgs.length > 0) {
@@ -139,8 +146,8 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl bg-card border-border text-foreground shadow-2xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col bg-card border-border text-foreground shadow-2xl overflow-hidden p-6">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Files className="h-5 w-5 text-primary" />
             Abrir / Copiar Desenhos em Lote
@@ -150,7 +157,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 my-2">
+        <div className="space-y-4 my-2 flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
           {/* Textarea Input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
@@ -180,8 +187,8 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={`Cole aqui os códigos ou nomes dos desenhos...\nExemplo:\n2_T00000499A\n2_T00000500A.DXF\nESP00004702A`}
-              rows={6}
-              className="font-mono text-xs bg-muted/40 border-border focus:border-primary resize-y min-h-[140px]"
+              rows={5}
+              className="font-mono text-xs bg-muted/40 border-border focus:border-primary resize-y min-h-[100px] max-h-[200px]"
             />
           </div>
 
@@ -286,7 +293,7 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
         </div>
 
         {/* Action Buttons Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-border">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-border shrink-0 mt-auto">
           <Button
             variant="ghost"
             size="sm"
@@ -310,24 +317,13 @@ export const BatchDrawingsModal: React.FC<BatchDrawingsModalProps> = ({
             </Button>
 
             <Button
-              variant="outline"
               size="sm"
               onClick={() => handleExecute("copy")}
               disabled={processing || items.length === 0}
-              className="text-xs font-semibold gap-1.5 border-amber-600/30 hover:bg-amber-600/10 text-amber-600 dark:text-amber-400 h-9"
-            >
-              {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-              Copiar Todos
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => handleExecute("both")}
-              disabled={processing || items.length === 0}
               className="text-xs font-bold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 h-9"
             >
-              {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Abrir e Copiar Todos
+              {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+              Enviar Cópia DXF
             </Button>
           </div>
         </div>
