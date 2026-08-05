@@ -27,6 +27,7 @@ declare global {
         openDrawing?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         openDrawingFolder?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         openMirrorFolder?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
+        openAspanFolder?: (arg?: string | { drawingCode?: string }) => Promise<{ ok: boolean; path?: string; message?: string }>;
         searchXmlFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;
         copyXmlToEntrada?: (sourceFullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
         searchDrawingFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;

@@ -14,6 +14,7 @@ export type FullConfig = {
   erro: string;
   drawings: string;
   drawingsCopy: string;
+  drawingsAspan: string;
   simplificado: string;
   busca: string;
   downloadPromob: string;
@@ -45,7 +46,7 @@ export interface ConfigurationScreenProps {
   onLogout?: () => void;
 }
 
-export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "drawingsCopy" | "simplificado" | "busca" | "downloadPromob";
+export type PathConfigKey = "entrada" | "exportacao" | "ok" | "erro" | "drawings" | "drawingsCopy" | "drawingsAspan" | "simplificado" | "busca" | "downloadPromob";
 
 export interface PathConfig {
   key: PathConfigKey;
@@ -81,15 +82,21 @@ export const PATH_CONFIGS: PathConfig[] = [
   },
   {
     key: "drawings",
-    label: "Pasta de Desenhos",
+    label: "Desenho NESTING",
     placeholder: "\\\\servidor\\desenhos",
-    tooltip: "Pasta onde o sistema buscará os desenhos técnicos correspondentes."
+    tooltip: "Pasta onde o sistema buscará os desenhos técnicos NESTING correspondentes."
   },
   {
     key: "drawingsCopy",
-    label: "Pasta de Cópia de Desenhos",
+    label: "Desenho DXF",
     placeholder: "\\\\Pc-alessandro\\dxf",
-    tooltip: "Pasta espelho para onde os desenhos podem ser enviados manualmente (botão \"Enviar para\" na busca de desenhos). Correções automáticas do robô (fresa 37mm, muxarabi) também são replicadas aqui sozinhas, já que a alteração em si já foi automática. Deixe em branco para desativar."
+    tooltip: "Pasta espelho para os desenhos DXF. Deixe em branco para desativar."
+  },
+  {
+    key: "drawingsAspan",
+    label: "Desenho ASPAN",
+    placeholder: "\\\\servidor\\aspan",
+    tooltip: "Pasta de desenhos no formato ASPAN. Deixe em branco para desativar."
   },
   {
     key: "simplificado",
@@ -120,6 +127,7 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
     erro: "",
     drawings: "",
     drawingsCopy: "",
+    drawingsAspan: "",
     simplificado: "",
     busca: "",
     downloadPromob: "",

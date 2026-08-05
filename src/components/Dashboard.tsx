@@ -237,6 +237,7 @@ export default function Dashboard({
     erro: "",
     drawings: "",
     drawingsCopy: "",
+    drawingsAspan: "",
     simplificado: "",
     busca: "",
     downloadPromob: "",
@@ -468,6 +469,7 @@ export default function Dashboard({
   const [openingDrawing, setOpeningDrawing] = useState(false);
   const [locatingDrawing, setLocatingDrawing] = useState(false);
   const [copyingDrawingToMirror, setCopyingDrawingToMirror] = useState(false);
+  const [openingAspanFolder, setOpeningAspanFolder] = useState(false);
   const [searchingDrawings, setSearchingDrawings] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [selectedPedidoInfo, setSelectedPedidoInfo] = useState<{ pedido?: string; pedidoFilename?: string; pedidoSource?: 'historico' | 'erp' | 'busca' } | null>(null);
@@ -613,6 +615,27 @@ export default function Dashboard({
     }
   };
 
+  const handleOpenAspanFolderFromSearch = async () => {
+    if (!selectedDrawingPath && !searchDrawingResults.length) return;
+    const item = searchDrawingResults.find(r => r.fullPath === selectedDrawingPath);
+    const drawingCode = item?.name ? item.name.replace(/\.dxf$/i, '') : '';
+    setOpeningAspanFolder(true);
+    const id = toast.loading("Abrindo pasta Desenho ASPAN...");
+    try {
+      const res = await window.electron?.analyzer?.openAspanFolder?.(drawingCode);
+      if (res?.ok) {
+        toast.success("Pasta Desenho ASPAN aberta com sucesso!");
+      } else {
+        toast.error(`Não foi possível abrir a pasta Desenho ASPAN: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao abrir pasta Desenho ASPAN.", { description: String(error?.message || error) });
+    } finally {
+      setOpeningAspanFolder(false);
+      toast.dismiss(id);
+    }
+  };
+
   function notifyFromPayload(p: any) {
     try {
       const base = (p?.arquivo || "").split(/[\\/]/).pop() || "arquivo";
@@ -637,6 +660,7 @@ export default function Dashboard({
             erro: sv.erro || "",
             drawings: sv.drawings || "",
             drawingsCopy: sv.drawingsCopy || "",
+            drawingsAspan: sv.drawingsAspan || "",
             simplificado: sv.simplificado || "",
             busca: sv.busca || "",
             downloadPromob: sv.downloadPromob || "",
@@ -1065,7 +1089,7 @@ export default function Dashboard({
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v5.21.0
+                v5.22.0
               </span>
             </div>
             {watchRoot && (
@@ -1374,16 +1398,16 @@ export default function Dashboard({
                 ) : null
               )}
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 flex-wrap">
                 <Button
                   onClick={handleShowDrawingInFolder}
                   disabled={!selectedDrawingPath || locatingDrawing}
                   variant="outline"
                   className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title="Abrir local do arquivo"
+                  title="Abrir pasta Desenho NESTING"
                 >
                   <FolderOpen className="h-3.5 w-3.5" />
-                  Abrir Pasta Padrão
+                  Desenho NESTING
                 </Button>
 
                 {hasAdminPermission && (
@@ -1392,12 +1416,23 @@ export default function Dashboard({
                     disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
                     variant="outline"
                     className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                    title={cfg.drawingsCopy ? "Enviar para a pasta espelho" : "Configure a Pasta de Cópia de Desenhos em Opções para habilitar"}
+                    title={cfg.drawingsCopy ? "Enviar para pasta Desenho DXF" : "Configure Desenho DXF em Opções para habilitar"}
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    Colar Cópia DXF
+                    Desenho DXF
                   </Button>
                 )}
+
+                <Button
+                  onClick={handleOpenAspanFolderFromSearch}
+                  disabled={!selectedDrawingPath || !cfg.drawingsAspan || openingAspanFolder}
+                  variant="outline"
+                  className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                  title={cfg.drawingsAspan ? "Abrir pasta Desenho ASPAN" : "Configure Desenho ASPAN em Opções para habilitar"}
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  Desenho ASPAN
+                </Button>
 
                 <Button
                   onClick={handleOpenDrawingFromSearch}

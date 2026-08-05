@@ -117,16 +117,36 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
       toast.error("Código de desenho inválido.");
       return;
     }
-    const id = toast.loading(`Buscando pasta espelho do desenho ${drawingCode}...`);
+    const id = toast.loading(`Buscando pasta Desenho DXF ${drawingCode}...`);
     try {
       const res = await window.electron?.analyzer?.openMirrorFolder?.(drawingCode);
       if (res?.ok) {
-        toast.success(`Pasta espelho aberta com sucesso!`);
+        toast.success(`Pasta Desenho DXF aberta com sucesso!`);
       } else {
-        toast.error(`Não foi possível abrir a pasta espelho: ${res?.message || "Erro desconhecido."}`);
+        toast.error(`Não foi possível abrir a pasta Desenho DXF: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error("Erro ao abrir pasta espelho.", { description: String(error?.message || error) });
+      toast.error("Erro ao abrir pasta Desenho DXF.", { description: String(error?.message || error) });
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
+  const handleOpenAspanFolder = async (drawingCode: string) => {
+    if (!drawingCode) {
+      toast.error("Código de desenho inválido.");
+      return;
+    }
+    const id = toast.loading(`Buscando pasta Desenho ASPAN ${drawingCode}...`);
+    try {
+      const res = await window.electron?.analyzer?.openAspanFolder?.(drawingCode);
+      if (res?.ok) {
+        toast.success(`Pasta Desenho ASPAN aberta com sucesso!`);
+      } else {
+        toast.error(`Não foi possível abrir a pasta Desenho ASPAN: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao abrir pasta Desenho ASPAN.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -238,22 +258,31 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                             disabled={!item.desenho}
                             onClick={() => handleOpenDrawingFolder(item.desenho)}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta de origem do desenho"
+                            title="Abrir pasta Desenho NESTING"
                           >
                             <FolderOpen className="h-3.5 w-3.5" />
-                            Abrir Pasta
+                            Desenho NESTING
                           </button>
                           {hasAdminPermission && (
                             <button
                               disabled={!item.desenho}
                               onClick={() => handleOpenMirrorFolder(item.desenho)}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta espelho do desenho"
+                              title="Abrir pasta Desenho DXF"
                             >
                               <FolderCheck className="h-3.5 w-3.5" />
-                              Pasta Espelho
+                              Desenho DXF
                             </button>
                           )}
+                          <button
+                            disabled={!item.desenho}
+                            onClick={() => handleOpenAspanFolder(item.desenho)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Abrir pasta Desenho ASPAN"
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                            Desenho ASPAN
+                          </button>
                           {hasAdminPermission && (
                             <button
                               disabled={!item.desenho}

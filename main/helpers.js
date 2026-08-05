@@ -59,6 +59,7 @@ function sanitizeCfg(obj) {
     erro: normalizeWin(obj?.erro || ""),
     drawings: normalizeWin(obj?.drawings || ""),
     drawingsCopy: normalizeWin(obj?.drawingsCopy || ""),
+    drawingsAspan: normalizeWin(obj?.drawingsAspan || ""),
     simplificado: normalizeWin(obj?.simplificado || ""),
     busca: normalizeWin(obj?.busca || ""),
     downloadPromob: normalizeWin(obj?.downloadPromob || ""),
@@ -94,7 +95,7 @@ async function testPaths(obj) {
   for (const k of ["entrada", "exportacao", "ok", "erro"]) {
     res[k] = await checkWrite(payload[k]);
   }
-  for (const k of ["drawings", "drawingsCopy", "simplificado", "busca", "downloadPromob"]) {
+  for (const k of ["drawings", "drawingsCopy", "drawingsAspan", "simplificado", "busca", "downloadPromob"]) {
     res[k] = await checkWrite(payload[k]);
   }
   return res;

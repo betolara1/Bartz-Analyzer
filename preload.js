@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electron', {
     openDrawing: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawing', { drawingCode }),
     openDrawingFolder: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawingFolder', { drawingCode }),
     openMirrorFolder: (drawingCode) => ipcRenderer.invoke('analyzer:openMirrorFolder', { drawingCode }),
+    openAspanFolder: (arg) => ipcRenderer.invoke('analyzer:openAspanFolder', typeof arg === 'string' ? { drawingCode: arg } : arg),
     searchXmlFiles: (searchTerm) => ipcRenderer.invoke('analyzer:searchXmlFiles', { searchTerm }),
     copyXmlToEntrada: (sourceFullPath) => ipcRenderer.invoke('analyzer:copyXmlToEntrada', { sourceFullPath }),
     searchDrawingFiles: (searchTerm) => ipcRenderer.invoke('analyzer:searchDrawingFiles', { searchTerm }),

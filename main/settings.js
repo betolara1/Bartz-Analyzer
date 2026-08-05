@@ -13,6 +13,7 @@ ipcMain.handle("settings:load", async () => {
     erro: normalizeWin(saved.erro || ""),
     drawings: normalizeWin(saved.drawings || ""),
     drawingsCopy: normalizeWin(saved.drawingsCopy || ""),
+    drawingsAspan: normalizeWin(saved.drawingsAspan || ""),
     simplificado: normalizeWin(saved.simplificado || ""),
     busca: normalizeWin(saved.busca || ""),
     downloadPromob: normalizeWin(saved.downloadPromob || ""),
