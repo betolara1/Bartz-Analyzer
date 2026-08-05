@@ -8,6 +8,85 @@ const fsp = fs.promises;
 const fse = require("fs-extra");
 const state = require("./state");
 const { loadCfg, findFileRecursive, send } = require("./helpers");
+const { findPedidosInDb2 } = require("./db2-search");
+
+// Extrai o código do desenho a partir do nome do arquivo (ex: "ESP00004780A.dxf" -> "ESP00004780A")
+function codeFromDrawingFilename(name) {
+  return String(name || '').replace(/\.dxf$/i, '').trim().toUpperCase();
+}
+
+// Tier 1 (instantâneo): cruza os desenhos com o histórico local de análises já feitas no app.
+// Cada linha do histórico guarda os itens do pedido, incluindo o campo `desenho` de cada um,
+// e o nome do arquivo XML já começa com o número do pedido (ex: 69012a_...).
+async function buildDrawingPedidoIndex() {
+  const index = new Map();
+  try {
+    const raw = await fsp.readFile(state.HISTORY_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    const rows = Array.isArray(data?.rows) ? data.rows : (Array.isArray(data) ? data : []);
+    for (const row of rows) {
+      const pedidoMatch = String(row?.filename || '').match(/^(\d{5})/);
+      const pedido = pedidoMatch ? pedidoMatch[1] : null;
+      if (!pedido) continue;
+      const lists = [row?.meta?.allItems, row?.meta?.es08Matches, row?.meta?.specialItems, row?.meta?.poItems, row?.meta?.muxarabiItems];
+      for (const list of lists) {
+        if (!Array.isArray(list)) continue;
+        for (const item of list) {
+          const desenho = item?.desenho ? String(item.desenho).trim().toUpperCase() : '';
+          if (desenho && !index.has(desenho)) index.set(desenho, { pedido, filename: row.filename || null });
+        }
+      }
+    }
+  } catch (e) { /* histórico ausente ou ilegível */ }
+  return index;
+}
+
+// Tier 3 (mais lento, ~30s no pior caso): varre o conteúdo dos XMLs na Pasta de Busca
+// procurando o atributo DESENHO="codigo" — cobre pedidos que nem o histórico local nem
+// o DB2 conhecem ainda (ex: pedido novo que nunca foi aberto no app nem industrializado).
+async function findPedidosInBuscaFolder(missingCodes, buscaFolder) {
+  const found = new Map();
+  const remaining = new Set(missingCodes);
+  if (remaining.size === 0 || !buscaFolder) return found;
+  const MAX_FILES = 4000;
+  const CONCURRENCY = 24;
+  const allXmlPaths = [];
+  async function collectDir(directory) {
+    if (allXmlPaths.length >= MAX_FILES) return;
+    let items;
+    try { items = await fse.readdir(directory, { withFileTypes: true }); } catch (e) { return; }
+    for (const item of items) {
+      if (allXmlPaths.length >= MAX_FILES) return;
+      const full = path.join(directory, item.name);
+      if (item.isDirectory()) await collectDir(full);
+      else if (item.isFile() && item.name.toLowerCase().endsWith('.xml')) allXmlPaths.push(full);
+    }
+  }
+  await collectDir(buscaFolder);
+  let cursor = 0;
+  let stopped = false;
+  async function worker() {
+    while (!stopped && cursor < allXmlPaths.length) {
+      if (remaining.size === 0) { stopped = true; return; }
+      const full = allXmlPaths[cursor++];
+      try {
+        const content = await fsp.readFile(full, 'utf8');
+        for (const code of Array.from(remaining)) {
+          const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp(`DESENHO\\s*=\\s*"${escaped}"`, 'i');
+          if (re.test(content)) {
+            const pedidoMatch = path.basename(full).match(/^(\d{5})/);
+            found.set(code, { pedido: pedidoMatch ? pedidoMatch[1] : null, filename: path.basename(full) });
+            remaining.delete(code);
+          }
+        }
+      } catch (e) { }
+    }
+  }
+  const workers = Array.from({ length: Math.min(CONCURRENCY, allXmlPaths.length) }, () => worker());
+  await Promise.all(workers);
+  return found;
+}
 
 function parseDxfEntities(dxfContent) {
   const lines = dxfContent.split(/\r?\n/);
@@ -756,34 +835,94 @@ ipcMain.handle('analyzer:searchDrawingFiles', async (_e, { searchTerm }) => {
       return { ok: true, results: [] };
     }
 
-    // Função interna recursiva para buscar arquivos .dxf correspondentes
-    async function scanDir(directory) {
-      if (results.length >= 100) return;
-      let items;
-      try {
-        items = await fse.readdir(directory, { withFileTypes: true });
-      } catch (e) {
-        return; // Ignora erros de leitura de subpastas individuais
-      }
+    // Varredura concorrente: pastas de rede têm latência por chamada de readdir,
+    // então ler várias pastas em paralelo (em vez de uma de cada vez, recursivamente)
+    // reduz drasticamente o tempo total — mesmo padrão usado em findPedidosInBuscaFolder.
+    const SCAN_CONCURRENCY = 24;
+    const dirQueue = [drawingsFolder];
+    let pending = 0; // pastas já retiradas da fila mas ainda sendo lidas
 
-      for (const item of items) {
-        if (results.length >= 100) return;
-        const full = path.join(directory, item.name);
-        if (item.isDirectory()) {
-          await scanDir(full);
-        } else if (item.isFile()) {
-          if (item.name.toLowerCase().endsWith('.dxf') && item.name.toLowerCase().includes(term)) {
-            results.push({
-              name: item.name,
-              fullPath: full
-            });
+    async function worker() {
+      while (results.length < 100) {
+        const directory = dirQueue.shift();
+        if (!directory) {
+          if (pending === 0) return; // fila vazia e nada em voo: acabou
+          await new Promise((r) => setTimeout(r, 15));
+          continue;
+        }
+        pending++;
+        let items;
+        try {
+          items = await fse.readdir(directory, { withFileTypes: true });
+        } catch (e) {
+          items = [];
+        }
+        for (const item of items) {
+          if (results.length >= 100) break;
+          const full = path.join(directory, item.name);
+          if (item.isDirectory()) {
+            dirQueue.push(full);
+          } else if (item.isFile()) {
+            if (item.name.toLowerCase().endsWith('.dxf') && item.name.toLowerCase().includes(term)) {
+              results.push({ name: item.name, fullPath: full });
+            }
           }
         }
+        pending--;
       }
     }
 
-    await scanDir(drawingsFolder);
+    await Promise.all(Array.from({ length: SCAN_CONCURRENCY }, () => worker()));
     return { ok: true, results };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
+/**
+ * Descobre a qual pedido um desenho específico pertence, sob demanda (chamado só quando
+ * o usuário seleciona um desenho no dropdown, nunca para a lista inteira de resultados —
+ * uma busca por termo curto tipo "esp" pode casar 100+ arquivos, e resolver o pedido de
+ * todos de uma vez sobrecarrega o DB2 e a rede à toa).
+ * 3 camadas por ordem de velocidade: histórico local (instantâneo) -> DB2 do ERP
+ * (~2-3s, sem índice em NARRATIVA_1) -> conteúdo da Pasta de Busca (mais lento, cobre
+ * o que nem o histórico nem o ERP ainda sabem, ex: pedido não industrializado).
+ */
+ipcMain.handle('analyzer:resolveDrawingPedido', async (_e, { drawingName }) => {
+  try {
+    const code = codeFromDrawingFilename(drawingName);
+    if (!code) return { ok: false, message: 'Nome do desenho não informado.' };
+
+    const historyIndex = await buildDrawingPedidoIndex();
+    const historyHit = historyIndex.get(code);
+    if (historyHit) {
+      return { ok: true, pedido: historyHit.pedido, pedidoFilename: historyHit.filename || undefined, pedidoSource: 'historico' };
+    }
+
+    try {
+      const db2Hits = await findPedidosInDb2([code]);
+      const db2Hit = db2Hits.get(code);
+      if (db2Hit) {
+        return { ok: true, pedido: db2Hit.pedido, pedidoSource: 'erp' };
+      }
+    } catch (e) {
+      console.error('[DXF Search] Erro consultando DB2:', String(e && e.message || e));
+    }
+
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    if (cfg?.busca) {
+      try {
+        const buscaHits = await findPedidosInBuscaFolder([code], cfg.busca);
+        const buscaHit = buscaHits.get(code);
+        if (buscaHit) {
+          return { ok: true, pedido: buscaHit.pedido || undefined, pedidoFilename: buscaHit.filename || undefined, pedidoSource: 'busca' };
+        }
+      } catch (e) {
+        console.error('[DXF Search] Erro varrendo pasta de busca:', String(e && e.message || e));
+      }
+    }
+
+    return { ok: true, pedido: undefined };
   } catch (e) {
     return { ok: false, message: String(e && e.message || e) };
   }

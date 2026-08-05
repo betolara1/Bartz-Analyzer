@@ -1,6 +1,6 @@
 {
   "name": "bartz-analyzer",
-  "version": "5.20.0",
+  "version": "5.21.0",
   "private": true,
   "main": "cjs-main.js",
   "type": "commonjs",
@@ -101,6 +101,7 @@
     "electron-updater": "^6.8.9",
     "fast-xml-parser": "^5.2.5",
     "fs-extra": "^11.3.1",
+    "ibm_db": "^4.0.1",
     "lucide-react": "^0.542.0",
     "mysql2": "^3.23.2",
     "react": "^18",

@@ -30,6 +30,7 @@ declare global {
         searchXmlFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;
         copyXmlToEntrada?: (sourceFullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
         searchDrawingFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;
+        resolveDrawingPedido?: (drawingName: string) => Promise<{ ok: boolean; pedido?: string; pedidoFilename?: string; pedidoSource?: 'historico' | 'erp' | 'busca'; message?: string }>;
         openDrawingByPath?: (fullPath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         showDrawingInFolder?: (fullPath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         copyDrawingToMirror?: (fullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;

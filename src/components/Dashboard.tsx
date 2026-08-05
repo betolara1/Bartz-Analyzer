@@ -470,6 +470,8 @@ export default function Dashboard({
   const [copyingDrawingToMirror, setCopyingDrawingToMirror] = useState(false);
   const [searchingDrawings, setSearchingDrawings] = useState(false);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [selectedPedidoInfo, setSelectedPedidoInfo] = useState<{ pedido?: string; pedidoFilename?: string; pedidoSource?: 'historico' | 'erp' | 'busca' } | null>(null);
+  const [resolvingPedido, setResolvingPedido] = useState(false);
 
   useEffect(() => {
     const trimmed = searchDrawingTerm.trim();
@@ -512,6 +514,51 @@ export default function Dashboard({
       clearTimeout(delayDebounce);
     };
   }, [searchDrawingTerm]);
+
+  // Só resolve o pedido do desenho que o usuário realmente selecionou no dropdown —
+  // não faz sentido consultar o ERP/pasta de busca pra todos os resultados de uma vez
+  // (um termo curto pode casar 100+ arquivos e sobrecarregar o DB2 à toa).
+  useEffect(() => {
+    if (!selectedDrawingPath) {
+      setSelectedPedidoInfo(null);
+      return;
+    }
+    const selected = searchDrawingResults.find((r) => r.fullPath === selectedDrawingPath);
+    if (!selected) {
+      setSelectedPedidoInfo(null);
+      return;
+    }
+
+    let active = true;
+    setSelectedPedidoInfo(null);
+    setResolvingPedido(true);
+
+    // Se o histórico local não achar, o backend cai num fallback que varre o conteúdo
+    // da Pasta de Busca (pode levar até ~30s no pior caso, numa pasta de rede grande).
+    const slowLookupWarning = setTimeout(() => {
+      if (active) toast.info("Ainda procurando o pedido... pode levar até 30s quando precisa varrer a pasta de rede.");
+    }, 4000);
+
+    (async () => {
+      try {
+        const res = await window.electron?.analyzer?.resolveDrawingPedido?.(selected.name);
+        if (!active) return;
+        if (res?.ok) {
+          setSelectedPedidoInfo(res.pedido ? { pedido: res.pedido, pedidoFilename: res.pedidoFilename, pedidoSource: res.pedidoSource } : null);
+        }
+      } catch (e) {
+        // busca de pedido é informativa, não bloqueia o uso do desenho — falha silenciosa
+      } finally {
+        clearTimeout(slowLookupWarning);
+        if (active) setResolvingPedido(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+      clearTimeout(slowLookupWarning);
+    };
+  }, [selectedDrawingPath, searchDrawingResults]);
 
   const handleOpenDrawingFromSearch = async () => {
     if (!selectedDrawingPath) return;
@@ -1018,7 +1065,7 @@ export default function Dashboard({
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v5.20.0
+                v5.21.0
               </span>
             </div>
             {watchRoot && (
@@ -1306,6 +1353,26 @@ export default function Dashboard({
                   )}
                 </select>
               </div>
+
+              {selectedDrawingPath && (
+                resolvingPedido ? (
+                  <div className="text-[10px] text-muted-foreground px-1 flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Procurando pedido...
+                  </div>
+                ) : selectedPedidoInfo?.pedido ? (
+                  <div className="text-[10px] text-muted-foreground px-1">
+                    <span className="font-semibold text-primary">Pedido {selectedPedidoInfo.pedido}</span>
+                    {selectedPedidoInfo.pedidoFilename && <span className="ml-1.5 opacity-70">({selectedPedidoInfo.pedidoFilename})</span>}
+                    {selectedPedidoInfo.pedidoSource === 'erp' && (
+                      <span className="ml-1.5 opacity-70 italic">— encontrado no ERP</span>
+                    )}
+                    {selectedPedidoInfo.pedidoSource === 'busca' && (
+                      <span className="ml-1.5 opacity-70 italic">— encontrado na Pasta de Busca</span>
+                    )}
+                  </div>
+                ) : null
+              )}
 
               <div className="flex items-center justify-end gap-2">
                 <Button
