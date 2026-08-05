@@ -2,20 +2,21 @@
 
 # 🏗️ Bartz Analyzer
 
-### Sistema Industrial de Monitoramento, Validação de Engenharia e Auto-Fix de XML/DXF para Produção CNC
+### Sistema Industrial de Monitoramento, Validação de Engenharia, Integração ERP DB2 e Auto-Fix de XML/DXF para Produção CNC
 
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![Electron](https://img.shields.io/badge/Electron-37.3-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Electron](https://img.shields.io/badge/Electron-37.4-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![IBM DB2](https://img.shields.io/badge/IBM_DB2-bartznew-0540F5?style=for-the-badge&logo=ibm&logoColor=white)](https://www.ibm.com/products/db2)
 [![Vite](https://img.shields.io/badge/Vite-7.3-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Vitest](https://img.shields.io/badge/Vitest-3.2-6E9F18?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
 ---
 
-*Uma solução robusta de engenharia de software aplicada ao chão de fábrica, desenvolvida para eliminar gargalos de produção, impedir perda de matéria-prima e automatizar a correção de arquivos de usinagem CNC.*
+*Uma solução robusta de engenharia de software aplicada ao chão de fábrica, desenvolvida para eliminar gargalos de produção, impedir perda de matéria-prima, consultar o ERP em tempo real e automatizar a correção de arquivos de usinagem CNC.*
 
 </div>
 
@@ -38,13 +39,13 @@ No ecossistema fabril da **Bartz Móveis Planejados**, os projetos elaborados pe
 
 Inconsistências em arquivos exportados (como furações de 37mm descalibradas, ausência de código de peças, cores coringa não substituídas ou falhas na estrutura de sub-itens) historicamente geravam **interrupções na linha de produção**, **quebra de ferramentas de usinagem** e **desperdício de chapas de MDF/MDP**.
 
-O **Bartz Analyzer** é uma aplicação **Desktop Cross-Platform de Missão Crítica** que atua como uma sentinela autônoma de monitoramento de rede. Ele inspeciona, valida contra APIs de ERP corporativo, gera relatórios analíticos e **executa correções automáticas (Auto-Fix) diretamente na estrutura de tags do XML e em arquivos vetoriais CAD (.DXF)** antes que os arquivos cheguem ao chão de fábrica.
+O **Bartz Analyzer** é uma aplicação **Desktop Cross-Platform de Missão Crítica (v5.21.0)** que atua como uma sentinela autônoma de monitoramento de rede. Ele inspeciona, valida contra APIs e banco de dados corporativo **IBM DB2 (`bartznew`)**, gera relatórios analíticos e **executa correções automáticas (Auto-Fix) diretamente na estrutura de tags do XML e em arquivos vetoriais CAD (.DXF)** antes que os arquivos cheguem ao chão de fábrica.
 
 ---
 
 ## ⚙️ Arquitetura de Software & Design Patterns
 
-A aplicação foi projetada seguindo padrões modernos de arquitetura de software Desktop, garantindo **segurança de processos, alta disponibilidade e desacoplamento de responsabilidades**.
+A aplicação foi projetada seguindo padrões modernos de arquitetura de software Desktop, garantindo **segurança de processos, alta disponibilidade, resiliência a falhas e desacoplamento de responsabilidades**.
 
 ```mermaid
 graph TD
@@ -57,7 +58,7 @@ graph TD
         C --> D{"Validações de Engenharia"}
         
         D -->|1. Validação de Preços & Qtd| E["Auto-Fix XML Attributes"]
-        D -->|2. Checagem de Códigos & ERP| F["ERP HTTP API /api/item & /api/cor"]
+        D -->|2. Checagem ERP / DB2| F["HTTP API & Direct DB2 Connector - db2-search.js"]
         D -->|3. Fresa 37mm / ES08| G["DXF Vector Rewriter - dxf-tools.js"]
         D -->|4. Injeção de Muxarabi / MX008| H["DXF Grid Template Injector"]
         D -->|5. Checagem de Máquinas| I["Filtro de Plugins ASPAN / NCB612"]
@@ -84,30 +85,42 @@ graph TD
         O --> Q["Drawer de Edição Interativa & Backup/Undo"]
     end
 
-    subgraph Automation ["⏰ Tarefas Agendadas"]
+    subgraph Automation ["⏰ Tarefas Agendadas & ERP Sync"]
         R["Scheduler Interno"] -->|11:30 & 17:30| S["Exportação Diária CSV - UTF-8 BOM"]
         R -->|17:30| T["Faxina Automática de Pastas Temporárias"]
+        U["Buscador DXF Otimizado"] -->|3 Tiers de Resposta| V["Histórico -> DB2 ERP -> Varredura Concorrente (24x)"]
     end
 ```
 
 ### 🏢 Modelo Multi-Processo (Electron IPC Architecture)
 
-* **Processo Principal (Main Process - Node.js):** Executa o daemon de monitoramento (`chokidar`), manipulação de arquivos no SO, parsing AST de XMLs com `fast-xml-parser`, reescrita binária/vetorial de arquivos CAD DXF, rotinas de backup, agendamento de relatórios e requisições HTTP para as APIs do ERP.
-* **Processo de Renderização (Renderer Process - React 18):** Interface SPA reativa construída com TypeScript e Tailwind CSS. Exibe o estado em tempo real da fila de produção, dashboards de métricas (KPIs), busca avançada e drawer de inspeção detalhada de pedidos.
-* **Preload Bridge (`preload.js`):** Camada de isolamento de contexto (`contextBridge`) que expõe uma API fortemente tipada (`window.electron.analyzer`, `window.electron.settings`, `window.electron.updater`) via IPC (`ipcRenderer.invoke` / `ipcRenderer.on`), garantindo que a UI não possua acesso direto ao Node.js nativo (cumprindo os mais rígidos padrões de segurança do Electron).
+* **Processo Principal (Main Process - Node.js):** Executa o daemon de monitoramento (`chokidar`), manipulação de arquivos no SO, parsing AST de XMLs com `fast-xml-parser`, reescrita binária/vetorial de arquivos CAD DXF, conector direto ODBC com **IBM DB2** (`ibm_db`), rotinas de backup, agendamento de relatórios e requisições HTTP para as APIs do ERP.
+* **Processo de Renderização (Renderer Process - React 18):** Interface SPA reativa construída com TypeScript e Tailwind CSS. Exibe o estado em tempo real da fila de produção, dashboards de métricas (KPIs), busca avançada, gerenciador de desenhos com vinculação de pedidos e drawer de inspeção detalhada.
+* **Preload Bridge (`preload.js`):** Camada de isolamento de contexto (`contextBridge`) que expõe uma API fortemente tipada (`window.electron.analyzer`, `window.electron.settings`, `window.electron.updater`, `window.electron.auth`) via IPC, garantindo que a UI não possua acesso direto ao Node.js nativo (cumprindo os mais rígidos padrões de segurança do Electron).
 
 ---
 
 ## ⚡ Funcionalidades Principais em Detalhes
 
-### 1. 🛰️ Monitoramento Ativo em Tempo Real (File System Watcher)
-* **Daemon Chokidar:** Observa diretórios locais ou compartilhamentos de rede Windows (`UNC / SMB` como `\\192.168.1.10\Promob`).
-* **Debounce & Queue Management:** Lida de forma resiliente com arquivos em processo de escrita ou travados por outros sistemas.
-* **Processamento One-Shot:** Botão na interface para escaneamento sob demanda da pasta de entrada sem necessidade de reiniciar o watcher.
+### 1. ⚡ Buscador Inteligente de Desenhos DXF & Identificação de Pedido (Otimização 15s → 3s)
+* **Associação Automática de Pedido:** Ao pesquisar por qualquer código de desenho (ex: `ESP00004780A`), o sistema identifica automaticamente a qual número de pedido o desenho pertence (ex: `ESP00004780A — Pedido 69012`).
+* **Arquitetura de Busca em 3 Tiers de Resposta:**
+  1. **Tier 1 (Instantâneo):** Cruza com o histórico local de análises processadas (`analysis-history.json`).
+  2. **Tier 2 (ERP DB2 ~2s):** Executa consulta SQL otimizada diretamente na base IBM DB2 (`bartznew`) casando o código de desenho (`ITEM.NARRATIVA_1`).
+  3. **Tier 3 (Pasta de Busca):** Varre os arquivos XML em lote usando **leitura concorrente paralela com 24 trabalhadores**, reduzindo o tempo de escaneamento de rede de 15 segundos para apenas 3 segundos.
+* **Indicadores Visuais de Origem:** A UI informa ao operador a origem exata da vinculação (`histórico`, `ERP DB2` ou `pasta de busca`).
 
 ---
 
-### 2. 🔬 Motor de Validação de Engenharia de Produção
+### 2. 🔐 Autenticação & Controle de Acesso Granular por Permissão
+* **Sistema de Permissões Centralizado:** Integração com as permissões da conta do usuário logado:
+  * **Permissão 37 (Admin Analisador):** Libera os botões de ação restrita no Drawer (*Pasta Espelho*, *Enviar para*, *Corrigir Fresa*, *Trocar Descrição*, *Auto-Fix Geral* e conexão com banco de dados MySQL).
+  * **Permissão 36 (Pedidos Especiais / Engenharia):** Habilita o acesso e notificações automáticas de Pedidos Especiais da Engenharia.
+* **Resiliência na Interface:** Todas as seções e tabelas do Drawer validam as permissões de forma dinâmica e segura.
+
+---
+
+### 3. 🔬 Motor de Validação de Engenharia de Produção
 
 O sistema realiza inspeções profundas na estrutura XML de cada pedido de produção:
 
@@ -120,13 +133,11 @@ O sistema realiza inspeções profundas na estrutura XML de cada pedido de produ
 | **Peça Muxarabi** | `ITEM_BASE="MX008..."` | Alerta `MUXARABI` + Injeção automática de malha 2D no DXF | Peças vazadas sem o desenho de usinagem em grade. |
 | **Sem Item Filho** | Top-level `<ITEM>` sem sub-tags | Alerta `SEM ITEM FILHO` + Opção de remoção da estrutura vazia | Envio de componentes vazios que causam erro no software da máquina. |
 | **Plugins de Máquinas** | Máquinas `2530` (ASPAN) / `2534` (NCB) | Validação da presença dos parâmetros de máquina no XML | Envio de pedidos para máquinas descalibradas ou incompatíveis. |
-| **Consulta ERP Integrada** | Validação REST via HTTP API | Cruzamento de itens com o catálogo do ERP corporativo | Inclusão de itens descontinuados ou sem cadastro de estoque. |
+| **Consulta ERP / DB2** | Validação REST API & SQL DB2 | Cruzamento de itens com o catálogo e pedidos do ERP | Inclusão de itens descontinuados ou sem cadastro de estoque. |
 
 ---
 
-### 3. 🤖 Auto-Fix Inteligente (Correção Automática de XML & DXF)
-
-O **Bartz Analyzer** não é apenas um validador passivo; ele possui **motores de auto-reparo** capazes de modificar os arquivos em tempo de execução:
+### 4. 🤖 Auto-Fix Inteligente (Correção Automática de XML & DXF)
 
 #### 🛠️ Auto-Fix em XML:
 * **Preços e Quantidades:** Ajusta automaticamente quantidades zero para `1` e preços zero para `R$ 0,10` quando ativado nas opções.
@@ -139,7 +150,7 @@ O **Bartz Analyzer** não é apenas um validador passivo; ele possui **motores d
 
 ---
 
-### 4. 🎨 Drawer de Inspeção Detalhada & Edição Interativa
+### 5. 🎨 Drawer de Inspeção Detalhada & Edição Interativa
 
 Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta produtividade** é exibido com abas especializadas:
 
@@ -153,27 +164,11 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
 
 ---
 
-### 5. 🔍 Busca Global em Lote & Gerenciador de Desenhos (`BatchDrawingsModal`)
-
-* **Localizador de Desenhos & XMLs:** Modal na interface que realiza buscas recursivas em pastas de rede por termo de pesquisa.
-* **Cópia para Pasta Espelho:** Permite selecionar dezenas de arquivos DXF e copiá-los em lote para a pasta espelho da produção.
-* **Re-injeção de Pedidos:** Permite copiar XMLs antigos localizados na rede diretamente para a pasta de entrada do robô para novo processamento.
-
----
-
 ### 6. ⏰ Agendador de Tarefas & Relatórios Diários (Scheduler)
 
 * **Relatórios Diários Automatizados:** O motor `reports-scheduler.js` gera automaticamente às **11:30** e **17:30** relatórios completos em formato **CSV** na pasta de relatórios.
 * **Compatibilidade nativa com Excel (UTF-8 BOM):** Arquivos salvos com marca d'água de bytes `\uFEFF` para abertura direta no Microsoft Excel sem corrupção de acentuação.
 * **Limpeza Programada de Pastas:** Rotina autônoma executada diariamente às **17:30** que limpa logs e arquivos temporários das pastas `ok`, `erro`, `log_proc` e `log_erro`, mantendo o servidor otimizado.
-* **Seletor por Calendário UI:** Calendário nativo na interface para filtragem de histórico e exportação manual de relatórios de datas passadas.
-
----
-
-### 7. 🔄 Atualização Automática OTA (Over-The-Air)
-
-* **Integração com GitHub Releases:** Módulo `updater.js` integrado ao `electron-updater`.
-* **Download Silencioso e Progresso Visual:** A aplicação checa periodicamente por novas versões publicadas no repositório GitHub, exibe barra de progresso de download na interface e permite a instalação e reinício com 1 clique.
 
 ---
 
@@ -186,8 +181,9 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
  ├── 🖥️ watcher.js                   # Entry-point secundário de monitoramento
  ├── 🖥️ report-scheduler.js          # Agendador de tarefas independente
  ├── 📂 main/                        # Módulos Core do Processo Principal (Node.js)
- │    ├── 🛠️ dxf-tools.js            # Parser DXF, Injeção de Muxarabi & Correção de Fresa 37mm
- │    ├── 🔐 erp-auth.js             # Autenticação e tokens da API ERP corporativa
+ │    ├── 🗄️ db2-search.js           # Conector nativo ODBC com IBM DB2 (bartznew) & busca em 3 tiers
+ │    ├── 🛠️ dxf-tools.js            # Parser DXF, Injeção de Muxarabi, Correção Fresa 37mm & Busca DXF
+ │    ├── 🔐 erp-auth.js             # Autenticação e tokens da API ERP corporativa / MySQL
  │    ├── 🔎 erp-search.js           # Consulta de produtos/cores na API ERP e arquivos CSV
  │    ├── 🛡️ erp-validation.js       # Validação de integridade de itens do pedido com ERP
  │    ├── 🧰 helpers.js              # Funções utilitárias de I/O, resolução de caminhos UNC e IPC
@@ -201,17 +197,16 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
  │    └── ⚡ xml-processor.js        # Pipeline central: validação, geração de simplificado e auto-fix
  ├── 📂 src/                         # Processo de Renderização (Interface React 18 + Vite)
  │    ├── 🧩 components/             # Componentes modulares da Interface
- │    │    ├── 📊 Dashboard.tsx      # Dashboard principal (KPIs, Fila de Arquivos, Filtros e Busca)
- │    │    ├── ⚙️ ConfigurationScreen.tsx # Painel de Opções, Diretórios e Teste de Pastas de Rede
- │    │    ├── 📂 FileDetailDrawer.tsx# Drawer deslizante de detalhes do pedido
+ │    │    ├── 📊 Dashboard.tsx      # Dashboard principal (KPIs, Fila, Busca DXF com Pedido & Filtros)
+ │    │    ├── ⚙️ ConfigurationScreen.tsx # Painel de Opções, Diretórios e Teste de Conexão DB2/MySQL
+ │    │    ├── 📂 FileDetailDrawer.tsx# Drawer deslizante com suporte a permissões de usuário
  │    │    ├── 🔍 BatchDrawingsModal.tsx # Modal de busca e cópia em lote de arquivos CAD e XMLs
  │    │    ├── 📈 ProcessingStats.tsx# Cards de métricas de engajamento e erros
  │    │    ├── 🏷️ AutoFixBadge.tsx   # Badges indicativos de correções efetuadas pelo robô
  │    │    ├── 🏷️ BadgeErro.tsx      # Badges com estilo e severidade de inconformidades
  │    │    └── 🗂️ drawer/            # Abas especializadas do Drawer (Coringa, Muxarabi, ES08, etc)
  │    ├── ⚓ hooks/                  # Custom React Hooks (IPC Communication & Store)
- │    ├── 🛠️ lib/                    # Lógica utilitária compartilhada
- │    │    └── 🧪 xml-logic.js       # Regras puras de parsing e validação de XML (testável)
+ │    ├── 🛠️ lib/                    # Lógica utilitária compartilhada (xml-logic.js)
  │    └── 🏷️ types/                  # Definições de Tipos TypeScript (Interfaces Globais)
  ├── 📂 Muxarabi/                    # Biblioteca de gabaritos vetoriais DXF por dimensão/espessura
  ├── 🧪 tests/                       # Testes unitários da lógica de parsing e validação XML (Vitest)
@@ -232,7 +227,7 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/betolara1/Bartz-Analyzer-4.git
+git clone https://github.com/betolara1/Bartz-Analyzer.git
 cd Bartz-Analyzer
 
 # 2. Instalar as dependências do projeto
@@ -242,13 +237,11 @@ npm install
 npm run dev
 ```
 
-> **Nota:** O script `npm run dev` utiliza `concurrently` para subir o servidor Vite na porta `5174` e, em seguida, dispara o Electron apontando para o ambiente de desenvolvimento com Hot Reload.
-
 ---
 
 ## 📦 Como Gerar o Executável de Produção (.exe)
 
-A aplicação utiliza `electron-builder` pré-configurado para gerar instaladores autônomos para **Windows (NSIS)**.
+A aplicação utiliza `electron-builder` configurado com `npmRebuild: false` e `asarUnpack` para empacotar binários nativos C++ de forma segura.
 
 ```bash
 # Compilar o código React e gerar o instalador de produção em /release
@@ -257,14 +250,13 @@ npm run dist:win
 
 ### O que o processo de build realiza:
 1. Executa `vite build` compilando a UI otimizada para a pasta `/dist`.
-2. Empacota a aplicação incluindo os recursos extras (pasta `Muxarabi/`).
-3. Gera o instalador **`Bartz-Analyzer-Setup-x.x.x.exe`** dentro do diretório **`release/`** com suporte a instalação personalizada, atalho na Área de Trabalho e Menu Iniciar.
+2. Empacota a aplicação incluindo os recursos vetoriais da pasta `Muxarabi/`.
+3. Descompacta o driver nativo `ibm_db` e suas DLLs no diretório `app.asar.unpacked`.
+4. Gera o instalador **`Bartz-Analyzer-Setup-5.21.0.exe`** dentro do diretório **`release/`**.
 
 ---
 
 ## 🧪 Suíte de Testes Unitários
-
-A integridade das regras de negócio e do parser de XML é garantida por testes unitários escritos com **Vitest**.
 
 ```bash
 # Executar a suíte de testes unitários
@@ -279,26 +271,17 @@ Os testes cobrem:
 
 ---
 
-## 🐳 Execução via Docker (Containerização)
-
-O projeto conta com suporte completo a containerização Docker com dependências GTK/X11 preparadas para testes headless e ambientes de integração contínua (CI/CD).
-
-```bash
-# Subir o ambiente containerizado via Docker Compose
-docker-compose up --build
-```
-
----
-
 ## 🛠️ Stack Tecnológica
 
 | Categoria | Tecnologia | Versão | Aplicação |
 | :--- | :--- | :--- | :--- |
-| **Runtime Desktop** | **Electron** | `^37.3.1` | Execução nativa multi-processo Cross-Platform |
+| **Runtime Desktop** | **Electron** | `^37.4.0` | Execução nativa multi-processo Cross-Platform |
 | **UI Framework** | **React** | `^18.2.0` | Interface componentizada e reativa |
 | **Linguagem** | **TypeScript** | `^5.9.2` | Tipagem estática rigorosa no Renderer e IPC |
 | **Bundler & Build Tool** | **Vite** | `^7.3.1` | Compilação ultrarrápida do frontend e HMR |
 | **Estilização** | **Tailwind CSS** | `^3.4.17` | Sistema de design utility-first responsivo |
+| **Banco de Dados ERP** | **IBM DB2 (`ibm_db`)** | `^4.0.1` | Conexão ODBC direta com banco bartznew para busca de pedidos |
+| **Banco de Dados Auth** | **MySQL2** | `^3.23.2` | Autenticação e checagem de permissões de usuários |
 | **Componentes UI** | **Radix UI** | `^1.1.0` | Primitivos acessíveis (Dialog, Tooltip, Select, Dropdown) |
 | **Monitoramento I/O** | **Chokidar** | `^4.0.3` | Watcher de sistema de arquivos de alta performance |
 | **Parser XML** | **fast-xml-parser** | `^5.2.5` | Parsing bidirecional de alta velocidade de documentos XML |
