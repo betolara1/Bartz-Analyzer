@@ -19,11 +19,15 @@
     "productName": "Bartz Analyzer",
     "appId": "com.bartz.analyzer",
     "artifactName": "Bartz-Analyzer-Setup-${version}.${ext}",
+    "npmRebuild": false,
+    "asarUnpack": [
+      "**/node_modules/ibm_db/**/*"
+    ],
     "publish": [
       {
         "provider": "github",
         "owner": "betolara1",
-        "repo": "Bartz-Analyzer-4"
+        "repo": "Bartz-Analyzer"
       }
     ],
     "generateUpdatesFilesForAllChannels": true,
