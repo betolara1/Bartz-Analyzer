@@ -277,14 +277,14 @@ export default function Dashboard({
   const hasSpecialOrdersPermission = useMemo(() => {
     if (!currentUser) return false;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-    return perms.map(Number).includes(36);
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(36);
   }, [currentUser]);
 
   // Permissão 37 - Admin Analisador
   const hasAdminPermission = useMemo(() => {
     if (!currentUser) return false;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-    return perms.map(Number).includes(37);
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(37);
   }, [currentUser]);
 
   const checkSpecialOrdersUpdates = useCallback(async () => {
@@ -1713,14 +1713,6 @@ export default function Dashboard({
         )}
       </div>
 
-      {/* Drawer de detalhes */}
-      <FileDetailDrawer
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        data={detailData}
-        onFileMoved={handleFileMoved}
-        onAction={handleManualAction}
-      />
 
       {/* CONFIRMAÇÕES */}
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>

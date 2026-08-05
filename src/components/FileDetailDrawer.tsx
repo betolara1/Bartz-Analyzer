@@ -38,7 +38,7 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
   const hasAdminPermission = React.useMemo(() => {
     if (!currentUser) return false;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-    return perms.map(Number).includes(37);
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(37);
   }, [currentUser]);
 
   // Reset UI state when drawer closes
