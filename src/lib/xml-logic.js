@@ -260,7 +260,6 @@ function validateXmlContent(txt, cfg = {}) {
         }
         if (/\bMX008001\b/i.test(txt) || /\bMX008002\b/i.test(txt)) {
             payload.erros.push({ descricao: "PEÇA MUXARABI" });
-            payload.warnings.push("MUXARABI");
             payload.tags.push("muxarabi");
         }
     } catch (e) { }
@@ -462,8 +461,8 @@ function validateXmlContent(txt, cfg = {}) {
         const REQUIRED_PLUGINS = ["2530", "2534"];
         const seen = new Set(machines.map(m => m.id));
         if (!REQUIRED_PLUGINS.every(id => seen.has(id))) {
-            payload.tags.push("PROBLEMA NA GERAÇÃO DE MÁQUINAS");
-            payload.warnings.push("PROBLEMA NA GERAÇÃO DE MÁQUINAS");
+            payload.tags.push("SEM GERAÇÃO DE MÁQUINAS");
+            payload.warnings.push("SEM GERAÇÃO DE MÁQUINAS");
         }
         const PLUGIN_NAMES = { "2530": "Aspan", "2534": "NCB612" };
         payload.meta.machines = Array.from(seen).map(id => ({ id, name: PLUGIN_NAMES[id] }));

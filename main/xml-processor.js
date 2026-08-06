@@ -108,10 +108,6 @@ async function generateSimplifiedXml(fileFullPath, cfg, analysis) {
     await fsp.writeFile(destPath, simplified, 'utf8');
     console.log(`[Simplificado] Gerado: ${destPath}`);
 
-    if (analysis) {
-      if (!analysis.autoFixes) analysis.autoFixes = [];
-      analysis.autoFixes.push(`XML simplificado gerado na pasta configurada`);
-    }
   } catch (e) {
     console.error('[Simplificado] Erro ao gerar XML simplificado:', String((e && e.message) || e));
   }
@@ -138,17 +134,17 @@ async function processOne(fileFullPath, cfg) {
           if (res.ok) {
             fixedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
-            analysis.autoFixes.push(`DXF: corrigido duplado (37mm/31mm) no arquivo ${match.desenho}`);
+            analysis.autoFixes.push(`Corrigido item duplado (37mm) no arquivo ${match.desenho}`);
 
             // Desenho foi alterado pelo robô — replicar na pasta de cópia, se configurada
             const mirrorRes = await copyDrawingToMirror(fullPath);
             if (mirrorRes.ok) {
-              analysis.autoFixes.push(`DXF: cópia atualizada na pasta espelho (${match.desenho})`);
+              analysis.autoFixes.push(`Cópia de item duplado atualizada na pasta espelho (${match.desenho})`);
             }
           } else if (res.message === 'Nenhuma alteração foi necessária') {
             fixedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
-            analysis.autoFixes.push(`DXF: já estava correto no arquivo ${match.desenho}`);
+            analysis.autoFixes.push(`Item duplado (37mm) já estava correto no arquivo ${match.desenho}`);
           }
         }
       }
@@ -178,19 +174,19 @@ async function processOne(fileFullPath, cfg) {
           if (res.ok) {
             injectedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
-            analysis.autoFixes.push(`DXF: Muxarabi ${sizeCode} (${thickness}mm) aplicado no desenho ${item.desenho}`);
+            analysis.autoFixes.push(`Muxarabi ${sizeCode} (${thickness}mm) aplicado no desenho ${item.desenho}`);
 
             // Desenho foi alterado pelo robô — replicar na pasta de cópia, se configurada
             if (res.path) {
               const mirrorRes = await copyDrawingToMirror(res.path);
               if (mirrorRes.ok) {
-                analysis.autoFixes.push(`DXF: cópia atualizada na pasta espelho (${item.desenho})`);
+                analysis.autoFixes.push(`Cópia de Muxarabi atualizada na pasta espelho (${item.desenho})`);
               }
             }
           } else if (res.message && res.message.includes('já possui usinagens de muxarabi')) {
             injectedCount++;
             if (!analysis.autoFixes) analysis.autoFixes = [];
-            analysis.autoFixes.push(`DXF: Muxarabi já estava aplicado no desenho ${item.desenho}`);
+            analysis.autoFixes.push(`Muxarabi já estava aplicado no desenho ${item.desenho}`);
           }
         }
       }

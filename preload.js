@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('electron', {
     downloadCommentFile: (filename) => ipcRenderer.invoke('analyzer:downloadCommentFile', { filename }),
     openFile: (filePath) => ipcRenderer.invoke('analyzer:openFile', filePath),
     moveToOk: (filePath) => ipcRenderer.invoke('analyzer:moveToOk', filePath),
+    deleteProject: (filePath) => ipcRenderer.invoke('analyzer:deleteProject', filePath),
     clearTargetFolders: () => ipcRenderer.invoke('analyzer:clearTargetFolders'),
     loadHistory: () => ipcRenderer.invoke('analyzer:loadHistory'),
     saveHistory: (rows) => ipcRenderer.invoke('analyzer:saveHistory', rows),

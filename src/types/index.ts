@@ -7,6 +7,7 @@ export interface Row {
   status?: Status;
   errors?: string[];
   autoFixes?: string[];
+  manualFixes?: string[];
   warnings?: string[];
   tags?: string[];
   timestamp?: string;

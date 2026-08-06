@@ -14,7 +14,7 @@ import {
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
   CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut, Sparkles,
-  ChevronLeft, ChevronRight, ChevronDown
+  ChevronLeft, ChevronRight, ChevronDown, Trash2
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -57,12 +57,17 @@ function toRow(p: any): Row | null {
 
   const tags: string[] = Array.isArray(p?.tags) ? p.tags : [];
 
+  const manualFixes: string[] = Array.isArray(p?.manualFixes)
+    ? p.manualFixes.map((m: any) => String(m))
+    : [];
+
   return {
     filename,
     fullpath: full,
     status,
     errors: erros,
     autoFixes,
+    manualFixes,
     warnings,
     tags,
     timestamp: p?.timestamp || new Date().toLocaleString(),
@@ -77,6 +82,8 @@ function formatTag(tag: string) {
   const t = (tag || "").trim().toLowerCase();
   if (t === "ferragens" || t === "ferragens-only") return "FERRAGENS";
   if (t === "muxarabi") return "MUXARABI";
+  if (t === "muxarabi_autofix" || t === "muxarabi-autofix") return "MUXARABI_AUTO-FIX";
+  if (t === "duplado_autofix" || t === "duplado-autofix" || t === "duplado37mm_autofix") return "DUPLADO_AUTO-FIX";
   if (t === "coringa" || t === "cor coringa") return "COR CORINGA";
   if (t === "qtd-zero" || t === "qtd zero") return "QTD ZERO";
   if (t === "preco-zero" || t === "preço zero") return "PREÇO ZERO";
@@ -102,6 +109,13 @@ function filterTags(tags: string[]): string[] {
 
   return tags.filter(t => {
     const n = norm(t);
+    // Não exibe a tag "curvo" na coluna de TAGS da tabela
+    if (n === 'curvo') return false;
+
+    // Assegura que tags específicas de autofix sejam mantidas
+    if (n.endsWith('autofix') || n.endsWith('_autofix')) return true;
+
+    // Filtra a tag original/base se a versão autofix estiver presente
     if (autofixBases.has(n)) return false;
     if (n.includes('duplado') && Array.from(autofixBases).some(b => b.includes('duplado'))) {
       return false;
@@ -253,6 +267,8 @@ export default function Dashboard({
   const [confirmExcluirOpen, setConfirmExcluirOpen] = useState(false);
   const [confirmBulkMoveOpen, setConfirmBulkMoveOpen] = useState(false);
   const [specialOrdersOpen, setSpecialOrdersOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
 
   const mounted = useRef(true);
   const isConnected = !!window.electron?.analyzer;
@@ -1001,6 +1017,29 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     }
   }, []);
 
+  const handleDeleteProject = useCallback(async () => {
+    if (!deleteTarget) return;
+    setConfirmDeleteOpen(false);
+    const id = toast.loading("Excluindo projeto…");
+    try {
+      const res = await window.electron?.analyzer?.deleteProject?.(deleteTarget.fullpath);
+      if (res?.ok) {
+        toast.success(`Projeto "${deleteTarget.filename}" excluído com sucesso.`);
+        setRows(prev => prev.filter(r => r.fullpath !== deleteTarget.fullpath));
+        // Fechar drawer se estiver mostrando o arquivo excluído
+        setDetailData(prev => (prev && prev.fullpath === deleteTarget.fullpath ? null : prev));
+        if (detailData?.fullpath === deleteTarget.fullpath) setDetailOpen(false);
+      } else {
+        toast.error("Falha ao excluir.", { description: res?.message || "Erro desconhecido" });
+      }
+    } catch (e: any) {
+      toast.error("Erro ao excluir projeto.", { description: String(e?.message || e) });
+    } finally {
+      toast.dismiss(id);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, detailData]);
+
   const reprocessOne = useCallback(async (fullPath: string) => {
     const id = toast.loading("Processando arquivo…");
     try {
@@ -1021,7 +1060,11 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       const copy = [...prev];
       const row = { ...copy[idx] };
       const timePrefix = new Date().toLocaleTimeString('pt-BR');
+      const cleanFix = action.replace(/^\[Manual\]\s*/i, '').replace(/^\[Automático\]\s*/i, '').trim();
       row.history = [...(row.history || []), `[${timePrefix}] ${action}`];
+      if (cleanFix) {
+        row.manualFixes = Array.from(new Set([...(row.manualFixes || []), cleanFix]));
+      }
       copy[idx] = row;
       setDetailData(prevData => (prevData && (prevData.fullpath === fullpath || prevData.filename === row.filename) ? row : prevData));
       return copy;
@@ -1038,6 +1081,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       const copy = [...prev];
       const idx = copy.findIndex(r => r.fullpath === oldPath);
       if (idx !== -1) {
+        const manualFix = "Movido manualmente para a pasta OK";
         const updatedRow = {
           ...copy[idx],
           fullpath: newPath,
@@ -1045,6 +1089,8 @@ function createCanvasBadgeDataUrl(count: number): string | null {
           status: "OK" as const,
           errors: [],
           tags: (copy[idx].tags || []).filter(t => t.toLowerCase() !== "duplado 37mm" && t.toLowerCase() !== "duplado37mm"),
+          manualFixes: Array.from(new Set([...(copy[idx].manualFixes || []), manualFix])),
+          history: [...(copy[idx].history || []), `[${new Date().toLocaleTimeString('pt-BR')}] [Manual] ${manualFix}`],
         };
         copy[idx] = updatedRow;
 
@@ -1055,12 +1101,12 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     });
   }, []);
 
-  // Arquivos elegíveis para bulk move: APENAS "PROBLEMA NA GERAÇÃO DE MÁQUINAS" como único erro
+  // Arquivos elegíveis para bulk move: APENAS "SEM GERAÇÃO DE MÁQUINAS" como único erro
   const bulkMoveEligible = useMemo(() =>
     rows.filter(r =>
       r.status === "ERRO" &&
       (r.errors || []).length === 1 &&
-      (r.errors || [])[0]?.toUpperCase().includes("PROBLEMA NA GERAÇÃO DE MÁQUINAS")
+      (r.errors || [])[0]?.toUpperCase().includes("SEM GERAÇÃO DE MÁQUINAS")
     ), [rows]);
 
   const executeBulkMoveToOk = useCallback(async () => {
@@ -1120,7 +1166,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v5.23.0
+                v5.24.0
               </span>
             </div>
             {watchRoot && (
@@ -1684,7 +1730,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                 className="gap-2 border-emerald-700 hover:bg-emerald-900/20 text-emerald-400 text-[11px] h-7"
               >
                 <Send className="h-3.5 w-3.5" />
-                Enviar 'PROBLEMA NA GERAÇÃO DE MÁQUINAS' para OK? ({bulkMoveEligible.length})
+                Enviar 'SEM GERAÇÃO DE MÁQUINAS' para OK? ({bulkMoveEligible.length})
               </Button>
             )}
             <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border">
@@ -1762,10 +1808,12 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                       <div className="flex flex-wrap gap-1.5 max-w-32">
                         {(() => {
                           const displayTags = filterTags(file.tags || []);
-                          const hasTags = displayTags.length > 0 || autoFixed;
+                          const hasAutofixTag = displayTags.some(t => t.toLowerCase().includes("autofix"));
+                          const showGenericAutofix = autoFixed && !hasAutofixTag;
+                          const hasTags = displayTags.length > 0 || showGenericAutofix;
                           return hasTags ? (
                             <>
-                              {autoFixed && (
+                              {showGenericAutofix && (
                                 <Badge
                                   variant="outline"
                                   className="text-[#1ABC9C] border-[#1ABC9C]/20 bg-[#1ABC9C]/5 text-[9px] font-bold uppercase py-0 px-2 h-5 flex items-center gap-1"
@@ -1809,6 +1857,13 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                           className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-primary transition-all text-muted-foreground"
                         >
                           <FolderOpen className="h-4 w-4" />
+                        </button>
+                        <button
+                          title="Excluir projeto"
+                          onClick={() => { setDeleteTarget(file); setConfirmDeleteOpen(true); }}
+                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-all text-muted-foreground"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </TableCell>
@@ -1888,7 +1943,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
         <AlertDialogContent className="bg-card border border-emerald-500/30">
           <AlertDialogTitle className="text-foreground">Enviar Erros de Máquinas para OK</AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground">
-            Deseja mover <strong className="text-foreground">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-foreground">apenas</strong> o erro "PROBLEMA NA GERAÇÃO DE MÁQUINAS" para a pasta OK?
+            Deseja mover <strong className="text-foreground">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-foreground">apenas</strong> o erro "SEM GERAÇÃO DE MÁQUINAS" para a pasta OK?
             <br /><br />
             <span className="text-muted-foreground/60 text-xs">Arquivos com outros erros além desse não serão movidos.</span>
           </AlertDialogDescription>
@@ -1899,6 +1954,26 @@ function createCanvasBadgeDataUrl(count: number): string | null {
               className="bg-emerald-600 text-white hover:bg-emerald-500"
             >
               Sim, enviar para OK
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent className="bg-card border border-rose-500/30">
+          <AlertDialogTitle className="text-foreground">Excluir Projeto</AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground">
+            Deseja realmente excluir o projeto <strong className="text-foreground">{deleteTarget?.filename}</strong>?
+            <br /><br />
+            <span className="text-rose-400 text-xs">⚠ Esta ação é irreversível. O arquivo será removido permanentemente do disco.</span>
+          </AlertDialogDescription>
+          <div className="flex gap-2 justify-end mt-4">
+            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              className="bg-rose-600 text-white hover:bg-rose-500"
+            >
+              Sim, excluir
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

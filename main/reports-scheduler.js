@@ -342,4 +342,18 @@ ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
   }
 });
 
+ipcMain.handle("analyzer:deleteProject", async (_, filePath) => {
+  try {
+    if (!filePath) return { ok: false, message: "Arquivo não informado" };
+    const exists = await fse.pathExists(filePath);
+    if (!exists) return { ok: false, message: "Arquivo não encontrado no disco" };
+    await fse.remove(filePath);
+    console.log(`[Delete] Arquivo excluído: ${filePath}`);
+    return { ok: true };
+  } catch (e) {
+    console.error("[Delete] Erro ao excluir arquivo:", e);
+    return { ok: false, message: String(e.message || e) };
+  }
+});
+
 module.exports = { startAutomaticScheduler };

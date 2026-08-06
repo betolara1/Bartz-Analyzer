@@ -64,7 +64,7 @@ describe('XML Validation Logic', () => {
         const xml = `<XML><ITEM ITEM_BASE="MX008001" DESCRICAO="Porta Muxarabi" /></XML>`;
         const { payload } = validateXmlContent(xml);
         expect(payload.tags).toContain('muxarabi');
-        expect(payload.warnings).toContain('MUXARABI');
+        expect(payload.warnings).not.toContain('MUXARABI');
         expect(payload.erros).toContainEqual({ descricao: 'PEÇA MUXARABI' });
         expect(payload.meta.muxarabiItems).toHaveLength(1);
         expect(payload.meta.muxarabiItems[0].itemBase).toBe('MX008001');
@@ -82,27 +82,27 @@ describe('XML Validation Logic', () => {
         // Only one of them present (Aspan): should flag as warning
         const xmlOnlyOne = `<XML><ITEM BUILDER="S" /><MAQUINA ID_PLUGIN="2530" NOME_PLUGIN="Aspan" /></XML>`;
         const resOnlyOne = validateXmlContent(xmlOnlyOne);
-        expect(resOnlyOne.payload.erros).not.toContainEqual({ descricao: 'PROBLEMA NA GERAÇÃO DE MÁQUINAS' });
-        expect(resOnlyOne.payload.tags).toContain('PROBLEMA NA GERAÇÃO DE MÁQUINAS');
-        expect(resOnlyOne.payload.warnings).toContain('PROBLEMA NA GERAÇÃO DE MÁQUINAS');
+        expect(resOnlyOne.payload.erros).not.toContainEqual({ descricao: 'SEM GERAÇÃO DE MÁQUINAS' });
+        expect(resOnlyOne.payload.tags).toContain('SEM GERAÇÃO DE MÁQUINAS');
+        expect(resOnlyOne.payload.warnings).toContain('SEM GERAÇÃO DE MÁQUINAS');
 
         // None of them present: should flag as warning
         const xmlNone = `<XML><ITEM BUILDER="S" /></XML>`;
         const resNone = validateXmlContent(xmlNone);
-        expect(resNone.payload.erros).not.toContainEqual({ descricao: 'PROBLEMA NA GERAÇÃO DE MÁQUINAS' });
-        expect(resNone.payload.tags).toContain('PROBLEMA NA GERAÇÃO DE MÁQUINAS');
+        expect(resNone.payload.erros).not.toContainEqual({ descricao: 'SEM GERAÇÃO DE MÁQUINAS' });
+        expect(resNone.payload.tags).toContain('SEM GERAÇÃO DE MÁQUINAS');
 
         // Both present: should pass without warning
         const xmlBoth = `<XML><ITEM BUILDER="S" /><MAQUINA ID_PLUGIN="2530" NOME_PLUGIN="Aspan" /><MAQUINA ID_PLUGIN="2534" NOME_PLUGIN="NCB612" /></XML>`;
         const resBoth = validateXmlContent(xmlBoth);
-        expect(resBoth.payload.tags).not.toContain('PROBLEMA NA GERAÇÃO DE MÁQUINAS');
+        expect(resBoth.payload.tags).not.toContain('SEM GERAÇÃO DE MÁQUINAS');
     });
 
     it('should NOT detect missing machines if it is ferragensOnly', () => {
         const xml = `<XML><ITEM BUILDER="N" /></XML>`;
         const { payload } = validateXmlContent(xml);
-        expect(payload.tags).not.toContain('PROBLEMA NA GERAÇÃO DE MÁQUINAS');
-        expect(payload.warnings).not.toContain('PROBLEMA NA GERAÇÃO DE MÁQUINAS');
+        expect(payload.tags).not.toContain('SEM GERAÇÃO DE MÁQUINAS');
+        expect(payload.warnings).not.toContain('SEM GERAÇÃO DE MÁQUINAS');
     });
 
     it('should detect SEM ITEM FILHO when top-level ITEM has no UNIQUE_ID', () => {

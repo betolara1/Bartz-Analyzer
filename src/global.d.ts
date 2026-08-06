@@ -47,10 +47,11 @@ declare global {
         getSpecialOrders?: () => Promise<IpcResult & { data?: any[] }>;
         completeEngineeringOrder?: (params: { pk_pedido_engenharia: number; pk_usuario_alteracao?: number }) => Promise<IpcResult>;
         sendNotification?: (params: { title: string; body: string; count?: number }) => Promise<IpcResult>;
-        setTaskbarBadge?: (count: number) => Promise<IpcResult>;
+        setTaskbarBadge?: (arg: number | { count: number; dataUrl?: string | null }) => Promise<IpcResult>;
         downloadCommentFile?: (filename: string) => Promise<IpcResult & { destPath?: string }>;
         openFile?: (filePath: string) => Promise<IpcResult>;
         moveToOk?: (filePath: string) => Promise<IpcResult & { destPath?: string }>;
+        deleteProject?: (filePath: string) => Promise<IpcResult>;
         clearTargetFolders?: () => Promise<IpcResult & { clearedCount?: number }>;
         loadHistory?: () => Promise<any[]>;
         saveHistory?: (rows: any[]) => Promise<{ ok: boolean; count?: number; message?: string }>;

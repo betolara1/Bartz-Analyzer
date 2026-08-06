@@ -22,6 +22,12 @@ export function InfoSection({ data, onReprocess, onOpenFolder }: InfoSectionProp
         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Ações Rápidas</div>
         <div className="flex gap-2">  
           <button 
+            onClick={onReprocess}
+            className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-lg border border-border flex items-center justify-center gap-1.5 transition-all"
+          >
+            <RotateCcw className="h-3 w-3" /> Reprocessar
+          </button>
+          <button 
             onClick={onOpenFolder}
             className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-lg border border-border flex items-center justify-center gap-1.5 transition-all"
           >

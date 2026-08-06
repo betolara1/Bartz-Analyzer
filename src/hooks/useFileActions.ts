@@ -296,7 +296,7 @@ export function useFileActions(
       const res = await window.electron?.analyzer?.fixFresa37to18?.(dxfInfo.data.path);
       if (res?.ok) {
         toast.success(`${drawing} corrigido com sucesso!`);
-        if (onAction) onAction(data.fullpath, `[Automático] DXF: corrigido duplado (37mm/31mm) no arquivo ${drawing}`);
+        if (onAction) onAction(data.fullpath, `[Automático] Corrigido duplado (37mm/31mm) no arquivo ${drawing}`);
         // Refresh info
         const result = await window.electron?.analyzer?.findDrawingFile?.(drawing, data.fullpath);
         if (result?.found && result?.path) {
@@ -503,7 +503,7 @@ export function useFileActions(
       const res = await window.electron?.analyzer?.moveToOk?.(data.fullpath);
       if (res?.ok) {
         toast.success("Arquivo movido para OK!");
-        if (onAction) onAction(data.fullpath, "[Manual] Movido para pasta OK");
+        if (onAction) onAction(data.fullpath, "[Manual] Movido manualmente para a pasta OK");
         if (onFileMoved && res.destPath) {
           onFileMoved(data.fullpath, res.destPath);
         }

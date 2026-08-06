@@ -254,6 +254,17 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
     setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrderComment[] {
+  return comments.filter((c) => {
+    const sit = c.int_situacao !== null && c.int_situacao !== undefined ? Number(c.int_situacao) : 0;
+    const isSituacaoOk = sit === 0 || sit === 1;
+    const title = String(c.txt_titulo || "").toLowerCase();
+    const text = String(c.txt_comentario || "").toLowerCase();
+    const isDesconsiderado = title.includes("desconsiderad") || text.includes("desconsiderad");
+    return isSituacaoOk && !isDesconsiderado;
+  });
+}
+
   const filteredOrders = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     return orders.filter((order) => {
@@ -287,8 +298,9 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
         return true;
       }
 
-      // Check comments
-      return order.comentarios.some((c) => {
+      // Check valid comments only
+      const validComments = filterValidComments(order.comentarios);
+      return validComments.some((c) => {
         const titleStr = String(c.txt_titulo || "").toLowerCase();
         const commentStr = String(c.txt_comentario || "").toLowerCase();
         const authorStr = String(c.nome_usuario || "").toLowerCase();
@@ -525,18 +537,25 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
                         </span>
                       )}
 
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-300 text-xs font-medium border border-purple-500/20">
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        {order.comentarios.length}
-                      </div>
+                      {(() => {
+                        const validComments = filterValidComments(order.comentarios);
+                        return (
+                          <>
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-300 text-xs font-medium border border-purple-500/20">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              {validComments.length}
+                            </div>
 
-                      <div className="text-muted-foreground">
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </div>
+                            <div className="text-muted-foreground">
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -560,103 +579,108 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
                       </div>
 
                       {/* Comments List */}
-                      <div className="space-y-2.5">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                          <MessageSquare className="h-3.5 w-3.5 text-purple-400" />
-                          Comentários do Pedido ({order.comentarios.length})
-                        </div>
+                      {(() => {
+                        const validComments = filterValidComments(order.comentarios);
+                        return (
+                          <div className="space-y-2.5">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <MessageSquare className="h-3.5 w-3.5 text-purple-400" />
+                              Comentários do Pedido ({validComments.length})
+                            </div>
 
-                        {order.comentarios.length === 0 ? (
-                          <div className="p-3 rounded-lg bg-muted/20 border border-dashed border-border text-xs italic text-muted-foreground">
-                            Nenhum comentário registrado para este pedido.
-                          </div>
-                        ) : (
-                          order.comentarios.map((comment) => {
-                            const isCommentExpanded = !!expandedComments[comment.pk_pedido_comentario];
-                            const cleanedText = cleanCommentText(comment.txt_comentario);
-                            const lines = cleanedText.split(/<br\s*\/?>|\n/gi);
+                            {validComments.length === 0 ? (
+                              <div className="p-3 rounded-lg bg-muted/20 border border-dashed border-border text-xs italic text-muted-foreground">
+                                Nenhum comentário registrado para este pedido.
+                              </div>
+                            ) : (
+                              validComments.map((comment) => {
+                                const isCommentExpanded = !!expandedComments[comment.pk_pedido_comentario];
+                                const cleanedText = cleanCommentText(comment.txt_comentario);
+                                const lines = cleanedText.split(/<br\s*\/?>|\n/gi);
 
-                            return (
-                              <div
-                                key={comment.pk_pedido_comentario}
-                                className="rounded-lg bg-muted/40 border border-border/80 overflow-hidden hover:border-purple-500/30 transition-colors"
-                              >
-                                <div
-                                  onClick={(e) => toggleCommentExpand(comment.pk_pedido_comentario, e)}
-                                  className="p-3 cursor-pointer flex items-center justify-between gap-3 bg-muted/30 hover:bg-muted/60 transition-colors select-none"
-                                >
-                                  <div className="font-bold text-purple-300 text-xs flex items-center gap-2">
-                                    {comment.txt_titulo || "Comentário de Fábrica"}
-                                  </div>
+                                return (
+                                  <div
+                                    key={comment.pk_pedido_comentario}
+                                    className="rounded-lg bg-muted/40 border border-border/80 overflow-hidden hover:border-purple-500/30 transition-colors"
+                                  >
+                                    <div
+                                      onClick={(e) => toggleCommentExpand(comment.pk_pedido_comentario, e)}
+                                      className="p-3 cursor-pointer flex items-center justify-between gap-3 bg-muted/30 hover:bg-muted/60 transition-colors select-none"
+                                    >
+                                      <div className="font-bold text-purple-300 text-xs flex items-center gap-2">
+                                        {comment.txt_titulo || "Comentário de Fábrica"}
+                                      </div>
 
-                                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                                    {comment.nome_usuario && (
-                                      <span className="flex items-center gap-1">
-                                        <User className="h-3 w-3 text-purple-400" />
-                                        {comment.nome_usuario}
-                                      </span>
-                                    )}
-                                    {comment.dat_data && (
-                                      <span className="flex items-center gap-1">
-                                        <Calendar className="h-3 w-3 text-purple-400" />
-                                        {comment.dat_data}
-                                      </span>
-                                    )}
-                                    <div className="text-muted-foreground ml-1">
-                                      {isCommentExpanded ? (
-                                        <ChevronUp className="h-3.5 w-3.5 text-purple-400" />
-                                      ) : (
-                                        <ChevronDown className="h-3.5 w-3.5" />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {isCommentExpanded && (
-                                  <div className="p-3 pt-2 space-y-2 border-t border-border/30 bg-card">
-                                    <div className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
-                                      {lines.map((line, idx) => (
-                                        <React.Fragment key={idx}>
-                                          {line}
-                                          {idx < lines.length - 1 && <br />}
-                                        </React.Fragment>
-                                      ))}
-                                    </div>
-
-                                    {comment.txt_arquivo && (
-                                      <div className="mt-2.5 p-2 px-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2 overflow-hidden text-xs text-purple-200">
-                                          <Paperclip className="h-4 w-4 text-purple-400 shrink-0" />
-                                          <span className="truncate font-semibold text-xs" title={comment.txt_arquivo}>
-                                            {comment.txt_arquivo}
+                                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                                        {comment.nome_usuario && (
+                                          <span className="flex items-center gap-1">
+                                            <User className="h-3 w-3 text-purple-400" />
+                                            {comment.nome_usuario}
                                           </span>
-                                        </div>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDownloadFile(comment.txt_arquivo!);
-                                          }}
-                                          disabled={downloadingFile === comment.txt_arquivo}
-                                          className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all"
-                                        >
-                                          {downloadingFile === comment.txt_arquivo ? (
-                                            <RefreshCw className="h-3 w-3 animate-spin" />
+                                        )}
+                                        {comment.dat_data && (
+                                          <span className="flex items-center gap-1">
+                                            <Calendar className="h-3 w-3 text-purple-400" />
+                                            {comment.dat_data}
+                                          </span>
+                                        )}
+                                        <div className="text-muted-foreground ml-1">
+                                          {isCommentExpanded ? (
+                                            <ChevronUp className="h-3.5 w-3.5 text-purple-400" />
                                           ) : (
-                                            <Download className="h-3 w-3" />
+                                            <ChevronDown className="h-3.5 w-3.5" />
                                           )}
-                                          Baixar Anexo
-                                        </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {isCommentExpanded && (
+                                      <div className="p-3 pt-2 space-y-2 border-t border-border/30 bg-card">
+                                        <div className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
+                                          {lines.map((line, idx) => (
+                                            <React.Fragment key={idx}>
+                                              {line}
+                                              {idx < lines.length - 1 && <br />}
+                                            </React.Fragment>
+                                          ))}
+                                        </div>
+
+                                        {comment.txt_arquivo && (
+                                          <div className="mt-2.5 p-2 px-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2 overflow-hidden text-xs text-purple-200">
+                                              <Paperclip className="h-4 w-4 text-purple-400 shrink-0" />
+                                              <span className="truncate font-semibold text-xs" title={comment.txt_arquivo}>
+                                                {comment.txt_arquivo}
+                                              </span>
+                                            </div>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDownloadFile(comment.txt_arquivo!);
+                                              }}
+                                              disabled={downloadingFile === comment.txt_arquivo}
+                                              className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all"
+                                            >
+                                              {downloadingFile === comment.txt_arquivo ? (
+                                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                              ) : (
+                                                <Download className="h-3 w-3" />
+                                              )}
+                                              Baixar Anexo
+                                            </Button>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

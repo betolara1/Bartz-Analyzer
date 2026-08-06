@@ -324,10 +324,18 @@ ipcMain.handle('analyzer:getSpecialOrders', async () => {
 
       if (Array.isArray(comments)) {
         comments.forEach(c => {
-          if (!commentsByPedido[c.pk_pedido]) {
-            commentsByPedido[c.pk_pedido] = [];
+          const sit = c.int_situacao !== null && c.int_situacao !== undefined ? Number(c.int_situacao) : 0;
+          const isSituacaoOk = sit === 0 || sit === 1;
+          const title = String(c.txt_titulo || '').toLowerCase();
+          const commentText = String(c.txt_comentario || '').toLowerCase();
+          const isDesconsiderado = title.includes('desconsiderad') || commentText.includes('desconsiderad');
+
+          if (isSituacaoOk && !isDesconsiderado) {
+            if (!commentsByPedido[c.pk_pedido]) {
+              commentsByPedido[c.pk_pedido] = [];
+            }
+            commentsByPedido[c.pk_pedido].push(c);
           }
-          commentsByPedido[c.pk_pedido].push(c);
         });
       }
     }

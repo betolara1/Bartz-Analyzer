@@ -1,7 +1,8 @@
 import React from "react";
-import { AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { AlertTriangle, Info, CheckCircle, Wrench } from "lucide-react";
 import { BadgeErro } from "../BadgeErro";
 import { AutoFixBadge } from "../AutoFixBadge";
+import { Badge } from "../ui/badge";
 import { Row } from "../../types";
 
 interface ErrorWarningSectionProps {
@@ -14,6 +15,13 @@ export function ErrorWarningSection({ data, onMoveToOk }: ErrorWarningSectionPro
   const warnings = data?.warnings || [];
   const autoFixes = data?.autoFixes || [];
 
+  const normalizeFix = (f: string) => f === "Movido para pasta OK" ? "Movido manualmente para a pasta OK" : f;
+  const manualFixesFromProp = (data?.manualFixes || []).map(normalizeFix);
+  const manualFixesFromHistory = (data?.history || [])
+    .filter(h => h.includes("[Manual]") || h.toLowerCase().includes("movido para pasta ok") || h.toLowerCase().includes("movido manualmente"))
+    .map(h => normalizeFix(h.replace(/^\[\d{1,2}:\d{2}:\d{2}\]\s*/, '').replace(/^\[Manual\]\s*/i, '').trim()));
+  const manualFixes = Array.from(new Set([...manualFixesFromProp, ...manualFixesFromHistory]));
+
   const isErpError = (e: string) => String(e).toLowerCase().includes("não encontrado no erp");
   const isMuxarabiError = (e: string) => String(e).toUpperCase().includes("PEÇA MUXARABI");
 
@@ -24,7 +32,7 @@ export function ErrorWarningSection({ data, onMoveToOk }: ErrorWarningSectionPro
   const otherErrors = errors.filter(e => !isErpError(e) && !isMuxarabiError(e));
   const hasOtherErrors = otherErrors.length > 0;
 
-  if (errors.length === 0 && warnings.length === 0 && autoFixes.length === 0) {
+  if (errors.length === 0 && warnings.length === 0 && autoFixes.length === 0 && manualFixes.length === 0) {
     return (
       <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
         <CheckCircle className="h-5 w-5 text-emerald-500" />
@@ -84,6 +92,23 @@ export function ErrorWarningSection({ data, onMoveToOk }: ErrorWarningSectionPro
           <div className="flex flex-wrap gap-2">
             {autoFixes.map((f, i) => (
               <AutoFixBadge key={i} fix={f} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CORREÇÕES MANUAIS */}
+      {manualFixes.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Wrench className="h-4 w-4 text-blue-400" />
+            <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Correções Manuais ({manualFixes.length})</h4>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {manualFixes.map((m, i) => (
+              <Badge key={i} variant="outline" className="text-blue-400 border-blue-500/30 bg-blue-500/10 text-xs">
+                {m}
+              </Badge>
             ))}
           </div>
         </div>
