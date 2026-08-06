@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
 const fse = require("fs-extra");
-const { ipcMain, dialog, shell, Notification, nativeImage } = require("electron");
+const { app, ipcMain, dialog, shell, Notification, nativeImage } = require("electron");
 const { send, removeAccents, loadCfg } = require("./helpers");
 const { ERP_BASE_URL, erpFetch, readErpJsonArray } = require("./erp-auth");
 const mysql = require("mysql2/promise");
@@ -492,14 +492,59 @@ ipcMain.handle('analyzer:completeEngineeringOrder', async (_e, { pk_pedido_engen
   }
 });
 
-function createBadgeOverlay(count) {
+function createBadgeOverlay(rawArg) {
+  let count = 0;
+  let dataUrl = null;
+
+  if (typeof rawArg === "number") {
+    count = rawArg;
+  } else if (rawArg && typeof rawArg === "object") {
+    count = rawArg.count || 0;
+    dataUrl = rawArg.dataUrl || null;
+  } else if (typeof rawArg === "string") {
+    count = parseInt(rawArg, 10) || 0;
+  }
+
   if (!count || count <= 0) return null;
-  const countStr = count > 99 ? "99+" : String(count);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-    <circle cx="16" cy="16" r="14" fill="#e11d48" stroke="#ffffff" stroke-width="2"/>
-    <text x="16" y="21" font-size="16" font-weight="bold" font-family="Arial, sans-serif" fill="#ffffff" text-anchor="middle">${countStr}</text>
-  </svg>`;
-  return nativeImage.createFromBuffer(Buffer.from(svg));
+
+  if (dataUrl && typeof dataUrl === "string" && dataUrl.startsWith("data:image")) {
+    try {
+      const img = nativeImage.createFromDataURL(dataUrl);
+      if (img && !img.isEmpty()) return img;
+    } catch (e) {}
+  }
+
+  // Fallback 32x32 RGBA Bitmap Buffer
+  const width = 32;
+  const height = 32;
+  const buffer = Buffer.alloc(width * height * 4);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const dx = x - 16;
+      const dy = y - 16;
+      const distSq = dx * dx + dy * dy;
+      const idx = (y * width + x) * 4;
+
+      if (distSq <= 14 * 14) {
+        if (distSq >= 12 * 12) {
+          // White border
+          buffer[idx] = 255;
+          buffer[idx + 1] = 255;
+          buffer[idx + 2] = 255;
+          buffer[idx + 3] = 255;
+        } else {
+          // Purple fill (#9333ea)
+          buffer[idx] = 234;
+          buffer[idx + 1] = 51;
+          buffer[idx + 2] = 147;
+          buffer[idx + 3] = 255;
+        }
+      }
+    }
+  }
+
+  return nativeImage.createFromBitmap(buffer, { width, height });
 }
 
 ipcMain.handle("analyzer:sendNotification", async (_e, { title, body, count }) => {
@@ -522,9 +567,13 @@ ipcMain.handle("analyzer:sendNotification", async (_e, { title, body, count }) =
       state.win.flashFrame(true);
     }
 
-    if (state.win && typeof count === "number") {
+    if (state.win) {
       const img = createBadgeOverlay(count);
-      state.win.setOverlayIcon(img, `${count} notificações`);
+      if (img && !img.isEmpty()) {
+        state.win.setOverlayIcon(img, count > 0 ? `${count} pedidos pendentes` : "");
+      } else {
+        state.win.setOverlayIcon(null, "");
+      }
     }
 
     return { ok: true };
@@ -534,14 +583,38 @@ ipcMain.handle("analyzer:sendNotification", async (_e, { title, body, count }) =
   }
 });
 
-ipcMain.handle("analyzer:setTaskbarBadge", async (_e, count) => {
+ipcMain.handle("analyzer:setTaskbarBadge", async (_e, rawArg) => {
   try {
+    let count = 0;
+    if (typeof rawArg === "number") {
+      count = rawArg;
+    } else if (rawArg && typeof rawArg.count === "number") {
+      count = rawArg.count;
+    } else if (typeof rawArg === "string") {
+      count = parseInt(rawArg, 10) || 0;
+    }
+
+    if (app && typeof app.setBadgeCount === "function") {
+      try {
+        app.setBadgeCount(count);
+      } catch (e) {}
+    }
+
     if (state.win) {
-      const img = createBadgeOverlay(count);
-      state.win.setOverlayIcon(img, count > 0 ? `${count} pendentes` : "");
+      if (count > 0) {
+        const img = createBadgeOverlay(rawArg);
+        if (img && !img.isEmpty()) {
+          state.win.setOverlayIcon(img, `${count} pedidos especiais pendentes`);
+        } else {
+          state.win.setOverlayIcon(null, "");
+        }
+      } else {
+        state.win.setOverlayIcon(null, "");
+      }
     }
     return { ok: true };
   } catch (err) {
+    console.error("[setTaskbarBadge Error]", err.message);
     return { ok: false, message: err.message };
   }
 });

@@ -87,12 +87,19 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  const [downloadingOrderXmlId, setDownloadingOrderXmlId] = useState<number | null>(null);
   const [completingId, setCompletingId] = useState<number | null>(null);
   const [confirmCompleteOrder, setConfirmCompleteOrder] = useState<SpecialOrder | null>(null);
   const [orders, setOrders] = useState<SpecialOrder[]>(specialOrders || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({});
+
+  const toggleCommentExpand = (commentId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedComments((prev) => ({ ...prev, [commentId]: !prev[commentId] }));
+  };
 
   // Sync with specialOrders prop passed from Dashboard background monitor
   useEffect(() => {
@@ -100,6 +107,52 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
       setOrders(specialOrders);
     }
   }, [specialOrders]);
+
+  const handleDownloadOrderXml = async (order: SpecialOrder, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const numPedido = String(order.num_pedido || order.pk_pedido || "").trim();
+    if (!numPedido) {
+      toast.error("Número do pedido inválido.");
+      return;
+    }
+
+    setDownloadingOrderXmlId(order.pk_pedido_engenharia);
+    const toastId = toast.loading(`Buscando XML do Pedido #${numPedido} na pasta de busca...`);
+
+    try {
+      const searchRes = await window.electron?.analyzer?.searchXmlFiles?.(numPedido);
+      if (!searchRes?.ok) {
+        toast.error(`Falha ao pesquisar XML do Pedido #${numPedido}: ${searchRes?.message || "Erro desconhecido"}`);
+        return;
+      }
+
+      const results = searchRes.results || [];
+      if (results.length === 0) {
+        toast.error(`Nenhum arquivo XML encontrado para o Pedido #${numPedido} na Pasta de Busca XML.`);
+        return;
+      }
+
+      let copiedCount = 0;
+      for (const file of results) {
+        const copyRes = await window.electron?.analyzer?.copyXmlToEntrada?.(file.fullPath);
+        if (copyRes?.ok) {
+          copiedCount++;
+        }
+      }
+
+      if (copiedCount > 0) {
+        toast.success(`XML do Pedido #${numPedido} copiado e importado com sucesso! (${copiedCount} arquivo(s))`);
+      } else {
+        toast.error(`Não foi possível copiar o XML do Pedido #${numPedido} para a pasta de entrada.`);
+      }
+    } catch (err: any) {
+      console.error("[SpecialOrdersModal] Erro ao baixar XML do pedido:", err);
+      toast.error("Erro ao importar XML do pedido.", { description: String(err?.message || err) });
+    } finally {
+      setDownloadingOrderXmlId(null);
+      toast.dismiss(toastId);
+    }
+  };
 
   const handleDownloadFile = async (filename: string) => {
     setDownloadingFile(filename);
@@ -314,32 +367,29 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
             <div className="flex rounded-lg bg-background p-1 border border-border text-xs">
               <button
                 onClick={() => setStatusFilter("todos")}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === "todos"
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "todos"
                     ? "bg-purple-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 Todos ({orders.length})
               </button>
               <button
                 onClick={() => setStatusFilter("em_aberto")}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === "em_aberto"
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "em_aberto"
                     ? "bg-amber-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 Em Aberto (
                 {orders.filter((o) => (o.status_engenharia || "").toLowerCase().includes("aberto")).length})
               </button>
               <button
                 onClick={() => setStatusFilter("concluido")}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === "concluido"
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "concluido"
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 Concluídos (
                 {orders.filter((o) => (o.status_engenharia || "").toLowerCase().includes("conclui")).length})
@@ -394,11 +444,10 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
 
                       {/* Status Badge */}
                       <span
-                        className={`text-xs px-2.5 py-1 rounded-md font-semibold border flex items-center gap-1 ${
-                          isAberto
+                        className={`text-xs px-2.5 py-1 rounded-md font-semibold border flex items-center gap-1 ${isAberto
                             ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
                             : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                        }`}
+                          }`}
                       >
                         {isAberto ? <Clock className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
                         {order.status_engenharia || "Pendente"}
@@ -435,6 +484,23 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
                           </div>
                         )}
                       </div>
+
+                      {/* Botão Baixar pedido */}
+                      <Button
+                        size="sm"
+                        onClick={(e) => handleDownloadOrderXml(order, e)}
+                        disabled={downloadingOrderXmlId === order.pk_pedido_engenharia}
+                        variant="outline"
+                        className="h-8 px-3 text-xs border-purple-500/40 hover:bg-purple-500/20 text-purple-300 font-bold gap-1.5 shadow-md transition-all shrink-0 cursor-pointer"
+                        title="Buscar e importar XML do pedido na pasta de entrada"
+                      >
+                        {downloadingOrderXmlId === order.pk_pedido_engenharia ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-purple-400" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 text-purple-400" />
+                        )}
+                        Baixar pedido
+                      </Button>
 
                       {/* Botão Concluído */}
                       {isAberto ? (
@@ -506,18 +572,23 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
                           </div>
                         ) : (
                           order.comentarios.map((comment) => {
+                            const isCommentExpanded = !!expandedComments[comment.pk_pedido_comentario];
                             const cleanedText = cleanCommentText(comment.txt_comentario);
                             const lines = cleanedText.split(/<br\s*\/?>|\n/gi);
 
                             return (
                               <div
                                 key={comment.pk_pedido_comentario}
-                                className="p-3 rounded-lg bg-muted/40 border border-border/80 space-y-1.5 hover:border-purple-500/30 transition-colors"
+                                className="rounded-lg bg-muted/40 border border-border/80 overflow-hidden hover:border-purple-500/30 transition-colors"
                               >
-                                <div className="flex items-center justify-between text-xs border-b border-border/30 pb-1.5">
-                                  <div className="font-bold text-purple-300">
+                                <div
+                                  onClick={(e) => toggleCommentExpand(comment.pk_pedido_comentario, e)}
+                                  className="p-3 cursor-pointer flex items-center justify-between gap-3 bg-muted/30 hover:bg-muted/60 transition-colors select-none"
+                                >
+                                  <div className="font-bold text-purple-300 text-xs flex items-center gap-2">
                                     {comment.txt_titulo || "Comentário de Fábrica"}
                                   </div>
+
                                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                                     {comment.nome_usuario && (
                                       <span className="flex items-center gap-1">
@@ -531,43 +602,54 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
                                         {comment.dat_data}
                                       </span>
                                     )}
+                                    <div className="text-muted-foreground ml-1">
+                                      {isCommentExpanded ? (
+                                        <ChevronUp className="h-3.5 w-3.5 text-purple-400" />
+                                      ) : (
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
 
-                                <div className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium pt-1">
-                                  {lines.map((line, idx) => (
-                                    <React.Fragment key={idx}>
-                                      {line}
-                                      {idx < lines.length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-
-                                {comment.txt_arquivo && (
-                                  <div className="mt-2.5 p-2 px-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 overflow-hidden text-xs text-purple-200">
-                                      <Paperclip className="h-4 w-4 text-purple-400 shrink-0" />
-                                      <span className="truncate font-semibold text-xs" title={comment.txt_arquivo}>
-                                        {comment.txt_arquivo}
-                                      </span>
+                                {isCommentExpanded && (
+                                  <div className="p-3 pt-2 space-y-2 border-t border-border/30 bg-card">
+                                    <div className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
+                                      {lines.map((line, idx) => (
+                                        <React.Fragment key={idx}>
+                                          {line}
+                                          {idx < lines.length - 1 && <br />}
+                                        </React.Fragment>
+                                      ))}
                                     </div>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownloadFile(comment.txt_arquivo!);
-                                      }}
-                                      disabled={downloadingFile === comment.txt_arquivo}
-                                      className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all"
-                                    >
-                                      {downloadingFile === comment.txt_arquivo ? (
-                                        <RefreshCw className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Download className="h-3 w-3" />
-                                      )}
-                                      Baixar Anexo
-                                    </Button>
+
+                                    {comment.txt_arquivo && (
+                                      <div className="mt-2.5 p-2 px-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 overflow-hidden text-xs text-purple-200">
+                                          <Paperclip className="h-4 w-4 text-purple-400 shrink-0" />
+                                          <span className="truncate font-semibold text-xs" title={comment.txt_arquivo}>
+                                            {comment.txt_arquivo}
+                                          </span>
+                                        </div>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadFile(comment.txt_arquivo!);
+                                          }}
+                                          disabled={downloadingFile === comment.txt_arquivo}
+                                          className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all"
+                                        >
+                                          {downloadingFile === comment.txt_arquivo ? (
+                                            <RefreshCw className="h-3 w-3 animate-spin" />
+                                          ) : (
+                                            <Download className="h-3 w-3" />
+                                          )}
+                                          Baixar Anexo
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>

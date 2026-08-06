@@ -288,6 +288,36 @@ export default function Dashboard({
     return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(37);
   }, [currentUser]);
 
+function createCanvasBadgeDataUrl(count: number): string | null {
+  if (!count || count <= 0) return null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.beginPath();
+    ctx.arc(16, 16, 14, 0, 2 * Math.PI);
+    ctx.fillStyle = "#9333ea";
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 17px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const text = count > 99 ? "99+" : String(count);
+    ctx.fillText(text, 16, 17);
+
+    return canvas.toDataURL("image/png");
+  } catch (err) {
+    return null;
+  }
+}
+
   const checkSpecialOrdersUpdates = useCallback(async () => {
     if (!hasSpecialOrdersPermission) return;
 
@@ -301,8 +331,9 @@ export default function Dashboard({
           String(o.status_engenharia || "").toLowerCase().includes("aberto")
         ).length;
 
-        // Sync Windows Taskbar Badge Overlay Icon
-        window.electron?.analyzer?.setTaskbarBadge?.(openCount);
+        // Sync Windows Taskbar Badge Overlay Icon with PNG dataUrl from Canvas
+        const dataUrl = createCanvasBadgeDataUrl(openCount);
+        window.electron?.analyzer?.setTaskbarBadge?.({ count: openCount, dataUrl });
 
         if (isFirstSpecialOrdersCheck.current) {
           const orderIds = new Set<number>();
@@ -1089,7 +1120,7 @@ export default function Dashboard({
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v5.22.0
+                v5.23.0
               </span>
             </div>
             {watchRoot && (
