@@ -58,16 +58,16 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
       toast.error("Código de desenho inválido.");
       return;
     }
-    const id = toast.loading(`Buscando pasta Desenho DXF ${drawingCode}...`);
+    const id = toast.loading(`Buscando pasta NESTING(DXF ALESSANDRO) ${drawingCode}...`);
     try {
       const res = await window.electron?.analyzer?.openMirrorFolder?.(drawingCode);
       if (res?.ok) {
-        toast.success(`Pasta Desenho DXF aberta com sucesso!`);
+        toast.success(`Pasta NESTING(DXF ALESSANDRO) aberta com sucesso!`);
       } else {
-        toast.error(`Não foi possível abrir a pasta Desenho DXF: ${res?.message || "Erro desconhecido."}`);
+        toast.error(`Não foi possível abrir a pasta NESTING(DXF ALESSANDRO): ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error("Erro ao abrir pasta Desenho DXF.", { description: String(error?.message || error) });
+      toast.error("Erro ao abrir pasta NESTING(DXF ALESSANDRO).", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -78,16 +78,16 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
       toast.error("Código de desenho inválido.");
       return;
     }
-    const id = toast.loading(`Buscando pasta Desenho ASPAN ${drawingCode}...`);
+    const id = toast.loading(`Buscando pasta NANXING ${drawingCode}...`);
     try {
       const res = await window.electron?.analyzer?.openAspanFolder?.(drawingCode);
       if (res?.ok) {
-        toast.success(`Pasta Desenho ASPAN aberta com sucesso!`);
+        toast.success(`Pasta NANXING aberta com sucesso!`);
       } else {
-        toast.error(`Não foi possível abrir a pasta Desenho ASPAN: ${res?.message || "Erro desconhecido."}`);
+        toast.error(`Não foi possível abrir a pasta NANXING: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error("Erro ao abrir pasta Desenho ASPAN.", { description: String(error?.message || error) });
+      toast.error("Erro ao abrir pasta NANXING.", { description: String(error?.message || error) });
     } finally {
       toast.dismiss(id);
     }
@@ -206,43 +206,43 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="inline-flex gap-2">
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleOpenDrawing(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir desenho principal do item"
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                              Abrir Desenho
-                            </button>
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleOpenDrawingFolder(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta Desenho NESTING"
-                            >
-                              <FolderOpen className="h-3.5 w-3.5" />
-                              Desenho NESTING
-                            </button>
                             {hasAdminPermission && (
                               <button
                                 disabled={!item.desenho}
-                                onClick={() => handleOpenMirrorFolder(item.desenho)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Abrir pasta Desenho DXF"
+                                onClick={() => handleOpenDrawing(item.desenho)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Abrir desenho principal do item"
                               >
-                                <FolderCheck className="h-3.5 w-3.5" />
-                                Desenho DXF
+                                <FileText className="h-3.5 w-3.5" />
+                                Abrir Desenho
                               </button>
                             )}
                             <button
                               disabled={!item.desenho}
-                              onClick={() => handleOpenAspanFolder(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta Desenho ASPAN"
+                              onClick={() => handleOpenDrawingFolder(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta NESTING (SERVIDOR)"
                             >
                               <FolderOpen className="h-3.5 w-3.5" />
-                              Desenho ASPAN
+                              NESTING (SERVIDOR)
+                            </button>
+                            <button
+                              disabled={!item.desenho}
+                              onClick={() => handleOpenMirrorFolder(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta NESTING(DXF ALESSANDRO)"
+                            >
+                              <FolderCheck className="h-3.5 w-3.5" />
+                              NESTING(DXF ALESSANDRO)
+                            </button>
+                            <button
+                              disabled={!item.desenho}
+                              onClick={() => handleOpenAspanFolder(item.desenho)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta NANXING"
+                            >
+                              <FolderOpen className="h-3.5 w-3.5" />
+                              NANXING
                             </button>
                             {hasAdminPermission && (
                               <button
@@ -252,18 +252,20 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
                                 title="Enviar desenho para a pasta espelho"
                               >
                                 <Copy className="h-3.5 w-3.5" />
-                                Enviar para
+                                COPIAR PARA DXF
                               </button>
                             )}
-                            <button
-                              disabled={!sizeCode}
-                              onClick={() => handleOpenMuxarabi(sizeCode)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title={`Abrir desenho Muxarabi de tamanho ${sizeCode || 'desconhecido'}`}
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                              Abrir Muxarabi
-                            </button>
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!sizeCode}
+                                onClick={() => handleOpenMuxarabi(sizeCode)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={`Abrir desenho Muxarabi de tamanho ${sizeCode || 'desconhecido'}`}
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                Abrir Muxarabi
+                              </button>
+                            )}
                             {hasAdminPermission && (
                               <button
                                 disabled={!item.desenho || !sizeCode}

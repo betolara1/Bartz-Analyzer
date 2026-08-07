@@ -192,6 +192,7 @@ export default function Dashboard({
     useState<"all" | "ok" | "erro" | "muxarabi" | "coringa" | "curvo" | "duplado37mm" | "sem_codigo" | "autofix">("all");
   const [selectedDay, setSelectedDay] = useState<string>(getTodayISODate());
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [reportsAndMetricsOpen, setReportsAndMetricsOpen] = useState(true);
 
   // Atualiza automaticamente a data selecionada se o dia mudar e o usuário estiver visualizando "Hoje"
   useEffect(() => {
@@ -667,16 +668,16 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     const item = searchDrawingResults.find(r => r.fullPath === selectedDrawingPath);
     const drawingCode = item?.name ? item.name.replace(/\.dxf$/i, '') : '';
     setOpeningAspanFolder(true);
-    const id = toast.loading("Abrindo pasta Desenho ASPAN...");
+    const id = toast.loading("Abrindo pasta NANXING...");
     try {
       const res = await window.electron?.analyzer?.openAspanFolder?.(drawingCode);
       if (res?.ok) {
-        toast.success("Pasta Desenho ASPAN aberta com sucesso!");
+        toast.success("Pasta NANXING aberta com sucesso!");
       } else {
-        toast.error(`Não foi possível abrir a pasta Desenho ASPAN: ${res?.message || "Erro desconhecido."}`);
+        toast.error(`Não foi possível abrir a pasta NANXING: ${res?.message || "Erro desconhecido."}`);
       }
     } catch (error: any) {
-      toast.error("Erro ao abrir pasta Desenho ASPAN.", { description: String(error?.message || error) });
+      toast.error("Erro ao abrir pasta NANXING.", { description: String(error?.message || error) });
     } finally {
       setOpeningAspanFolder(false);
       toast.dismiss(id);
@@ -873,9 +874,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     { key: "muxarabi", title: "Muxarabi", value: resumo.mux, icon: <Grid3X3 className="h-5 w-5" />, color: "#9B59B6" },
     { key: "coringa", title: "Cor Coringa", value: resumo.cor, icon: <Grid3X3 className="h-5 w-5" />, color: "#E67E22" },
     { key: "duplado37mm", title: "Duplado 37MM", value: resumo.dup37, icon: <AlertTriangle className="h-5 w-5" />, color: "#C0392B" },
-    { key: "sem_codigo", title: "Sem Código", value: resumo.semCod, icon: <AlertCircle className="h-5 w-5" />, color: "#E74C3C" },
     { key: "curvo", title: "Curvo", value: resumo.curvo, icon: <Grid3X3 className="h-5 w-5" />, color: "#ee5700ff" },
-    { key: "autofix", title: "Robô Auto-Fix", value: resumo.autofix, icon: <Zap className="h-5 w-5" />, color: "#1ABC9C" },
   ] as const, [rowsFilteredByDay.length, resumo]);
 
   const filtered = useMemo(() => {
@@ -1166,7 +1165,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v5.24.0
+                v5.25.0
               </span>
             </div>
             {watchRoot && (
@@ -1481,44 +1480,44 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                   disabled={!selectedDrawingPath || locatingDrawing}
                   variant="outline"
                   className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title="Abrir pasta Desenho NESTING"
+                  title="Abrir pasta NESTING (SERVIDOR)"
                 >
                   <FolderOpen className="h-3.5 w-3.5" />
-                  Desenho NESTING
+                  NESTING (SERVIDOR)
                 </Button>
 
-                {hasAdminPermission && (
-                  <Button
-                    onClick={handleCopyDrawingToMirror}
-                    disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
-                    variant="outline"
-                    className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                    title={cfg.drawingsCopy ? "Enviar para pasta Desenho DXF" : "Configure Desenho DXF em Opções para habilitar"}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    Desenho DXF
-                  </Button>
-                )}
+                <Button
+                  onClick={handleCopyDrawingToMirror}
+                  disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                  variant="outline"
+                  className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                  title={cfg.drawingsCopy ? "Enviar para pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  NESTING(DXF ALESSANDRO)
+                </Button>
 
                 <Button
                   onClick={handleOpenAspanFolderFromSearch}
                   disabled={!selectedDrawingPath || !cfg.drawingsAspan || openingAspanFolder}
                   variant="outline"
                   className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title={cfg.drawingsAspan ? "Abrir pasta Desenho ASPAN" : "Configure Desenho ASPAN em Opções para habilitar"}
+                  title={cfg.drawingsAspan ? "Abrir pasta NANXING" : "Configure NANXING em Opções para habilitar"}
                 >
                   <FolderOpen className="h-3.5 w-3.5" />
-                  Desenho ASPAN
+                  NANXING
                 </Button>
 
-                <Button
-                  onClick={handleOpenDrawingFromSearch}
-                  disabled={!selectedDrawingPath || openingDrawing}
-                  className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  {openingDrawing ? "Abrindo..." : "Abrir"}
-                </Button>
+                {hasAdminPermission && (
+                  <Button
+                    onClick={handleOpenDrawingFromSearch}
+                    disabled={!selectedDrawingPath || openingDrawing}
+                    className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    {openingDrawing ? "Abrindo..." : "Abrir"}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -1541,160 +1540,203 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       <div className="px-6 mt-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Coluna 1 - Relatório de Atividade */}
-          <div className="lg:col-span-1 space-y-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Relatório de Atividade</h3>
-
-            <div className="bg-card rounded-xl border border-border p-6 space-y-6 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados do Dia</span>
+          <div className="lg:col-span-1 space-y-3">
+            <button
+              onClick={() => setReportsAndMetricsOpen(!reportsAndMetricsOpen)}
+              className="w-full flex items-center justify-between bg-card hover:bg-card/80 border border-border rounded-xl px-5 py-3 transition-all duration-200 group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-[#F1C40F]">
+                  <BarChart3 className="h-4 w-4" />
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handlePrevDay}
-                    title="Dia anterior"
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={selectedDay}
-                      onChange={(e) => {
-                        setSelectedDay(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="bg-muted hover:bg-muted/80 text-muted-foreground text-[10.5px] font-bold py-1 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all"
-                      style={{ colorScheme: "dark" }}
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNextDay}
-                    title="Próximo dia"
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  {selectedDay !== getTodayISODate() && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedDay(getTodayISODate());
-                        setCurrentPage(1);
-                      }}
-                      className="h-6 px-2 text-[9px] text-[#27AE60] hover:text-[#2ECC71] font-bold uppercase tracking-wider bg-[#27AE60]/10 hover:bg-[#27AE60]/20 rounded-md border border-[#27AE60]/20"
-                    >
-                      Hoje
-                    </Button>
-                  )}
-                  {selectedDay && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedDay("");
-                        setCurrentPage(1);
-                      }}
-                      className="h-6 px-2 text-[9px] text-muted-foreground hover:text-foreground font-bold uppercase tracking-wider bg-muted/40 hover:bg-muted/60 rounded-md border border-border/50"
-                    >
-                      Todas as datas
-                    </Button>
-                  )}
-                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+                  Relatório de Atividade
+                </span>
               </div>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${reportsAndMetricsOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
-                  <CheckCircle2 className="h-5 w-5 text-[#27AE60] opacity-80" />
-                  <div className="text-2xl font-bold text-[#27AE60]">{okFiles}</div>
-                  <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Corretos</div>
-                </div>
-                <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
-                  <XCircle className="h-5 w-5 text-[#E74C3C] opacity-80" />
-                  <div className="text-2xl font-bold text-[#E74C3C]">{errorFiles}</div>
-                  <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Com Erro</div>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" /> Taxa de Sucesso
-                      </span>
-                      <span className="text-2xl font-bold text-foreground">
-                        {totalFiles > 0 ? Math.round((okFiles / totalFiles) * 100) : 0}%
-                      </span>
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                reportsAndMetricsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="bg-card rounded-xl border border-border p-6 space-y-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados do Dia</span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Processado</span>
-                      <div className="text-lg font-medium text-foreground">{totalFiles} <span className="text-xs text-muted-foreground">XMLs</span></div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handlePrevDay}
+                        title="Dia anterior"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={selectedDay}
+                          onChange={(e) => {
+                            setSelectedDay(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="bg-muted hover:bg-muted/80 text-muted-foreground text-[10.5px] font-bold py-1 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all"
+                          style={{ colorScheme: "dark" }}
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleNextDay}
+                        title="Próximo dia"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      {selectedDay !== getTodayISODate() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedDay(getTodayISODate());
+                            setCurrentPage(1);
+                          }}
+                          className="h-6 px-2 text-[9px] text-[#27AE60] hover:text-[#2ECC71] font-bold uppercase tracking-wider bg-[#27AE60]/10 hover:bg-[#27AE60]/20 rounded-md border border-[#27AE60]/20"
+                        >
+                          Hoje
+                        </Button>
+                      )}
+                      {selectedDay && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedDay("");
+                            setCurrentPage(1);
+                          }}
+                          className="h-6 px-2 text-[9px] text-muted-foreground hover:text-foreground font-bold uppercase tracking-wider bg-muted/40 hover:bg-muted/60 rounded-md border border-border/50"
+                        >
+                          Todas as datas
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="h-1.5 w-full bg-background rounded-full overflow-hidden border border-border">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#27AE60] to-[#2ECC71] transition-all duration-500"
-                      style={{ width: `${totalFiles > 0 ? (okFiles / totalFiles) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground bg-muted p-2 rounded border border-border">
-                  <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> Última atividade</span>
-                  <span className="text-white font-medium">{lastActivity}</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
+                      <CheckCircle2 className="h-5 w-5 text-[#27AE60] opacity-80" />
+                      <div className="text-2xl font-bold text-[#27AE60]">{okFiles}</div>
+                      <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Corretos</div>
+                    </div>
+                    <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
+                      <XCircle className="h-5 w-5 text-[#E74C3C] opacity-80" />
+                      <div className="text-2xl font-bold text-[#E74C3C]">{errorFiles}</div>
+                      <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Com Erro</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" /> Taxa de Sucesso
+                          </span>
+                          <span className="text-2xl font-bold text-foreground">
+                            {totalFiles > 0 ? Math.round((okFiles / totalFiles) * 100) : 0}%
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Processado</span>
+                          <div className="text-lg font-medium text-foreground">{totalFiles} <span className="text-xs text-muted-foreground">XMLs</span></div>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-background rounded-full overflow-hidden border border-border">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#27AE60] to-[#2ECC71] transition-all duration-500"
+                          style={{ width: `${totalFiles > 0 ? (okFiles / totalFiles) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground bg-muted p-2 rounded border border-border">
+                      <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> Última atividade</span>
+                      <span className="text-white font-medium">{lastActivity}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Coluna 2 - KPIs */}
-          <div className="lg:col-span-1 space-y-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Métricas & Filtros</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {kpis.map((k: any) => {
-                const isActive = filter === k.key;
-                return (
-                  <button
-                    key={k.key}
-                    onClick={() => { setFilter(k.key); setCurrentPage(1); }}
-                    className={`group text-left bg-card border rounded-xl py-3 px-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
-                      ? "border-primary shadow-[0_0_20px_rgba(0,0,0,0.2)] dark:shadow-[0_0_20px_rgba(0,0,0,0.4)]"
-                      : "border-border hover:border-primary/20 hover:-translate-y-1"
-                      }`}
-                    style={{
-                      borderColor: isActive ? k.color : '#2C2C2C',
-                      boxShadow: isActive ? `0 0 15px ${k.color}33, inset 0 0 10px ${k.color}11` : ''
-                    }}
-                  >
-                    {isActive && (
-                      <div
-                        className="absolute top-0 right-0 w-16 h-16 opacity-10 pointer-events-none"
-                        style={{ background: `radial-gradient(circle at center, ${k.color} 0%, transparent 70%)` }}
-                      />
-                    )}
-                    <div className="flex items-start justify-between mb-2">
-                      <div className={`p-2 rounded-lg bg-background border border-border transition-colors duration-300 ${isActive ? 'bg-opacity-50' : 'group-hover:bg-muted'}`} style={{ color: k.color }}>
-                        {React.cloneElement(k.icon as React.ReactElement, { className: "h-4 w-4" })}
-                      </div>
-                      {isActive && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 8px ${k.color}` }} />}
-                    </div>
-                    <div className="space-y-0.5">
-                      <div className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {k.title}
-                      </div>
-                      <div className="text-2xl font-bold tracking-tight text-foreground">{k.value}</div>
-                    </div>
-                  </button>
-                );
-              })}
+          <div className="lg:col-span-1 space-y-3">
+            <button
+              onClick={() => setReportsAndMetricsOpen(!reportsAndMetricsOpen)}
+              className="w-full flex items-center justify-between bg-card hover:bg-card/80 border border-border rounded-xl px-5 py-3 transition-all duration-200 group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-[#F1C40F]">
+                  <Activity className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+                  Métricas & Filtros
+                </span>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${reportsAndMetricsOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                reportsAndMetricsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {kpis.map((k: any) => {
+                    const isActive = filter === k.key;
+                    return (
+                      <button
+                        key={k.key}
+                        onClick={() => { setFilter(k.key); setCurrentPage(1); }}
+                        className={`group text-left bg-card border rounded-xl py-3 px-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
+                          ? "border-primary shadow-[0_0_20px_rgba(0,0,0,0.2)] dark:shadow-[0_0_20px_rgba(0,0,0,0.4)]"
+                          : "border-border hover:border-primary/20 hover:-translate-y-1"
+                          }`}
+                        style={{
+                          borderColor: isActive ? k.color : '#2C2C2C',
+                          boxShadow: isActive ? `0 0 15px ${k.color}33, inset 0 0 10px ${k.color}11` : ''
+                        }}
+                      >
+                        {isActive && (
+                          <div
+                            className="absolute top-0 right-0 w-16 h-16 opacity-10 pointer-events-none"
+                            style={{ background: `radial-gradient(circle at center, ${k.color} 0%, transparent 70%)` }}
+                          />
+                        )}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className={`p-2 rounded-lg bg-background border border-border transition-colors duration-300 ${isActive ? 'bg-opacity-50' : 'group-hover:bg-muted'}`} style={{ color: k.color }}>
+                            {React.cloneElement(k.icon as React.ReactElement, { className: "h-4 w-4" })}
+                          </div>
+                          {isActive && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 8px ${k.color}` }} />}
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            {k.title}
+                          </div>
+                          <div className="text-2xl font-bold tracking-tight text-foreground">{k.value}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

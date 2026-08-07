@@ -82,21 +82,21 @@ export const PATH_CONFIGS: PathConfig[] = [
   },
   {
     key: "drawings",
-    label: "Desenho NESTING",
+    label: "NESTING (SERVIDOR)",
     placeholder: "\\\\servidor\\desenhos",
-    tooltip: "Pasta onde o sistema buscará os desenhos técnicos NESTING correspondentes."
+    tooltip: "Pasta onde o sistema buscará os desenhos técnicos NESTING (SERVIDOR) correspondentes."
   },
   {
     key: "drawingsCopy",
-    label: "Desenho DXF",
+    label: "NESTING(DXF ALESSANDRO)",
     placeholder: "\\\\Pc-alessandro\\dxf",
-    tooltip: "Pasta espelho para os desenhos DXF. Deixe em branco para desativar."
+    tooltip: "Pasta espelho para os desenhos NESTING(DXF ALESSANDRO). Deixe em branco para desativar."
   },
   {
     key: "drawingsAspan",
-    label: "Desenho ASPAN",
+    label: "NANXING",
     placeholder: "\\\\servidor\\aspan",
-    tooltip: "Pasta de desenhos no formato ASPAN. Deixe em branco para desativar."
+    tooltip: "Pasta de desenhos no formato NANXING. Deixe em branco para desativar."
   },
   {
     key: "simplificado",

@@ -216,14 +216,18 @@ export function useFileActions(
   }, [data, open]);
 
   // Actions
-  const handleErpSearch = useCallback(async () => {
+  const handleErpSearch = useCallback(async (override?: { code?: string; desc?: string; type?: string }) => {
+    const code = override?.code !== undefined ? override.code : erpSearchCode;
+    const desc = override?.desc !== undefined ? override.desc : erpSearchDesc;
+    const type = override?.type !== undefined ? override.type : erpSearchType;
+
     setErpSearching(true);
     setErpSearchResults([]);
     try {
       const res = await window.electron?.analyzer?.searchErpProduct?.({
-        code: erpSearchCode,
-        desc: erpSearchDesc,
-        type: erpSearchType
+        code,
+        desc,
+        type
       });
       const results = res?.results || [];
       setErpSearchResults(results);
@@ -235,7 +239,7 @@ export function useFileActions(
     }
   }, [erpSearchCode, erpSearchDesc, erpSearchType]);
 
-  const handleCoringaSearch = useCallback(async (acronym: string, group: number) => {
+  const handleCoringaSearch = useCallback(async (acronym: string, group: number, isAuto: boolean = false) => {
     if (!acronym) return;
     const setSearching = [null, setCoringa1Searching, setCoringa2Searching, setIndCoringaSearching, setCg1Searching, setCg2Searching][group];
     const setOptions = [null, setCoringa1Options, setCoringa2Options, setIndCoringaOptions, setCg1Options, setCg2Options][group];
@@ -245,9 +249,9 @@ export function useFileActions(
       const res = await window.electron?.analyzer?.searchErpProduct?.({ desc: acronym, type: 'CORINGA' });
       const results = res?.results || [];
       if (setOptions) setOptions(results);
-      if (!results.length) toast.info("Nenhuma cor encontrada.");
+      if (!results.length && !isAuto) toast.info("Nenhuma cor encontrada.");
     } catch (e: any) {
-      toast.error(`Erro: ${e.message}`);
+      if (!isAuto) toast.error(`Erro: ${e.message}`);
     } finally {
       if (setSearching) setSearching(false);
     }
@@ -387,35 +391,57 @@ export function useFileActions(
 
   const onApplyCoringa1 = useCallback(async () => {
     if (!data || !coringa1Selected) return;
-    const id = toast.loading('Aplicando CORINGA1...');
+    const id = toast.loading('Aplicando CORINGA 1 e CG1...');
     try {
       const opt = coringa1Options.find(o => o.code === coringa1Selected);
-      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA1': opt?.description || coringa1Selected });
+      const colorVal = opt?.description || coringa1Selected;
+      const cgVal = (cg1Replace || 'LA').trim().toUpperCase();
+
+      const map: Record<string, string> = {
+        'CORINGA1': colorVal,
+        'CG1': cgVal
+      };
+
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
       if (res?.ok) {
-        toast.success('CORINGA1 substituído com sucesso.');
-        if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA1 por "${opt?.description}" (${coringa1Selected})`);
+        toast.success('CORINGA 1 e CG1 substituídos com sucesso.');
+        if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA 1 por "${colorVal}" e CG1 por "${cgVal}"`);
         setCoringa1Done(true);
+        setCg1Done(true);
         await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
+      } else {
+        toast.error(`Falha na substituição: ${res?.message || 'erro desconhecido'}`);
       }
     } catch (e: any) { toast.error(String(e?.message || e)); }
     finally { toast.dismiss(id); }
-  }, [data, coringa1Selected, coringa1Options, onAction]);
+  }, [data, coringa1Selected, coringa1Options, cg1Replace, onAction]);
 
   const onApplyCoringa2 = useCallback(async () => {
     if (!data || !coringa2Selected) return;
-    const id = toast.loading('Aplicando CORINGA2...');
+    const id = toast.loading('Aplicando CORINGA 2 e CG2...');
     try {
       const opt = coringa2Options.find(o => o.code === coringa2Selected);
-      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, { 'CORINGA2': opt?.description || coringa2Selected });
+      const colorVal = opt?.description || coringa2Selected;
+      const cgVal = (cg2Replace || 'LA').trim().toUpperCase();
+
+      const map: Record<string, string> = {
+        'CORINGA2': colorVal,
+        'CG2': cgVal
+      };
+
+      const res = await window.electron?.analyzer?.replaceCgGroups?.(data.fullpath, map);
       if (res?.ok) {
-        toast.success('CORINGA2 substituído com sucesso.');
-        if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA2 por "${opt?.description}" (${coringa2Selected})`);
+        toast.success('CORINGA 2 e CG2 substituídos com sucesso.');
+        if (onAction) onAction(data.fullpath, `[Manual] Coringa: substituído CORINGA 2 por "${colorVal}" e CG2 por "${cgVal}"`);
         setCoringa2Done(true);
+        setCg2Done(true);
         await window.electron?.analyzer?.reprocessOne?.(data.fullpath);
+      } else {
+        toast.error(`Falha na substituição: ${res?.message || 'erro desconhecido'}`);
       }
     } catch (e: any) { toast.error(String(e?.message || e)); }
     finally { toast.dismiss(id); }
-  }, [data, coringa2Selected, coringa2Options, onAction]);
+  }, [data, coringa2Selected, coringa2Options, cg2Replace, onAction]);
 
   const onApplyCg1 = useCallback(async () => {
     if (!data || !cg1Replace) return;

@@ -16,7 +16,7 @@ interface CoringaSectionProps {
   setIndCoringaAcronym: (v: string) => void;
   indCoringaSearching: boolean;
   indCoringaOptions: any[];
-  onCoringaSearch: (acronym: string, group: number) => void;
+  onCoringaSearch: (acronym: string, group: number, isAuto?: boolean) => void;
   onApplyCoringa: () => void;
   isReplacing: boolean;
   lastReplace: any;
@@ -80,6 +80,61 @@ export function CoringaSection({
   const hasIndividualCoringas = rawCoringaMatches.length > 0;
   const showSection = hasIndividualCoringas || hasCG1 || hasCG2 || hasCoringa1 || hasCoringa2;
 
+  // Auto-search coringa 1 when typing
+  React.useEffect(() => {
+    const val = coringa1Acronym.trim();
+    if (val.length >= 2 && !coringa1Done) {
+      const timer = setTimeout(() => {
+        onCoringaSearch(val, 1, true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [coringa1Acronym, coringa1Done]);
+
+  // Auto-search coringa 2 when typing
+  React.useEffect(() => {
+    const val = coringa2Acronym.trim();
+    if (val.length >= 2 && !coringa2Done) {
+      const timer = setTimeout(() => {
+        onCoringaSearch(val, 2, true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [coringa2Acronym, coringa2Done]);
+
+  // Auto-search individual coringa when typing
+  React.useEffect(() => {
+    const val = indCoringaAcronym.trim();
+    if (val.length >= 2) {
+      const timer = setTimeout(() => {
+        onCoringaSearch(val, 3, true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [indCoringaAcronym]);
+
+  // Auto-search cg1 when typing
+  React.useEffect(() => {
+    const val = cg1Acronym.trim();
+    if (val.length >= 2 && !cg1Done) {
+      const timer = setTimeout(() => {
+        onCoringaSearch(val, 4, true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [cg1Acronym, cg1Done]);
+
+  // Auto-search cg2 when typing
+  React.useEffect(() => {
+    const val = cg2Acronym.trim();
+    if (val.length >= 2 && !cg2Done) {
+      const timer = setTimeout(() => {
+        onCoringaSearch(val, 5, true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [cg2Acronym, cg2Done]);
+
   if (!showSection) return null;
 
   return (
@@ -122,7 +177,7 @@ export function CoringaSection({
                     <select
                       value={coringaFrom ?? ""}
                       onChange={(e) => setCoringaFrom(e.target.value)}
-                      className="w-full bg-background border border-border text-foreground px-3 py-2 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold"
+                      className="w-full bg-background border border-border text-foreground px-3 h-9 rounded-lg text-xs focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-bold cursor-pointer"
                     >
                       {filteredCoringaMatches.map((m, i) => (
                         <option key={i} value={m}>{m}</option>
@@ -132,22 +187,20 @@ export function CoringaSection({
 
                   <div className="space-y-1.5 w-full">
                     <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Novo Código/Valor</label>
-                    <div className="relative">
+                    <div className="relative group">
                       <Input
                         placeholder="Ex: 10.01.0000"
                         value={indCoringaAcronym}
                         onChange={(e) => setIndCoringaAcronym(e.target.value.toUpperCase())}
                         onClear={() => setIndCoringaAcronym("")}
-                        onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(indCoringaAcronym, 3); }}
-                        className="w-full bg-background border border-border text-foreground px-3 py-2 pr-8 rounded-lg text-sm focus:border-amber-500 outline-none disabled:opacity-50 transition-all font-mono"
+                        onKeyDown={(e) => { if (e.key === 'Enter' && indCoringaAcronym) onCoringaSearch(indCoringaAcronym, 3); }}
+                        className="w-full bg-background border border-border text-foreground text-xs focus:border-amber-500 h-9 rounded-lg transition-all font-mono"
+                        style={{ paddingLeft: "2.25rem" }}
                       />
-                      <button
-                        onClick={() => onCoringaSearch(indCoringaAcronym, 3)}
-                        disabled={!indCoringaAcronym || indCoringaSearching}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-amber-500 disabled:opacity-50"
-                      >
-                        <Search className="h-4 w-4" />
-                      </button>
+                      <Search
+                        onClick={() => { if (indCoringaAcronym && !indCoringaSearching) onCoringaSearch(indCoringaAcronym, 3); }}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground hover:text-amber-500 cursor-pointer z-10 transition-colors"
+                      />
                     </div>
                     {indCoringaOptions.length > 0 && (
                       <select
@@ -160,7 +213,7 @@ export function CoringaSection({
                             else if (coringaFrom?.includes('CG2') && hasCG2) setCg2Replace(val);
                           }
                         }}
-                        className="w-full bg-background border border-border text-foreground px-3 py-2 mt-2 rounded-lg text-sm focus:border-amber-500 outline-none transition-all font-mono"
+                        className="w-full bg-background border border-border text-foreground px-3 h-9 mt-2 rounded-lg text-xs focus:border-amber-500 outline-none transition-all font-mono cursor-pointer"
                       >
                         <option value="">Selecione...</option>
                         {indCoringaOptions.map((opt, i) => (
@@ -209,23 +262,21 @@ export function CoringaSection({
                   <div className="flex gap-2 items-center">
                     {hasCoringa1 && (
                       <>
-                        <div className="relative flex-1">
+                        <div className="relative flex-1 group">
                           <Input
                             value={coringa1Acronym}
                             disabled={coringa1Done || hasIndividualCoringas}
                             onChange={(e) => setCoringa1Acronym(e.target.value.toUpperCase())}
                             onClear={() => setCoringa1Acronym("")}
-                            onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(coringa1Acronym, 1); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && coringa1Acronym) onCoringaSearch(coringa1Acronym, 1); }}
                             placeholder="Cor (Ex: Branco)"
-                            className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50"
+                            className="w-full bg-background border border-border text-foreground text-xs h-9 rounded-lg font-mono disabled:opacity-50 transition-all"
+                            style={{ paddingLeft: "2.25rem" }}
                           />
-                          <button
-                            onClick={() => onCoringaSearch(coringa1Acronym, 1)}
-                            disabled={!coringa1Acronym || coringa1Searching || coringa1Done || hasIndividualCoringas}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-amber-500 disabled:opacity-50"
-                          >
-                            <Search className="h-3 w-3" />
-                          </button>
+                          <Search
+                            onClick={() => { if (coringa1Acronym && !coringa1Searching && !coringa1Done && !hasIndividualCoringas) onCoringaSearch(coringa1Acronym, 1); }}
+                            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground hover:text-amber-500 cursor-pointer z-10 transition-colors"
+                          />
                         </div>
                         <div className="flex-1 min-w-[120px]">
                           <select
@@ -236,7 +287,7 @@ export function CoringaSection({
                               if (val && hasCG1) setCg1Replace(val);
                             }}
                             disabled={coringa1Options.length === 0 || coringa1Done || hasIndividualCoringas}
-                            className="w-full bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] outline-none disabled:opacity-50 transition-all font-mono"
+                            className="w-full bg-background border border-border text-foreground px-2 h-9 rounded-lg text-xs outline-none disabled:opacity-50 transition-all font-mono cursor-pointer"
                           >
                             <option value="">Selecione a cor...</option>
                             {coringa1Options.map((opt, i) => (
@@ -244,13 +295,6 @@ export function CoringaSection({
                             ))}
                           </select>
                         </div>
-                        <button
-                          disabled={!coringa1Selected || coringa1Done || hasIndividualCoringas}
-                          onClick={onApplyCoringa1}
-                          className="px-2 py-1.5 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 shrink-0"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
                       </>
                     )}
 
@@ -260,38 +304,37 @@ export function CoringaSection({
                         <div className={`flex gap-2 items-center ${hasCoringa1 ? 'shrink-0' : 'flex-1'}`}>
                           <span className="text-[9px] dark:text-amber-300/60 text-amber-600/70 font-bold uppercase tracking-widest shrink-0">CG1 →</span>
                           {hasCoringa1 ? (
-                            <input
+                            <Input
                               value={cg1Replace}
                               disabled={cg1Done || hasIndividualCoringas}
                               onChange={(e) => setCg1Replace(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
+                              onClear={() => setCg1Replace("")}
                               placeholder="LA"
-                              className="bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono w-16 disabled:opacity-50"
+                              className="bg-background border border-border text-foreground text-xs h-9 rounded-lg font-mono w-16 disabled:opacity-50 text-center uppercase"
                             />
                           ) : (
                             <div className="flex gap-2 w-full">
-                              <div className="relative flex-1 max-w-[150px]">
+                              <div className="relative flex-1 max-w-[150px] group">
                                 <Input
                                   value={cg1Acronym}
                                   disabled={cg1Done || hasIndividualCoringas}
                                   onChange={(e) => setCg1Acronym(e.target.value.toUpperCase())}
                                   onClear={() => setCg1Acronym("")}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(cg1Acronym, 4); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && cg1Acronym) onCoringaSearch(cg1Acronym, 4); }}
                                   placeholder="Branco"
-                                  className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50"
+                                  className="w-full bg-background border border-border text-foreground text-xs h-9 rounded-lg font-mono disabled:opacity-50 transition-all"
+                                  style={{ paddingLeft: "2.25rem" }}
                                 />
-                                <button
-                                  onClick={() => onCoringaSearch(cg1Acronym, 4)}
-                                  disabled={!cg1Acronym || cg1Done || hasIndividualCoringas}
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 disabled:opacity-50"
-                                >
-                                  <Search className="h-3 w-3" />
-                                </button>
+                                <Search
+                                  onClick={() => { if (cg1Acronym && !cg1Done && !hasIndividualCoringas) onCoringaSearch(cg1Acronym, 4); }}
+                                  className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground hover:text-amber-500 cursor-pointer z-10 transition-colors"
+                                />
                               </div>
                               <select
                                 value={cg1Replace}
                                 onChange={(e) => setCg1Replace(e.target.value)}
                                 disabled={cg1Options.length === 0 || cg1Done || hasIndividualCoringas}
-                                className="flex-1 min-w-[120px] bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] font-mono disabled:opacity-50"
+                                className="flex-1 min-w-[120px] bg-background border border-border text-foreground px-2 h-9 rounded-lg text-xs font-mono disabled:opacity-50 cursor-pointer"
                               >
                                 <option value="">Selecione...</option>
                                 {cg1Options.map((opt, i) => (
@@ -301,9 +344,10 @@ export function CoringaSection({
                             </div>
                           )}
                           <button
-                            disabled={!cg1Replace || cg1Done || hasIndividualCoringas}
-                            onClick={onApplyCg1}
-                            className="px-2 py-1.5 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 shrink-0"
+                            disabled={hasCoringa1 ? (!coringa1Selected || coringa1Done || hasIndividualCoringas) : (!cg1Replace || cg1Done || hasIndividualCoringas)}
+                            onClick={hasCoringa1 ? onApplyCoringa1 : onApplyCg1}
+                            className="px-2.5 h-9 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 shrink-0 flex items-center justify-center"
+                            title={hasCoringa1 ? "Aplicar CORINGA 1 e CG1" : "Aplicar CG1"}
                           >
                             <Check className="h-4 w-4" />
                           </button>
@@ -314,7 +358,7 @@ export function CoringaSection({
                 </div>
               )}
 
-              {/* CORINGA 2 / CG2 Row - Similar logic */}
+              {/* CORINGA 2 / CG2 Row */}
               {(hasCoringa2 || hasCG2) && (
                 <div className="space-y-2">
                   <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">
@@ -323,18 +367,21 @@ export function CoringaSection({
                   <div className="flex gap-2 items-center">
                     {hasCoringa2 && (
                       <>
-                        <div className="relative flex-1">
+                        <div className="relative flex-1 group">
                           <Input
                             value={coringa2Acronym}
                             disabled={coringa2Done || hasIndividualCoringas}
                             onChange={(e) => setCoringa2Acronym(e.target.value.toUpperCase())}
                             onClear={() => setCoringa2Acronym("")}
-                            onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(coringa2Acronym, 2); }}
-                            className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50"
+                            onKeyDown={(e) => { if (e.key === 'Enter' && coringa2Acronym) onCoringaSearch(coringa2Acronym, 2); }}
+                            placeholder="Cor (Ex: Branco)"
+                            className="w-full bg-background border border-border text-foreground text-xs h-9 rounded-lg font-mono disabled:opacity-50 transition-all"
+                            style={{ paddingLeft: "2.25rem" }}
                           />
-                          <button onClick={() => onCoringaSearch(coringa2Acronym, 2)} disabled={coringa2Done || hasIndividualCoringas} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 disabled:opacity-50">
-                            <Search className="h-3 w-3" />
-                          </button>
+                          <Search
+                            onClick={() => { if (coringa2Acronym && !coringa2Done && !hasIndividualCoringas) onCoringaSearch(coringa2Acronym, 2); }}
+                            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground hover:text-amber-500 cursor-pointer z-10 transition-colors"
+                          />
                         </div>
                         <div className="flex-1 min-w-[120px]">
                           <select
@@ -345,7 +392,7 @@ export function CoringaSection({
                               if (val && hasCG2) setCg2Replace(val);
                             }}
                             disabled={coringa2Options.length === 0 || coringa2Done || hasIndividualCoringas}
-                            className="w-full bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] font-mono disabled:opacity-50"
+                            className="w-full bg-background border border-border text-foreground px-2 h-9 rounded-lg text-xs outline-none disabled:opacity-50 transition-all font-mono cursor-pointer"
                           >
                             <option value="">Selecione...</option>
                             {coringa2Options.map((opt, i) => (
@@ -353,7 +400,6 @@ export function CoringaSection({
                             ))}
                           </select>
                         </div>
-                        <button disabled={!coringa2Selected || coringa2Done || hasIndividualCoringas} onClick={onApplyCoringa2} className="px-2 py-1.5 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg shrink-0 disabled:opacity-50"><Check className="h-4 w-4" /></button>
                       </>
                     )}
                     {hasCG2 && (
@@ -362,19 +408,38 @@ export function CoringaSection({
                         <div className={`flex gap-2 items-center ${hasCoringa2 ? 'shrink-0' : 'flex-1'}`}>
                           <span className="text-[9px] dark:text-amber-300/60 text-amber-600/70 font-bold uppercase tracking-widest shrink-0">CG2 →</span>
                           {hasCoringa2 ? (
-                            <input
+                            <Input
                               value={cg2Replace}
                               disabled={cg2Done || hasIndividualCoringas}
                               onChange={(e) => setCg2Replace(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
-                              className="bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] outline-none font-mono w-16 disabled:opacity-50"
+                              onClear={() => setCg2Replace("")}
+                              placeholder="LA"
+                              className="bg-background border border-border text-foreground text-xs h-9 rounded-lg font-mono w-16 disabled:opacity-50 text-center uppercase"
                             />
                           ) : (
                             <div className="flex gap-2 w-full">
-                              <div className="relative flex-1 max-w-[150px]">
-                                <Input value={cg2Acronym} disabled={cg2Done || hasIndividualCoringas} onChange={(e) => setCg2Acronym(e.target.value.toUpperCase())} onClear={() => setCg2Acronym("")} onKeyDown={(e) => { if (e.key === 'Enter') onCoringaSearch(cg2Acronym, 5); }} className="w-full bg-background border border-border text-foreground px-2 py-1.5 pr-8 rounded-lg text-[11px] outline-none font-mono disabled:opacity-50" />
-                                <button onClick={() => onCoringaSearch(cg2Acronym, 5)} disabled={cg2Done || hasIndividualCoringas} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-zinc-400 disabled:opacity-50"><Search className="h-3 w-3" /></button>
+                              <div className="relative flex-1 max-w-[150px] group">
+                                <Input
+                                  value={cg2Acronym}
+                                  disabled={cg2Done || hasIndividualCoringas}
+                                  onChange={(e) => setCg2Acronym(e.target.value.toUpperCase())}
+                                  onClear={() => setCg2Acronym("")}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && cg2Acronym) onCoringaSearch(cg2Acronym, 5); }}
+                                  placeholder="Branco"
+                                  className="w-full bg-background border border-border text-foreground text-xs h-9 rounded-lg font-mono disabled:opacity-50 transition-all"
+                                  style={{ paddingLeft: "2.25rem" }}
+                                />
+                                <Search
+                                  onClick={() => { if (cg2Acronym && !cg2Done && !hasIndividualCoringas) onCoringaSearch(cg2Acronym, 5); }}
+                                  className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground hover:text-amber-500 cursor-pointer z-10 transition-colors"
+                                />
                               </div>
-                              <select value={cg2Replace} onChange={(e) => setCg2Replace(e.target.value)} disabled={cg2Options.length === 0 || cg2Done || hasIndividualCoringas} className="flex-1 min-w-[120px] bg-background border border-border text-foreground px-2 py-1.5 rounded-lg text-[11px] font-mono disabled:opacity-50">
+                              <select
+                                value={cg2Replace}
+                                onChange={(e) => setCg2Replace(e.target.value)}
+                                disabled={cg2Options.length === 0 || cg2Done || hasIndividualCoringas}
+                                className="flex-1 min-w-[120px] bg-background border border-border text-foreground px-2 h-9 rounded-lg text-xs font-mono disabled:opacity-50 cursor-pointer"
+                              >
                                 <option value="">Selecione...</option>
                                 {cg2Options.map((opt, i) => (
                                   <option key={i} value={opt.code}>{opt.description}</option>
@@ -382,7 +447,14 @@ export function CoringaSection({
                               </select>
                             </div>
                           )}
-                          <button disabled={!cg2Replace || cg2Done || hasIndividualCoringas} onClick={onApplyCg2} className="px-2 py-1.5 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg shrink-0 disabled:opacity-50"><Check className="h-4 w-4" /></button>
+                          <button
+                            disabled={hasCoringa2 ? (!coringa2Selected || coringa2Done || hasIndividualCoringas) : (!cg2Replace || cg2Done || hasIndividualCoringas)}
+                            onClick={hasCoringa2 ? onApplyCoringa2 : onApplyCg2}
+                            className="px-2.5 h-9 bg-amber-600/20 text-amber-500 border border-amber-600/30 rounded-lg hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50 shrink-0 flex items-center justify-center"
+                            title={hasCoringa2 ? "Aplicar CORINGA 2 e CG2" : "Aplicar CG2"}
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
                         </div>
                       </>
                     )}

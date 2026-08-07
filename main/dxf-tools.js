@@ -1484,33 +1484,103 @@ ipcMain.handle('analyzer:openMirrorFolder', async (_e, arg) => {
 });
 
 /** ================== IPC: OPEN ASPAN FOLDER FOR A DRAWING ================== **/
+async function findAspanFile(baseDir, cleanCode) {
+  const codeLower = cleanCode.toLowerCase();
+  try {
+    const entries = await fsp.readdir(baseDir, { withFileTypes: true });
+    // First pass: direct file match (ignoring extension) in baseDir
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        const nameWithoutExt = path.parse(entry.name).name.toLowerCase();
+        if (nameWithoutExt === codeLower || entry.name.toLowerCase() === codeLower || entry.name.toLowerCase().startsWith(codeLower + '.')) {
+          return path.join(baseDir, entry.name);
+        }
+      }
+    }
+    // Second pass: recursive search into subdirectories
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const found = await findAspanFile(path.join(baseDir, entry.name), cleanCode);
+        if (found) return found;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+/** ================== IPC: OPEN ASPAN/NANXING FOLDER FOR A DRAWING ================== **/
 ipcMain.handle('analyzer:openAspanFolder', async (_e, arg) => {
   try {
-    const drawingCode = (typeof arg === 'string') ? arg : (arg?.drawingCode || '');
+    const rawCode = (typeof arg === 'string') ? arg : (arg?.drawingCode || '');
     const cfg = state.currentCfg || (await loadCfg()) || {};
     const aspanRoot = cfg?.drawingsAspan;
 
     if (!aspanRoot) {
-      return { ok: false, message: "A pasta Desenho ASPAN não está configurada nas preferências." };
+      return { ok: false, message: "A pasta NANXING não está configurada nas preferências." };
     }
 
     const folderExists = await fse.pathExists(aspanRoot);
     if (!folderExists) {
-      return { ok: false, message: `Pasta Desenho ASPAN não encontrada: ${aspanRoot}` };
+      return { ok: false, message: `Pasta NANXING não encontrada: ${aspanRoot}` };
     }
 
-    if (drawingCode) {
-      const exactFilename = `${drawingCode.toLowerCase()}.dxf`;
-      const fullPath = await findFileRecursive(aspanRoot, exactFilename);
+    const cleanCode = rawCode.replace(/\.[^/.]+$/, '').trim();
+
+    if (cleanCode) {
+      // 1. Extrai as iniciais do código do desenho (ex: "ESP00004969A" -> "ESP")
+      const prefixMatch = cleanCode.match(/^[A-Za-z]+/);
+      const prefix = prefixMatch ? prefixMatch[0] : '';
+
+      let targetDir = aspanRoot;
+      let prefixSubfolder = null;
+
+      if (prefix) {
+        // Tenta encontrar a pasta das iniciais dentro do diretório NANXING
+        const directPath = path.join(aspanRoot, prefix);
+        if (await fse.pathExists(directPath)) {
+          prefixSubfolder = directPath;
+          targetDir = directPath;
+        } else {
+          // Busca pasta insensível a maiúsculas/minúsculas
+          try {
+            const entries = await fsp.readdir(aspanRoot, { withFileTypes: true });
+            const dirEntry = entries.find(e => e.isDirectory() && e.name.toLowerCase() === prefix.toLowerCase());
+            if (dirEntry) {
+              prefixSubfolder = path.join(aspanRoot, dirEntry.name);
+              targetDir = prefixSubfolder;
+            }
+          } catch (_err) {}
+        }
+      }
+
+      // 2. Procura pelo arquivo do desenho (ex: ESP00004969A.scx, ESP00004969A.dxf, etc.)
+      let fullPath = await findAspanFile(targetDir, cleanCode);
+
+      // Se não encontrou na pasta do prefixo, busca em todo o diretório NANXING recursivamente
+      if (!fullPath && targetDir !== aspanRoot) {
+        fullPath = await findAspanFile(aspanRoot, cleanCode);
+      }
+
+      // Se o arquivo foi localizado, abre o Explorer selecionando o arquivo
       if (fullPath) {
         shell.showItemInFolder(fullPath);
         return { ok: true, path: fullPath };
       }
+
+      // Se o arquivo não foi encontrado, mas a pasta das iniciais existe (ex: ESP), abre essa pasta
+      if (prefixSubfolder && await fse.pathExists(prefixSubfolder)) {
+        const errorMsg = await shell.openPath(prefixSubfolder);
+        if (errorMsg) {
+          return { ok: false, message: `Erro ao abrir a pasta ${prefix}: ${errorMsg}` };
+        }
+        return { ok: true, path: prefixSubfolder };
+      }
     }
 
+    // Fallback: abre a pasta raiz NANXING
     const errorMsg = await shell.openPath(aspanRoot);
     if (errorMsg) {
-      return { ok: false, message: `Erro ao abrir a pasta Desenho ASPAN: ${errorMsg}` };
+      return { ok: false, message: `Erro ao abrir a pasta NANXING: ${errorMsg}` };
     }
     return { ok: true, path: aspanRoot };
   } catch (e) {

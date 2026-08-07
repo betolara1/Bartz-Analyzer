@@ -16,7 +16,7 @@ interface ErpSearchSectionProps {
   setErpSearchType: (v: string) => void;
   erpSearching: boolean;
   erpSearchResults: any[];
-  onSearch: () => void;
+  onSearch: (override?: { code?: string; desc?: string; type?: string }) => void;
   onSelectCode: (code: string) => void;
 }
 
@@ -76,31 +76,39 @@ export function ErpSearchSection({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Código do Produto</label>
-              <Input
-                placeholder="Ex: 10.01.0001"
-                value={erpSearchCode}
-                onChange={(e) => {
-                  setErpSearchCode(e.target.value);
-                  if (e.target.value) {
-                    setErpSearchDesc('');
-                    setErpSearchType('');
-                  }
-                }}
-                onClear={() => setErpSearchCode('')}
-                disabled={!!erpSearchDesc || !!erpSearchType}
-                className="w-full bg-muted/50 border-border text-foreground px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all font-mono"
-              />
+              <div className="relative group">
+                <Input
+                  placeholder="Ex: 10.01.0001"
+                  value={erpSearchCode}
+                  onChange={(e) => {
+                    setErpSearchCode(e.target.value);
+                    if (e.target.value) {
+                      setErpSearchDesc('');
+                      setErpSearchType('');
+                    }
+                  }}
+                  onClear={() => setErpSearchCode('')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && (erpSearchCode || erpSearchDesc || erpSearchType)) onSearch(); }}
+                  disabled={!!erpSearchDesc || !!erpSearchType}
+                  className="w-full bg-background border-border text-foreground text-xs focus:border-blue-500 h-9 rounded-lg font-mono transition-all"
+                  style={{ paddingLeft: "2.25rem" }}
+                />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Tipo de Item</label>
               <select
                 value={erpSearchType}
                 onChange={(e) => {
-                  setErpSearchType(e.target.value);
-                  if (e.target.value) setErpSearchCode('');
+                  const val = e.target.value;
+                  setErpSearchType(val);
+                  const nextCode = val ? '' : erpSearchCode;
+                  if (val) setErpSearchCode('');
+                  onSearch({ type: val, code: nextCode });
                 }}
                 disabled={!!erpSearchCode}
-                className="w-full bg-muted/50 border border-border text-foreground px-3 py-2 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold"
+                className="w-full bg-background border border-border text-foreground px-3 h-9 rounded-lg text-xs focus:border-blue-500 outline-none disabled:opacity-30 transition-all font-bold cursor-pointer"
               >
                 <option value="">TODOS OS TIPOS</option>
                 <option value="CHAPAS">CHAPAS</option>
@@ -113,18 +121,23 @@ export function ErpSearchSection({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[9px] text-[#A7A7A7] uppercase font-bold tracking-widest pl-1">Descrição (Cor, Acabamento, Espessura)</label>
-            <Input
-              placeholder="Ex: BRANCO SUPREMO 18MM"
-              value={erpSearchDesc}
-              onChange={(e) => {
-                setErpSearchDesc(e.target.value);
-                if (e.target.value) setErpSearchCode('');
-              }}
-              onClear={() => setErpSearchDesc('')}
-              disabled={!!erpSearchCode}
-              className="w-full bg-muted/50 border-border text-foreground px-3 py-2 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 outline-none disabled:opacity-30 transition-all"
-            />
+            <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Descrição (Cor, Acabamento, Espessura)</label>
+            <div className="relative group">
+              <Input
+                placeholder="Ex: BRANCO SUPREMO 18MM"
+                value={erpSearchDesc}
+                onChange={(e) => {
+                  setErpSearchDesc(e.target.value);
+                  if (e.target.value) setErpSearchCode('');
+                }}
+                onClear={() => setErpSearchDesc('')}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (erpSearchCode || erpSearchDesc || erpSearchType)) onSearch(); }}
+                disabled={!!erpSearchCode}
+                className="w-full bg-background border-border text-foreground text-xs focus:border-blue-500 h-9 rounded-lg transition-all"
+                style={{ paddingLeft: "2.25rem" }}
+              />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
+            </div>
           </div>
 
           <button

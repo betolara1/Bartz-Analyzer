@@ -116,7 +116,8 @@ ipcMain.handle('analyzer:replaceCgGroups', async (_e, obj) => {
     let replacedText = raw;
     const counts = {};
     // aplicar substituições para chaves conhecidas (cg1, cg2) -- case-insensitive
-    for (const key of Object.keys(map)) {
+    const sortedKeys = Object.keys(map).sort((a, b) => b.length - a.length);
+    for (const key of sortedKeys) {
       const val = map[key];
       if (!val) { counts[key] = 0; continue; }
       const re = new RegExp(escapeRegExp(key.toString()), 'gi');
