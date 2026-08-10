@@ -5193,7 +5193,9 @@ html {
 /* --- Maximized state --- */
 .fd-modal-container.fd-modal-maximized {
   width: 98vw !important;
-  height: 96vh !important;
+  height: 98vh !important;
+  max-width: 99vw !important;
+  max-height: 99vh !important;
   resize: none;
 }
 

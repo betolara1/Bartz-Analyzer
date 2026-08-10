@@ -399,6 +399,8 @@ function ActionsTab({ data, actions }: { data: Row | null; actions: ReturnType<t
         setSelectedRefSingle={actions.setSelectedRefSingle}
         refFillValue={actions.refFillValue}
         setRefFillValue={actions.setRefFillValue}
+        refDescValue={actions.refDescValue}
+        setRefDescValue={actions.setRefDescValue}
         onConfirm={() => actions.setConfirmRefOpen(true)}
       />
     </div>

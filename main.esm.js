@@ -17,6 +17,8 @@ function createWindow() {
 
   if (process.env.VITE_DEV) {
     win.loadURL("http://localhost:5174/");
+    win.removeMenu();
+    win.maximize();
     win.webContents.openDevTools({ mode: "detach" });
   } else {
     win.loadFile(path.join(__dirname, "../../index.html"));

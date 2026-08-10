@@ -33,7 +33,7 @@ interface FileDetailDrawerProps {
 function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, currentUser }: FileDetailDrawerProps) {
   const actions = useFileActions(data, open, onAction, onFileMoved);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(true);
 
   const hasAdminPermission = React.useMemo(() => {
     if (!currentUser) return false;
@@ -44,8 +44,9 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
   // Reset UI state when drawer closes
   React.useEffect(() => {
     if (!open) {
-      setIsMaximized(false);
       setActiveTab("overview");
+    } else {
+      setIsMaximized(true);
     }
   }, [open]);
 
@@ -144,17 +145,24 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
 
         <AlertDialog open={actions.confirmRefOpen} onOpenChange={actions.setConfirmRefOpen}>
           <AlertDialogContent className="bg-card border border-rose-500/30">
-            <AlertDialogTitle className="text-foreground">Confirmar preenchimento de REFERENCIA?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">Confirmar preenchimento de Referência e Descrição?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
               {(() => {
                 const [selId, ...selDescParts] = (actions.selectedRefSingle || '').split('|');
                 const selDesc = selDescParts.join('|');
+                const hasCustomDesc = actions.refDescValue && actions.refDescValue !== selDesc;
                 return (
                   <>
-                    Você está prestes a preencher REFERENCIA do item:
-                    <div className="mt-2 p-2 bg-muted/50 rounded border border-border">
+                    Você está prestes a atualizar o item no XML:
+                    <div className="mt-2 p-2.5 bg-muted/50 rounded-lg border border-border space-y-1">
                       <div className="font-bold text-rose-300">ID: {selId}</div>
-                      {selDesc && <div className="text-xs italic text-zinc-400">"{selDesc}"</div>}
+                      {hasCustomDesc ? (
+                        <div className="text-xs text-foreground">
+                          Nova descrição: <span className="font-semibold text-rose-400">"{actions.refDescValue}"</span>
+                        </div>
+                      ) : (
+                        selDesc && <div className="text-xs italic text-zinc-400">"{selDesc}"</div>
+                      )}
                     </div>
                     <div className="mt-2">Novo código: <span className="font-mono font-bold text-rose-300">{actions.refFillValue}</span></div>
                   </>
@@ -165,7 +173,7 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
               <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80">Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={actions.onApplyRef}
-                className="bg-rose-500 text-black hover:bg-rose-600"
+                className="bg-rose-500 text-black hover:bg-rose-600 font-bold"
               >
                 Confirmar
               </AlertDialogAction>

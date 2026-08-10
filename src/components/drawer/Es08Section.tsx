@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
-import { Zap, ChevronDown, FileText, FolderOpen, FolderCheck, Copy, RefreshCw, Check, AlertTriangle } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Zap, ChevronDown, FileText, FolderOpen, FolderCheck, Copy, RefreshCw, Check, AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
+import { Input } from "../ui/input";
 
 interface Es08SectionProps {
   isOpen: boolean;
@@ -38,6 +39,22 @@ export function Es08Section({
   isResolved, otherPendingCount, onResolve, hasAdminPermission
 }: Es08SectionProps) {
   const matches = (data?.meta?.es08Matches || []) as any[];
+
+  // Filter State
+  const [filterText, setFilterText] = useState("");
+
+  const filteredItems = matches.filter((item: any) => {
+    if (!filterText.trim()) return true;
+    const search = filterText.toLowerCase();
+    return (
+      (item.itemBase || "es08").toLowerCase().includes(search) ||
+      (item.desenho || "").toLowerCase().includes(search) ||
+      (item.dimensao || "").toLowerCase().includes(search) ||
+      (item.descricao || "").toLowerCase().includes(search) ||
+      (item.id || "").toLowerCase().includes(search) ||
+      (item.referencia || "").toLowerCase().includes(search)
+    );
+  });
 
   // Buscar os desenhos automaticamente assim que a seção é aberta pela primeira vez
   const autoSearchedRef = useRef(false);
@@ -175,7 +192,7 @@ export function Es08Section({
         </div>
         <div className="flex items-center gap-4">
           {isResolved ? (
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
           ) : (
             <div className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] animate-pulse" />
           )}
@@ -187,135 +204,162 @@ export function Es08Section({
 
       {isOpen && (
         <div className="px-5 pb-5 pt-2 space-y-3">
-          <div className="flex items-center justify-end">
-            <button
-              onClick={onSearchAll}
-              disabled={dxfSearching}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 active:scale-[0.97] transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${dxfSearching ? 'animate-spin' : ''}`} />
-              {dxfSearching ? "Buscando..." : "Buscar Novamente"}
-            </button>
-          </div>
+          {matches.length > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative max-w-md flex-1 group">
+                <Input
+                  type="text"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  onClear={() => setFilterText("")}
+                  placeholder="Buscar por item, desenho, dimensão ou descrição..."
+                  className="w-full bg-muted/50 border-border text-foreground h-9 rounded-lg text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500/20 transition-all font-medium"
+                  style={{ paddingLeft: "2.5rem" }}
+                />
+                <Search
+                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-rose-400 transition-colors pointer-events-none z-10"
+                  style={{ top: "50%", transform: "translateY(-50%)" }}
+                />
+              </div>
+              <button
+                onClick={onSearchAll}
+                disabled={dxfSearching}
+                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 active:scale-[0.97] transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${dxfSearching ? 'animate-spin' : ''}`} />
+                {dxfSearching ? "Buscando..." : "Buscar Novamente"}
+              </button>
+            </div>
+          )}
 
-          <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[360px] overflow-y-auto overflow-x-auto custom-scrollbar">
-            <table className="w-full text-xs min-w-[650px]">
-              <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
-                <tr>
-                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">ID do Item</th>
-                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Ref</th>
-                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
-                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[110px]">Status</th>
-                  <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[420px]">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#232323]">
-                {matches.map((item, i) => {
-                  const drawing = item.desenho;
-                  const result = drawing ? dxfResults[drawing] : undefined;
-                  const isFixing = drawing ? dxfFixing[drawing] : false;
-                  const needsFix = result?.status === 'found' && drawingNeedsFix(result.data);
+          {filteredItems.length > 0 ? (
+            <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[360px] overflow-y-auto overflow-x-auto custom-scrollbar">
+              <table className="w-full text-xs min-w-[650px]">
+                <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
+                  <tr>
+                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base</th>
+                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
+                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
+                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
+                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[110px]">Status</th>
+                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[420px]">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#232323]">
+                  {filteredItems.map((item, i) => {
+                    const drawing = item.desenho;
+                    const result = drawing ? dxfResults[drawing] : undefined;
+                    const isFixing = drawing ? dxfFixing[drawing] : false;
+                    const needsFix = result?.status === 'found' && drawingNeedsFix(result.data);
 
-                  return (
-                    <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-4 py-3 font-mono text-rose-400 max-w-[180px] truncate">{item.id || "—"}</td>
-                      <td className="px-4 py-3 text-white/80">{item.referencia || "—"}</td>
-                      <td className="px-4 py-3 text-white/80">{drawing || <span className="text-[#444] italic">vazio</span>}</td>
-                      <td className="px-4 py-3">
-                        {!result ? (
-                          <span className="text-[10px] uppercase font-bold text-[#555]">Pendente</span>
-                        ) : result.status === 'searching' ? (
-                          <span className="text-[10px] uppercase font-bold text-yellow-500 animate-pulse">Buscando</span>
-                        ) : result.status === 'found' ? (
-                          needsFix ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-amber-500">
-                              <AlertTriangle className="h-3 w-3" /> Corrigir
-                            </span>
+                    return (
+                      <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
+                        <td className="px-4 py-3 font-mono text-rose-400">{item.itemBase || "ES08"}</td>
+                        <td className="px-4 py-3 text-white/80">{drawing || <span className="text-[#444] italic">vazio</span>}</td>
+                        <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao || "—"}</td>
+                        <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[220px] break-words">
+                          {item.descricao || <span className="text-white/40 italic">vazio</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {!result ? (
+                            <span className="text-[10px] uppercase font-bold text-[#555]">Pendente</span>
+                          ) : result.status === 'searching' ? (
+                            <span className="text-[10px] uppercase font-bold text-yellow-500 animate-pulse">Buscando</span>
+                          ) : result.status === 'found' ? (
+                            needsFix ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-amber-500">
+                                <AlertTriangle className="h-3 w-3" /> Corrigir
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-500">
+                                <Check className="h-3 w-3" /> OK
+                              </span>
+                            )
+                          ) : result.status === 'not_found' ? (
+                            <span className="text-[10px] uppercase font-bold text-rose-500">Não encontrado</span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-500">
-                              <Check className="h-3 w-3" /> OK
-                            </span>
-                          )
-                        ) : result.status === 'not_found' ? (
-                          <span className="text-[10px] uppercase font-bold text-rose-500">Não encontrado</span>
-                        ) : (
-                          <span className="text-[10px] uppercase font-bold text-red-500" title={result.message}>Falha</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="inline-flex gap-2 flex-wrap justify-center">
-                          {hasAdminPermission && (
+                            <span className="text-[10px] uppercase font-bold text-red-500" title={result.message}>Falha</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex gap-2 flex-wrap justify-center">
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!drawing}
+                                onClick={() => handleOpenDrawing(drawing)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Abrir desenho"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                Abrir Desenho
+                              </button>
+                            )}
                             <button
                               disabled={!drawing}
-                              onClick={() => handleOpenDrawing(drawing)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir desenho"
+                              onClick={() => handleOpenDrawingFolder(drawing)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta NESTING (SERVIDOR)"
                             >
-                              <FileText className="h-3.5 w-3.5" />
-                              Abrir
+                              <FolderOpen className="h-3.5 w-3.5" />
+                              NESTING (SERVIDOR)
                             </button>
-                          )}
-                          <button
-                            disabled={!drawing}
-                            onClick={() => handleOpenDrawingFolder(drawing)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta NESTING (SERVIDOR)"
-                          >
-                            <FolderOpen className="h-3.5 w-3.5" />
-                            NESTING (SERVIDOR)
-                          </button>
-                          <button
-                            disabled={!drawing}
-                            onClick={() => handleOpenMirrorFolder(drawing)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta NESTING(DXF ALESSANDRO)"
-                          >
-                            <FolderCheck className="h-3.5 w-3.5" />
-                            NESTING(DXF ALESSANDRO)
-                          </button>
-                          <button
-                            disabled={!drawing}
-                            onClick={() => handleOpenAspanFolder(drawing)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta NANXING"
-                          >
-                            <FolderOpen className="h-3.5 w-3.5" />
-                            NANXING
-                          </button>
-                          {hasAdminPermission && (
                             <button
                               disabled={!drawing}
-                              onClick={() => handleCopyToMirror(drawing)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Enviar desenho para a pasta espelho"
+                              onClick={() => handleOpenMirrorFolder(drawing)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta NESTING(DXF ALESSANDRO)"
                             >
-                              <Copy className="h-3.5 w-3.5" />
-                              COPIAR PARA DXF
+                              <FolderCheck className="h-3.5 w-3.5" />
+                              NESTING(DXF ALESSANDRO)
                             </button>
-                          )}
-                          {hasAdminPermission && (
                             <button
-                              disabled={!needsFix || isFixing}
-                              onClick={() => onFix(drawing)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-rose-500/10 disabled:text-rose-400 disabled:border disabled:border-rose-500/20"
-                              title={needsFix ? "Corrigir fresa/usinagem/painel (37mm → 18mm / 31mm → 15mm)" : "Nenhuma correção necessária"}
+                              disabled={!drawing}
+                              onClick={() => handleOpenAspanFolder(drawing)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Abrir pasta NANXING"
                             >
-                              {isFixing ? (
-                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Zap className="h-3.5 w-3.5" />
-                              )}
-                              Corrigir
+                              <FolderOpen className="h-3.5 w-3.5" />
+                              NANXING
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!drawing}
+                                onClick={() => handleCopyToMirror(drawing)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Enviar desenho para a pasta espelho"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                                COPIAR PARA DXF
+                              </button>
+                            )}
+                            {hasAdminPermission && (
+                              <button
+                                disabled={!needsFix || isFixing}
+                                onClick={() => onFix(drawing)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-rose-500/10 disabled:text-rose-400 disabled:border disabled:border-rose-500/20"
+                                title={needsFix ? "Corrigir fresa/usinagem/painel (37mm → 18mm / 31mm → 15mm)" : "Nenhuma correção necessária"}
+                              >
+                                {isFixing ? (
+                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Zap className="h-3.5 w-3.5" />
+                                )}
+                                Corrigir
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-muted-foreground border border-border/40 rounded-lg bg-card/20">
+              Nenhum item encontrado para "{filterText}".
+            </div>
+          )}
 
           <div className={`mt-2 pt-4 border-t ${allOk ? 'border-emerald-500/20' : 'border-amber-500/20'} flex items-center gap-2`}>
             {allOk ? (

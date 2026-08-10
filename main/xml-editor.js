@@ -270,6 +270,20 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
           });
           c++;
         }
+
+        // Se uma nova descrição foi informada (ou alterada), substitui no atributo DESCRICAO
+        const newDesc = rep.newDesc || rep.novaDescricao;
+        if (newDesc && typeof newDesc === 'string' && newDesc.trim() !== '') {
+          const descAttrRegex = /DESCRICAO\s*=\s*"([^"]*)"/i;
+          if (updated.match(descAttrRegex)) {
+            updated = updated.replace(descAttrRegex, `DESCRICAO="${String(newDesc).trim()}"`);
+          } else {
+            updated = updated.replace(/[\s\S]*?>/, (match) => {
+              return match.replace(/[\s\n]*>/, ` DESCRICAO="${String(newDesc).trim()}"`);
+            });
+          }
+        }
+
         return updated;
       });
 

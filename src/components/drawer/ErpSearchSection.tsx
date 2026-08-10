@@ -16,7 +16,7 @@ interface ErpSearchSectionProps {
   setErpSearchType: (v: string) => void;
   erpSearching: boolean;
   erpSearchResults: any[];
-  onSearch: (override?: { code?: string; desc?: string; type?: string }) => void;
+  onSearch: (override?: { code?: string; desc?: string; type?: string; isAuto?: boolean }) => void;
   onSelectCode: (code: string) => void;
 }
 
@@ -39,6 +39,28 @@ export function ErpSearchSection({
   const showSection = ((data?.meta?.coringaMatches?.length || 0) > 0) || 
                       ((data?.meta?.referenciaEmpty?.length || 0) > 0) ||
                       ((data?.errors ?? []).some(er => String(er).toUpperCase().includes("ITEM SEM CÓDIGO")));
+
+  // Auto-search ERP when typing in description
+  React.useEffect(() => {
+    const desc = erpSearchDesc.trim();
+    if (desc.length >= 2) {
+      const timer = setTimeout(() => {
+        onSearch({ desc, code: '', type: erpSearchType, isAuto: true });
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [erpSearchDesc, erpSearchType]);
+
+  // Auto-search ERP when typing in product code
+  React.useEffect(() => {
+    const code = erpSearchCode.trim();
+    if (code.length >= 3) {
+      const timer = setTimeout(() => {
+        onSearch({ code, desc: '', type: '', isAuto: true });
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [erpSearchCode]);
 
   if (!showSection) return null;
 

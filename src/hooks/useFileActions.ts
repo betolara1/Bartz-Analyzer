@@ -31,6 +31,7 @@ export function useFileActions(
   // Pending Reference
   const [selectedRefSingle, setSelectedRefSingle] = useState<string | null>(null);
   const [refFillValue, setRefFillValue] = useState('');
+  const [refDescValue, setRefDescValue] = useState('');
   const [confirmRefOpen, setConfirmRefOpen] = useState(false);
 
   // Confirmation Modals
@@ -216,10 +217,13 @@ export function useFileActions(
   }, [data, open]);
 
   // Actions
-  const handleErpSearch = useCallback(async (override?: { code?: string; desc?: string; type?: string }) => {
+  const handleErpSearch = useCallback(async (override?: { code?: string; desc?: string; type?: string; isAuto?: boolean }) => {
     const code = override?.code !== undefined ? override.code : erpSearchCode;
     const desc = override?.desc !== undefined ? override.desc : erpSearchDesc;
     const type = override?.type !== undefined ? override.type : erpSearchType;
+    const isAuto = Boolean(override?.isAuto);
+
+    if (!code && !desc && !type) return;
 
     setErpSearching(true);
     setErpSearchResults([]);
@@ -231,9 +235,9 @@ export function useFileActions(
       });
       const results = res?.results || [];
       setErpSearchResults(results);
-      if (!results.length) toast.info("Nenhum produto encontrado.");
+      if (!results.length && !isAuto) toast.info("Nenhum produto encontrado.");
     } catch (e: any) {
-      toast.error(`Erro na busca: ${e.message}`);
+      if (!isAuto) toast.error(`Erro na busca: ${e.message}`);
     } finally {
       setErpSearching(false);
     }
@@ -499,18 +503,24 @@ export function useFileActions(
   const onApplyRef = useCallback(async () => {
     if (!data || !selectedRefSingle) return;
     setConfirmRefOpen(false);
-    const id = toast.loading('Trocando REFERENCIA...');
+    const id = toast.loading('Atualizando REFERENCIA e DESCRIÇÃO...');
     try {
       const [selId, ...selDescParts] = (selectedRefSingle || '').split('|');
       const selDesc = selDescParts.join('|');
-      const replacements = [{ id: selId, descricao: selDesc, value: refFillValue }];
+      const replacements = [{ 
+        id: selId, 
+        descricao: selDesc, 
+        value: refFillValue.trim(),
+        newDesc: refDescValue.trim() || undefined
+      }];
       const res = await window.electron?.analyzer?.fillReferenciaByIds?.(data.fullpath, replacements);
       if (res?.ok) {
         const total = Object.values(res.counts || {}).reduce((s: any, n: any) => s + (n || 0), 0);
-        toast.success(`Preenchidas ${total} ocorrência(s)`);
-        if (onAction) onAction(data.fullpath, `[Manual] Referência: preenchido ID "${selectedRefSingle}" com valor "${refFillValue}"`);
+        toast.success(`Preenchidas ${total} ocorrência(s) com sucesso`);
+        if (onAction) onAction(data.fullpath, `[Manual] Referência: preenchido ID "${selId}" com Ref "${refFillValue}" e Desc "${refDescValue || selDesc}"`);
         setLastReplace({ backupPath: res.backupPath, type: 'fill-referencia-ids', replacements, counts: res.counts });
         setRefFillValue('');
+        setRefDescValue('');
         setSelectedRefSingle(null);
       } else {
         toast.error(`Falha: ${res?.message || 'nenhuma ocorrência encontrada'}`);
@@ -520,7 +530,7 @@ export function useFileActions(
     } finally {
       toast.dismiss(id);
     }
-  }, [data, selectedRefSingle, refFillValue, onAction]);
+  }, [data, selectedRefSingle, refFillValue, refDescValue, onAction]);
 
   const handleMoveToOk = useCallback(async () => {
     if (!data) return;
@@ -610,6 +620,7 @@ export function useFileActions(
     erpSearchResults,
     selectedRefSingle, setSelectedRefSingle,
     refFillValue, setRefFillValue,
+    refDescValue, setRefDescValue,
     confirmRefOpen, setConfirmRefOpen,
     confirmCoringaOpen, setConfirmCoringaOpen,
     confirmCgOpen, setConfirmCgOpen,

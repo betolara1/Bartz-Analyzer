@@ -69,24 +69,40 @@ function validateXmlContent(txt, cfg = {}) {
     // ===== ITEM_BASE="ES08" (DUPLADO 37MM) =====
     try {
         const es08Matches = [];
-        for (const m of txt.matchAll(/<ITEM\b[^>]*\bITEM_BASE\s*=\s*"ES08"[^>]*>/gi)) {
-            const snippet = ((m[0] || '').trim()).slice(0, 400);
-            const idMatch = snippet.match(/\bID\s*=\s*"([^"]+)"/i);
-            const refMatch = snippet.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
-            const desenhoMatch = snippet.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
-            es08Matches.push({
-                id: idMatch ? idMatch[1] : null,
-                referencia: refMatch ? refMatch[1] : null,
-                desenho: desenhoMatch ? desenhoMatch[1] : null,
-                snippet
-            });
+        for (const m of itemMatches) {
+            const itemTag = m[0];
+            const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(ES08[^"]*)"/i) || itemTag.match(/\bITEM_BASE\s*=\s*"ES08"/i);
+            if (baseMatch) {
+                const itemBase = baseMatch[1] ? baseMatch[1].toUpperCase() : "ES08";
+                const idMatch = itemTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                const refMatch = itemTag.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+                const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+                const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+
+                const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+                const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+                const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+
+                es08Matches.push({
+                    id: idMatch ? idMatch[1] : null,
+                    itemBase,
+                    referencia: refMatch ? refMatch[1] : null,
+                    desenho: desenhoMatch ? desenhoMatch[1] : null,
+                    descricao: descMatch ? descMatch[1] : "",
+                    dimensao: `${l}x${a}x${p}`,
+                    snippet: itemTag.slice(0, 500)
+                });
+            }
         }
         if (es08Matches.length) {
             payload.erros.push({ descricao: "ITEM DUPLADO 37MM" });
             payload.tags.push("duplado37mm");
             const map = new Map();
             for (const r of es08Matches) {
-                const key = `${r.id || ''}|${r.referencia || ''}|${r.desenho || ''}`;
+                const key = `${r.itemBase || ''}|${r.desenho || ''}|${r.referencia || ''}`;
                 if (!map.has(key)) map.set(key, r);
             }
             payload.meta.es08Matches = Array.from(map.values());
