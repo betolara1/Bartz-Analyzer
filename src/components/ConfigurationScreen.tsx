@@ -150,11 +150,11 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
   const [testResults, setTestResults] = useState<Record<string, { exist: boolean; write: boolean; error?: string }> | null>(null);
   const [testing, setTesting] = useState(false);
 
-  // Permissão 37 - Admin Analisador
+  // Permissão 37 ou 38 - Admin Analisador
   const isAdminAnalisador = useMemo(() => {
     if (!currentUser) return false;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(37);
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).some((id: number) => id === 37 || id === 38);
   }, [currentUser]);
 
   useEffect(() => {
@@ -293,7 +293,7 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
 
   const renderAutomations = () => (
     <div className="space-y-6 max-w-[920px]">
-      {/* Bloco 1: Auto-Fix Geral (Apenas para Permissão 37 - Admin Analisador) */}
+      {/* Bloco 1: Auto-Fix Geral (Apenas para Permissão 37/38 - Admin Analisador) */}
       {isAdminAnalisador && (
         <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-[#2C2C2C] pb-3 mb-1">
@@ -497,7 +497,7 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
         </div>
       </div>
 
-      {/* Conexão com o Banco de Dados MySQL (Visível apenas se possuir a permissão 37 - Admin Analisador) */}
+      {/* Conexão com o Banco de Dados MySQL (Visível apenas se possuir a permissão 37 ou 38 - Admin Analisador) */}
       {isAdminAnalisador && (
         <div className="bg-[#111] border border-[#2C2C2C] rounded-xl p-5 space-y-5">
           <div className="border-b border-[#2C2C2C] pb-3">

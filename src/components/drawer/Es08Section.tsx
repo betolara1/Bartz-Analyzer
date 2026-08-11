@@ -21,6 +21,7 @@ interface Es08SectionProps {
   otherPendingCount: number;
   onResolve: () => void;
   hasAdminPermission?: boolean;
+  canViewEs08?: boolean;
 }
 
 function drawingNeedsFix(info: any): boolean {
@@ -36,7 +37,7 @@ function drawingNeedsFix(info: any): boolean {
 export function Es08Section({
   isOpen, onToggle, data, uniqueDrawings, dxfSearching, dxfResults, dxfFixing,
   onSearchAll, onFix, onMoveToOk, onOpenConfirmMove, onOpenConfirmMoveOk,
-  isResolved, otherPendingCount, onResolve, hasAdminPermission
+  isResolved, otherPendingCount, onResolve, hasAdminPermission, canViewEs08
 }: Es08SectionProps) {
   const matches = (data?.meta?.es08Matches || []) as any[];
 
@@ -66,7 +67,7 @@ export function Es08Section({
     if (!isOpen) autoSearchedRef.current = false;
   }, [isOpen, uniqueDrawings.length, dxfResults, dxfSearching, onSearchAll]);
 
-  if (matches.length === 0) return null;
+  if (!canViewEs08 || matches.length === 0) return null;
 
   const allOk = uniqueDrawings.length > 0 && uniqueDrawings.every(d => {
     const result = dxfResults[d];

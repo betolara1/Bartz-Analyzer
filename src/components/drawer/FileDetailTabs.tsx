@@ -45,9 +45,10 @@ interface FileDetailTabsProps {
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   hasAdminPermission?: boolean;
+  canViewEs08?: boolean;
 }
 
-export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission }: FileDetailTabsProps) {
+export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission, canViewEs08 }: FileDetailTabsProps) {
   const hasCG1 = !!data?.meta?.cg1_detected;
   const hasCG2 = !!data?.meta?.cg2_detected;
   const hasCoringa1 = !!data?.meta?.coringa1_detected;
@@ -67,7 +68,7 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdmin
   const showActionsTab = !!hasAdminPermission && hasActions;
 
   const hasSemFilho = !!data?.tags?.includes('sem_filho');
-  const hasEs08 = (data?.meta?.es08Matches || []).length > 0;
+  const hasEs08 = !!canViewEs08 && (data?.meta?.es08Matches || []).length > 0;
   const hasSpecialItems = (data?.meta?.specialItems || []).length > 0;
   const hasPoItems = (data?.meta?.poItems || []).length > 0;
   const hasMuxarabi = (data?.meta?.muxarabiItems || []).length > 0;
@@ -140,7 +141,7 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdmin
             <OverviewTab data={data} actions={actions} />
           )}
           {activeTab === "components" && (
-            <ComponentsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} />
+            <ComponentsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} canViewEs08={canViewEs08} />
           )}
           {activeTab === "items" && (
             <ItemsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} />
@@ -194,7 +195,7 @@ function OverviewTab({ data, actions }: { data: Row | null; actions: ReturnType<
 }
 
 /* ─── TAB: Componentes ─── */
-function ComponentsTab({ data, actions, hasAdminPermission }: { data: Row | null; actions: ReturnType<typeof useFileActions>; hasAdminPermission?: boolean }) {
+function ComponentsTab({ data, actions, hasAdminPermission, canViewEs08 }: { data: Row | null; actions: ReturnType<typeof useFileActions>; hasAdminPermission?: boolean; canViewEs08?: boolean }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <div className="lg:col-span-2">
@@ -208,26 +209,29 @@ function ComponentsTab({ data, actions, hasAdminPermission }: { data: Row | null
           hasAdminPermission={hasAdminPermission}
         />
       </div>
-      <div className="lg:col-span-2">
-        <Es08Section
-          isOpen={actions.es08Open}
-          onToggle={() => actions.setEs08Open(!actions.es08Open)}
-          data={data}
-          uniqueDrawings={actions.uniqueDrawings}
-          dxfSearching={actions.dxfSearching}
-          dxfResults={actions.dxfResults}
-          dxfFixing={actions.dxfFixing}
-          onSearchAll={actions.searchAllDrawings}
-          onFix={actions.fixFresa37to18}
-          onMoveToOk={actions.handleMoveToOk}
-          onOpenConfirmMove={() => actions.setConfirmMoveOpen(true)}
-          onOpenConfirmMoveOk={() => actions.setConfirmMoveOkOpen(true)}
-          isResolved={actions.resolvedProblems.has('es08')}
-          otherPendingCount={actions.unresolvedProblems.filter(p => p !== 'es08').length}
-          onResolve={() => actions.resolveAndMaybeMove('es08')}
-          hasAdminPermission={hasAdminPermission}
-        />
-      </div>
+      {!!canViewEs08 && (
+        <div className="lg:col-span-2">
+          <Es08Section
+            isOpen={actions.es08Open}
+            onToggle={() => actions.setEs08Open(!actions.es08Open)}
+            data={data}
+            uniqueDrawings={actions.uniqueDrawings}
+            dxfSearching={actions.dxfSearching}
+            dxfResults={actions.dxfResults}
+            dxfFixing={actions.dxfFixing}
+            onSearchAll={actions.searchAllDrawings}
+            onFix={actions.fixFresa37to18}
+            onMoveToOk={actions.handleMoveToOk}
+            onOpenConfirmMove={() => actions.setConfirmMoveOpen(true)}
+            onOpenConfirmMoveOk={() => actions.setConfirmMoveOkOpen(true)}
+            isResolved={actions.resolvedProblems.has('es08')}
+            otherPendingCount={actions.unresolvedProblems.filter(p => p !== 'es08').length}
+            onResolve={() => actions.resolveAndMaybeMove('es08')}
+            hasAdminPermission={hasAdminPermission}
+            canViewEs08={canViewEs08}
+          />
+        </div>
+      )}
       <div className="lg:col-span-2">
         <SpecialItemsSection
           isOpen={actions.specialItemsOpen}

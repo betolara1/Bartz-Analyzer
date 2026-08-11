@@ -298,11 +298,11 @@ export default function Dashboard({
     return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(36);
   }, [currentUser]);
 
-  // Permissão 37 - Admin Analisador
+  // Permissão 37 ou 38 - Admin Analisador
   const hasAdminPermission = useMemo(() => {
     if (!currentUser) return false;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(37);
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).some((id: number) => id === 37 || id === 38);
   }, [currentUser]);
 
 function createCanvasBadgeDataUrl(count: number): string | null {
@@ -1165,7 +1165,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v6.0.0
+                v6.0.1
               </span>
             </div>
             {watchRoot && (
