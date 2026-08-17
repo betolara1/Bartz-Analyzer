@@ -96,6 +96,31 @@ ipcMain.handle('analyzer:copyXmlToEntrada', async (_e, { sourceFullPath }) => {
   }
 });
 
+ipcMain.handle('analyzer:copyXmlToBusca', async (_e, { sourceFullPath }) => {
+  try {
+    if (!sourceFullPath) {
+      return { ok: false, message: "Caminho do arquivo de origem não especificado." };
+    }
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const destFolder = cfg?.busca;
+    if (!destFolder) {
+      return { ok: false, message: "A Pasta de Busca XML não está configurada nas Opções." };
+    }
+    const destFolderExists = await fse.pathExists(destFolder);
+    if (!destFolderExists) {
+      return { ok: false, message: `Pasta de Busca XML não encontrada: ${destFolder}` };
+    }
+
+    const fileName = path.basename(sourceFullPath);
+    const destFullPath = path.join(destFolder, fileName);
+
+    await fse.copy(sourceFullPath, destFullPath, { overwrite: true });
+    return { ok: true, destPath: destFullPath };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
 /** ================== IPC: DOWNLOAD .PROMOB DO PEDIDOS ONLINE ================== **/
 ipcMain.handle('analyzer:downloadPromob', async (_e, { xmlFilename }) => {
   try {

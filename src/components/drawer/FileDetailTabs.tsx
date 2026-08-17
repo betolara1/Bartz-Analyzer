@@ -46,9 +46,10 @@ interface FileDetailTabsProps {
   onTabChange: (tab: TabKey) => void;
   hasAdminPermission?: boolean;
   canViewEs08?: boolean;
+  canCopyXml?: boolean;
 }
 
-export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission, canViewEs08 }: FileDetailTabsProps) {
+export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission, canViewEs08, canCopyXml }: FileDetailTabsProps) {
   const hasCG1 = !!data?.meta?.cg1_detected;
   const hasCG2 = !!data?.meta?.cg2_detected;
   const hasCoringa1 = !!data?.meta?.coringa1_detected;
@@ -138,7 +139,7 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdmin
       <div className="flex-1 overflow-y-auto custom-scrollbar bg-card">
         <div className="p-6 space-y-6 pb-20 fd-tab-content">
           {activeTab === "overview" && (
-            <OverviewTab data={data} actions={actions} />
+            <OverviewTab data={data} actions={actions} canCopyXml={canCopyXml} />
           )}
           {activeTab === "components" && (
             <ComponentsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} canViewEs08={canViewEs08} />
@@ -156,13 +157,16 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdmin
 }
 
 /* ─── TAB: Visão Geral ─── */
-function OverviewTab({ data, actions }: { data: Row | null; actions: ReturnType<typeof useFileActions> }) {
+function OverviewTab({ data, actions, canCopyXml }: { data: Row | null; actions: ReturnType<typeof useFileActions>; canCopyXml?: boolean }) {
   return (
     <div className="space-y-6">
       <InfoSection
         data={data}
         onReprocess={actions.handleReprocess}
         onOpenFolder={actions.handleOpenFolder}
+        onCopyXml={actions.handleCopyXmlToBusca}
+        canCopyXml={canCopyXml}
+        copyingXml={actions.copyingXml}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">

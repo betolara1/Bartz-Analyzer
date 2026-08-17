@@ -598,10 +598,39 @@ export function useFileActions(
     }
   }, [data]);
 
+  const [copyingXml, setCopyingXml] = useState(false);
+
   const handleOpenFolder = useCallback(async () => {
     if (!data) return;
     await window.electron?.analyzer?.openInFolder?.(data.fullpath);
   }, [data]);
+
+  const handleCopyXmlToBusca = useCallback(async () => {
+    if (!data?.fullpath) {
+      toast.error("Nenhum arquivo selecionado.");
+      return;
+    }
+    setCopyingXml(true);
+    const id = toast.loading("Copiando XML para a pasta configurada...");
+    try {
+      const res = await window.electron?.analyzer?.copyXmlToBusca?.(data.fullpath);
+      if (res?.ok) {
+        toast.success("XML copiado para a pasta configurada com sucesso!", {
+          description: res.destPath ? `Salvo em: ${res.destPath}` : undefined,
+        });
+        if (onAction) {
+          onAction(data.fullpath, `XML copiado para a pasta de busca (${res.destPath || ''})`);
+        }
+      } else {
+        toast.error(`Falha ao copiar XML: ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (e: any) {
+      toast.error("Erro ao copiar XML.", { description: String(e?.message || e) });
+    } finally {
+      setCopyingXml(false);
+      toast.dismiss(id);
+    }
+  }, [data, onAction]);
 
   return {
     // States
@@ -688,6 +717,8 @@ export function useFileActions(
     fetchOrderComments,
     handleMoveToOk,
     handleReprocess,
-    handleOpenFolder
+    handleOpenFolder,
+    copyingXml,
+    handleCopyXmlToBusca
   };
 }

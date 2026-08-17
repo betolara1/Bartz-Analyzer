@@ -42,13 +42,21 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
   }, [currentUser]);
 
   const hasAdminPermission = React.useMemo(() => {
+    const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
+    if (userId === 37 || userId === 38) return true;
     return userPerms.some((id: number) => id === 37 || id === 38);
-  }, [userPerms]);
+  }, [userPerms, currentUser]);
 
   const canViewEs08 = React.useMemo(() => {
     // Aparecer SOMENTE para quem possui a permissão código 38
     return userPerms.includes(37);
   }, [userPerms]);
+
+  const canCopyXml = React.useMemo(() => {
+    const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
+    if (userId === 37) return true;
+    return userPerms.includes(37);
+  }, [userPerms, currentUser]);
 
   // Reset UI state when drawer closes
   React.useEffect(() => {
@@ -127,6 +135,7 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
               onTabChange={setActiveTab}
               hasAdminPermission={hasAdminPermission}
               canViewEs08={canViewEs08}
+              canCopyXml={canCopyXml}
             />
 
             {/* Resize Grip */}

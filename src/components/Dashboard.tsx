@@ -298,9 +298,11 @@ export default function Dashboard({
     return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(36);
   }, [currentUser]);
 
-  // Permissão 37 ou 38 - Admin Analisador
+  // Permissão ou ID 37 / 38 - Admin Analisador
   const hasAdminPermission = useMemo(() => {
     if (!currentUser) return false;
+    const userId = Number(currentUser.pk_usuario ?? currentUser.id ?? 0);
+    if (userId === 37 || userId === 38) return true;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
     return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).some((id: number) => id === 37 || id === 38);
   }, [currentUser]);
@@ -516,6 +518,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
   const [selectedDrawingPath, setSelectedDrawingPath] = useState("");
   const [openingDrawing, setOpeningDrawing] = useState(false);
   const [locatingDrawing, setLocatingDrawing] = useState(false);
+  const [openingMirrorFolder, setOpeningMirrorFolder] = useState(false);
   const [copyingDrawingToMirror, setCopyingDrawingToMirror] = useState(false);
   const [openingAspanFolder, setOpeningAspanFolder] = useState(false);
   const [searchingDrawings, setSearchingDrawings] = useState(false);
@@ -641,6 +644,27 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       toast.error("Erro ao abrir local do arquivo.", { description: String(error?.message || error) });
     } finally {
       setLocatingDrawing(false);
+    }
+  };
+
+  const handleOpenMirrorFolderFromSearch = async () => {
+    if (!selectedDrawingPath && !searchDrawingResults.length) return;
+    const item = searchDrawingResults.find(r => r.fullPath === selectedDrawingPath);
+    const drawingCode = item?.name ? item.name.replace(/\.dxf$/i, '') : '';
+    setOpeningMirrorFolder(true);
+    const id = toast.loading(`Buscando pasta NESTING(DXF ALESSANDRO) ${drawingCode}...`);
+    try {
+      const res = await window.electron?.analyzer?.openMirrorFolder?.(drawingCode);
+      if (res?.ok) {
+        toast.success("Pasta NESTING(DXF ALESSANDRO) aberta com sucesso!");
+      } else {
+        toast.error(`Não foi possível abrir a pasta NESTING(DXF ALESSANDRO): ${res?.message || "Erro desconhecido."}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao abrir pasta NESTING(DXF ALESSANDRO).", { description: String(error?.message || error) });
+    } finally {
+      setOpeningMirrorFolder(false);
+      toast.dismiss(id);
     }
   };
 
@@ -1165,7 +1189,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v6.0.1
+                v6.0.2
               </span>
             </div>
             {watchRoot && (
@@ -1487,13 +1511,13 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                 </Button>
 
                 <Button
-                  onClick={handleCopyDrawingToMirror}
-                  disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                  onClick={handleOpenMirrorFolderFromSearch}
+                  disabled={!selectedDrawingPath || !cfg.drawingsCopy || openingMirrorFolder}
                   variant="outline"
                   className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title={cfg.drawingsCopy ? "Enviar para pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
+                  title={cfg.drawingsCopy ? "Abrir pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
                 >
-                  <Copy className="h-3.5 w-3.5" />
+                  <FolderOpen className="h-3.5 w-3.5" />
                   NESTING(DXF ALESSANDRO)
                 </Button>
 
@@ -1507,6 +1531,19 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                   <FolderOpen className="h-3.5 w-3.5" />
                   NANXING
                 </Button>
+
+                {hasAdminPermission && (
+                  <Button
+                    onClick={handleCopyDrawingToMirror}
+                    disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                    variant="outline"
+                    className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                    title={cfg.drawingsCopy ? "Copiar para pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    COPIAR PARA DXF
+                  </Button>
+                )}
 
                 {hasAdminPermission && (
                   <Button
