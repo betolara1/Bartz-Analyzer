@@ -57,6 +57,9 @@ declare global {
         loadHistory?: () => Promise<any[]>;
         saveHistory?: (rows: any[]) => Promise<{ ok: boolean; count?: number; message?: string }>;
         downloadPromob?: (xmlFilename: string) => Promise<{ ok: boolean; filename?: string; destPath?: string; count?: number; files?: { filename: string; destPath: string }[]; message?: string }>;
+        getPlateSeparationData?: (customPath?: string) => Promise<{ ok: boolean; data?: any[]; folderPath?: string; count?: number; message?: string }>;
+        openPlateSeparationFile?: (filePath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
+        openPlateSeparationFolder?: (folderPath?: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
       };
       settings?: {
         load: () => Promise<any>;

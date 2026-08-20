@@ -44,6 +44,7 @@ require("./main/history");
 require("./main/erp-search");
 require("./main/xml-editor");
 require("./main/watcher");
+require("./main/plate-separation");
 const dxfTools = require("./main/dxf-tools"); // eslint-disable-line no-unused-vars -- usado indiretamente via xml-processor
 const { startAutomaticScheduler } = require("./main/reports-scheduler");
 const { startPeriodicUpdateCheck } = require("./main/updater");

@@ -1,6 +1,6 @@
 {
   "name": "bartz-analyzer",
-  "version": "6.0.2",
+  "version": "6.0.3",
   "private": true,
   "main": "cjs-main.js",
   "type": "commonjs",
@@ -108,6 +108,7 @@
     "ibm_db": "^4.0.1",
     "lucide-react": "^0.542.0",
     "mysql2": "^3.23.2",
+    "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
     "react-router-dom": "^6",

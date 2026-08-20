@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Boxes, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen, FolderCheck, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
@@ -24,17 +24,51 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
   const [newDescription, setNewDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredItems = allItems.filter((item: any) => {
-    if (!filterText.trim()) return true;
-    const search = filterText.toLowerCase();
-    return (
-      (item.itemBase || "").toLowerCase().includes(search) ||
-      (item.referencia || "").toLowerCase().includes(search) ||
-      (item.desenho || "").toLowerCase().includes(search) ||
-      (item.dimensao || "").toLowerCase().includes(search) ||
-      (item.descricao || "").toLowerCase().includes(search)
-    );
-  });
+  // Filtro hierárquico: exibe o item correspondente, todos os seus filhos/descendentes abaixo e todos os seus pais/ancestrais acima
+  const filteredItems = useMemo(() => {
+    if (!filterText.trim()) return allItems;
+    const search = filterText.toLowerCase().trim();
+
+    // 1. Encontra todos os itens com correspondência direta
+    const directMatchIds = new Set<number | string>();
+    for (const item of allItems) {
+      const match =
+        (item.itemBase || "").toLowerCase().includes(search) ||
+        (item.referencia || "").toLowerCase().includes(search) ||
+        (item.desenho || "").toLowerCase().includes(search) ||
+        (item.dimensao || "").toLowerCase().includes(search) ||
+        (item.descricao || "").toLowerCase().includes(search) ||
+        (item.id || "").toLowerCase().includes(search) ||
+        (item.extraSearch || "").toLowerCase().includes(search);
+
+      if (match) {
+        directMatchIds.add(item.nodeId !== undefined ? item.nodeId : item.id);
+      }
+    }
+
+    // 2. Expande para todos os descendentes (tudo abaixo) e ancestrais (tudo acima) dos nós encontrados
+    const visibleIds = new Set<number | string>();
+    for (const matchedId of directMatchIds) {
+      visibleIds.add(matchedId);
+
+      const item = allItems.find(
+        (n: any) => (n.nodeId !== undefined ? n.nodeId : n.id) === matchedId
+      );
+
+      if (item) {
+        // Adiciona todos os pais/ancestrais
+        (item.ancestorIds || []).forEach((ancId: number | string) => visibleIds.add(ancId));
+        // Adiciona todos os filhos/descendentes
+        (item.descendantIds || []).forEach((descId: number | string) => visibleIds.add(descId));
+      }
+    }
+
+    // 3. Retorna os itens visíveis na ordem original da árvore XML
+    return allItems.filter((item: any) => {
+      const id = item.nodeId !== undefined ? item.nodeId : item.id;
+      return visibleIds.has(id);
+    });
+  }, [allItems, filterText]);
 
   if (allItems.length === 0) return null;
 
@@ -224,12 +258,26 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                   {filteredItems.map((item: any, i: number) => (
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
                       <td className="px-4 py-3 font-mono text-sky-400">
-                        {item.itemBase}
-                        {item.referencia && item.referencia !== item.itemBase && (
-                          <span className="text-[10px] text-muted-foreground block font-sans">
-                            Ref: {item.referencia}
-                          </span>
-                        )}
+                        <div
+                          className="flex items-center gap-1.5"
+                          style={{
+                            paddingLeft: `${Math.min(item.depth || 0, 4) * 10}px`,
+                          }}
+                        >
+                          {(item.depth || 0) > 0 && (
+                            <span className="text-muted-foreground/30 font-mono select-none text-[11px] shrink-0">
+                              ↳
+                            </span>
+                          )}
+                          <div className="truncate">
+                            <span>{item.itemBase || item.referencia || "—"}</span>
+                            {item.referencia && item.referencia !== item.itemBase && (
+                              <span className="text-[10px] text-muted-foreground block font-sans">
+                                Ref: {item.referencia}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
                       <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao}</td>

@@ -293,79 +293,125 @@ function validateXmlContent(txt, cfg = {}) {
         const parser = new XMLParser({ 
             ignoreAttributes: false, 
             attributeNamePrefix: "",
-            isArray: (name) => ['ITEM', 'ITEMS', 'ITENS'].includes(name)
+            isArray: (name) => ['ITEM', 'ITEMS', 'ITENS', 'CARACTERISTICA'].includes(name)
         });
         const jsonObj = parser.parse(txt);
         
-        // Coleta recursiva de TODOS os itens (para allItems)
-        const allItens = [];
-        const findItens = (node) => {
-            if (!node || typeof node !== 'object') return;
-            if (Array.isArray(node)) {
-                node.forEach(findItens);
-                return;
-            }
-            if (node.ITEM) {
-                node.ITEM.forEach(item => {
-                    allItens.push(item);
-                    findItens(item);
-                });
-            }
-            for (const key in node) {
-                if (key !== 'ITEM') findItens(node[key]);
-            }
-        };
-        findItens(jsonObj);
+        // EXTRAÇÃO HIERÁRQUICA DE TODOS OS ITENS (PAIS E FILHOS)
+        let nextNodeId = 0;
+        const allTreeNodes = [];
 
-        // EXTRAÇÃO E AGRUPAMENTO DE TODOS OS ITENS (PAIS E FILHOS)
-        const allItemsList = [];
         const parseDim = (val) => {
             if (!val) return 0;
             const parsed = parseFloat(val);
             return isNaN(parsed) ? 0 : Math.round(parsed);
         };
 
-        for (const item of allItens) {
-            const id = String(item.ID || "").trim();
-            if (!id) continue;
+        const traverseNode = (node, parentNodeId = null, depth = 0, ancestorNodeIds = []) => {
+            if (!node || typeof node !== 'object') return;
 
-            const itemBase = String(item.ITEM_BASE || "").trim().toUpperCase();
-            const referencia = String(item.REFERENCIA || "").trim().toUpperCase();
-            const desenho = String(item.DESENHO || "").trim();
-            const descricao = String(item.DESCRICAO || "").trim();
-            
-            const l = parseDim(item.LARGURA);
-            const a = parseDim(item.ALTURA);
-            const p = parseDim(item.PROFUNDIDADE);
+            if (Array.isArray(node)) {
+                node.forEach(n => traverseNode(n, parentNodeId, depth, ancestorNodeIds));
+                return;
+            }
 
-            allItemsList.push({
-                id,
-                itemBase,
-                referencia,
-                desenho,
-                descricao,
-                dimensao: `${l}x${a}x${p}`
-            });
-        }
+            // Se for um nó de ITEM
+            if (node.ID !== undefined || node.REFERENCIA !== undefined || node.ITEM_BASE !== undefined || node.DESCRICAO !== undefined) {
+                const currentNodeId = nextNodeId++;
+                const currentAncestors = [...ancestorNodeIds];
+                if (parentNodeId !== null) {
+                    currentAncestors.push(parentNodeId);
+                }
 
-        const itemsMap = new Map();
-        for (const s of allItemsList) {
-            const key = `${s.itemBase}|${s.referencia}|${s.desenho}|${s.descricao}|${s.dimensao}`;
-            if (!itemsMap.has(key)) {
-                itemsMap.set(key, {
-                    id: s.id,
-                    itemBase: s.itemBase,
-                    referencia: s.referencia,
-                    desenho: s.desenho,
-                    descricao: s.descricao,
-                    dimensao: s.dimensao,
-                    ids: [s.id]
-                });
-            } else {
-                itemsMap.get(key).ids.push(s.id);
+                const id = String(node.ID || "").trim();
+                const itemBase = String(node.ITEM_BASE || "").trim().toUpperCase();
+                const referencia = String(node.REFERENCIA || "").trim().toUpperCase();
+                const desenho = String(node.DESENHO || "").trim();
+                let descricao = String(node.DESCRICAO || "").trim();
+
+                // Extrair características (CODE_ASPAN, DESCRICAO, etc.) para busca rica
+                const extraSearchParts = [];
+                if (node.CONFIGURADO && node.CONFIGURADO.CARACTERISTICA) {
+                    const caracs = Array.isArray(node.CONFIGURADO.CARACTERISTICA)
+                        ? node.CONFIGURADO.CARACTERISTICA
+                        : [node.CONFIGURADO.CARACTERISTICA];
+                    for (const c of caracs) {
+                        if (c && c.RESPOSTA) {
+                            const resp = String(c.RESPOSTA).trim();
+                            extraSearchParts.push(resp);
+                            const cod = String(c.CODIGO || "").toUpperCase();
+                            if (!descricao && (cod === "CODE_ASPAN" || cod === "DESCRICAO" || cod === "DESC")) {
+                                descricao = resp;
+                            }
+                        }
+                    }
+                }
+
+                const l = parseDim(node.LARGURA);
+                const a = parseDim(node.ALTURA);
+                const p = parseDim(node.PROFUNDIDADE);
+
+                const record = {
+                    nodeId: currentNodeId,
+                    parentId: parentNodeId,
+                    ancestorIds: currentAncestors,
+                    childNodeIds: [],
+                    descendantIds: [],
+                    id,
+                    itemBase,
+                    referencia,
+                    desenho,
+                    descricao,
+                    extraSearch: extraSearchParts.join(" "),
+                    dimensao: `${l}x${a}x${p}`,
+                    depth,
+                    ids: [id]
+                };
+
+                allTreeNodes.push(record);
+
+                // Percorre filhos aninhados mantendo hierarquia
+                for (const key in node) {
+                    if (key === 'CONFIGURADO' || key === 'MAQUINAS' || key === 'ROTEIRO') continue;
+                    traverseNode(node[key], currentNodeId, depth + 1, currentAncestors);
+                }
+
+                return;
+            }
+
+            // Não é um nó ITEM diretamente, percorre os filhos mantendo o mesmo parent
+            for (const key in node) {
+                if (key === 'CONFIGURADO' || key === 'MAQUINAS' || key === 'ROTEIRO') continue;
+                traverseNode(node[key], parentNodeId, depth, ancestorNodeIds);
+            }
+        };
+
+        traverseNode(jsonObj);
+
+        // Conectar childNodeIds
+        for (const node of allTreeNodes) {
+            if (node.parentId !== null) {
+                const parent = allTreeNodes.find(n => n.nodeId === node.parentId);
+                if (parent) {
+                    parent.childNodeIds.push(node.nodeId);
+                }
             }
         }
-        payload.meta.allItems = Array.from(itemsMap.values());
+
+        // Conectar descendantIds de baixo para cima
+        for (let i = allTreeNodes.length - 1; i >= 0; i--) {
+            const node = allTreeNodes[i];
+            const descendants = new Set(node.childNodeIds);
+            for (const childId of node.childNodeIds) {
+                const childNode = allTreeNodes.find(n => n.nodeId === childId);
+                if (childNode && childNode.descendantIds) {
+                    childNode.descendantIds.forEach(id => descendants.add(id));
+                }
+            }
+            node.descendantIds = Array.from(descendants);
+        }
+
+        payload.meta.allItems = allTreeNodes;
 
         // SEM ITEM FILHO: Analisa bloco por bloco de <ITEM> dentro de <ITENS_PEDIDO>
         // Se o bloco do item PAI não contém <UNIQUE_ID>, é inconsistência "sem filho"

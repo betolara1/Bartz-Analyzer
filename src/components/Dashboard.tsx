@@ -14,7 +14,7 @@ import {
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
   CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut, Sparkles,
-  ChevronLeft, ChevronRight, ChevronDown, Trash2
+  ChevronLeft, ChevronRight, ChevronDown, Trash2, Layers
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -31,6 +31,7 @@ import ThemeToggle from "./ThemeToggle";
 import { PATH_CONFIGS, type PathConfigKey } from "./ConfigurationScreen";
 import { BatchDrawingsModal } from "./BatchDrawingsModal";
 import { SpecialOrdersModal } from "./SpecialOrdersModal";
+import { PlateSeparationModal } from "./PlateSeparationModal";
 
 
 // ...
@@ -268,6 +269,7 @@ export default function Dashboard({
   const [confirmExcluirOpen, setConfirmExcluirOpen] = useState(false);
   const [confirmBulkMoveOpen, setConfirmBulkMoveOpen] = useState(false);
   const [specialOrdersOpen, setSpecialOrdersOpen] = useState(false);
+  const [plateSeparationOpen, setPlateSeparationOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
 
@@ -291,11 +293,25 @@ export default function Dashboard({
   const knownSpecialOrderIds = useRef<Set<number>>(new Set());
   const knownSpecialCommentIds = useRef<Set<number>>(new Set());
 
+  // Separação de Chapas Background Monitor
+  const [plateSeparationItems, setPlateSeparationItems] = useState<any[]>([]);
+  const isFirstPlateSeparationCheck = useRef(true);
+  const knownPlateSeparationIds = useRef<Set<string>>(new Set());
+
   // Permissão 36 - Botão Especiais
   const hasSpecialOrdersPermission = useMemo(() => {
     if (!currentUser) return false;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
     return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(36);
+  }, [currentUser]);
+
+  // Permissão 39 - Separação Chapas
+  const hasPlateSeparationPermission = useMemo(() => {
+    if (!currentUser) return false;
+    const userId = Number(currentUser.pk_usuario ?? currentUser.id ?? 0);
+    if (userId === 39) return true;
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(39);
   }, [currentUser]);
 
   // Permissão ou ID 37 / 38 - Admin Analisador
@@ -436,6 +452,72 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     const interval = setInterval(checkSpecialOrdersUpdates, 5000);
     return () => clearInterval(interval);
   }, [hasSpecialOrdersPermission, checkSpecialOrdersUpdates]);
+
+  // Separação de Chapas Update Check & Notifications
+  const checkPlateSeparationUpdates = useCallback(async () => {
+    if (!hasPlateSeparationPermission) return;
+
+    try {
+      const res = await window.electron?.analyzer?.getPlateSeparationData?.();
+      if (res?.ok && Array.isArray(res.data)) {
+        const fetchedItems = res.data as any[];
+        setPlateSeparationItems(fetchedItems);
+
+        const pendingCount = fetchedItems.filter((i) =>
+          !String(i.status || "").toLowerCase().includes("concluido")
+        ).length;
+
+        if (isFirstPlateSeparationCheck.current) {
+          const itemIds = new Set<string>();
+          fetchedItems.forEach((it) => {
+            itemIds.add(String(it.id));
+          });
+          knownPlateSeparationIds.current = itemIds;
+          isFirstPlateSeparationCheck.current = false;
+        } else {
+          fetchedItems.forEach((item) => {
+            if (!knownPlateSeparationIds.current.has(String(item.id))) {
+              knownPlateSeparationIds.current.add(String(item.id));
+
+              const notifTitle = `🔔 Novo Lote de Separação de Chapas!`;
+              const notifBody = `Lote ${item.id} ${item.loteTitle ? `(${item.loteTitle})` : ""}`;
+
+              // Send Windows Native Notification + Flash Taskbar
+              window.electron?.analyzer?.sendNotification?.({
+                title: notifTitle,
+                body: notifBody,
+                count: pendingCount,
+              });
+
+              toast.info(notifTitle, {
+                description: notifBody,
+                duration: 10000,
+                action: {
+                  label: "Visualizar",
+                  onClick: () => setPlateSeparationOpen(true),
+                },
+              });
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[PlateSeparation Background Check]", err);
+    }
+  }, [hasPlateSeparationPermission]);
+
+  useEffect(() => {
+    if (!hasPlateSeparationPermission) return;
+    checkPlateSeparationUpdates();
+    const interval = setInterval(checkPlateSeparationUpdates, 5000);
+    return () => clearInterval(interval);
+  }, [hasPlateSeparationPermission, checkPlateSeparationUpdates]);
+
+  const pendingPlatesCount = useMemo(() => {
+    return plateSeparationItems.filter((i) =>
+      !String(i.status || "").toLowerCase().includes("concluido")
+    ).length;
+  }, [plateSeparationItems]);
 
   const openOrdersCount = useMemo(() => {
     return specialOrders.filter((o) =>
@@ -1189,7 +1271,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v6.0.2
+                v6.0.3
               </span>
             </div>
             {watchRoot && (
@@ -1237,6 +1319,27 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                 {openOrdersCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold animate-pulse ml-0.5 shadow-sm">
                     {openOrdersCount}
+                  </span>
+                )}
+              </Button>
+            )}
+
+            {hasPlateSeparationPermission && (
+              <Button
+                variant="outline"
+                onClick={() => setPlateSeparationOpen(true)}
+                className={`h-8.5 px-3 text-xs gap-1.5 font-bold transition-all border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer ${
+                  pendingPlatesCount > 0
+                    ? "bg-cyan-950/50 border-cyan-500/80 shadow-md shadow-cyan-500/20 text-cyan-200"
+                    : "bg-cyan-950/20 hover:border-cyan-500/80 shadow-sm"
+                }`}
+                title="Abrir Separação de Chapas"
+              >
+                <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                Separação Chapas
+                {pendingPlatesCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-cyan-600 text-white text-[10px] font-extrabold animate-pulse ml-0.5 shadow-sm">
+                    {pendingPlatesCount}
                   </span>
                 )}
               </Button>
@@ -1341,7 +1444,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
               <Search className="h-4 w-4" />
             </div>
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
-              Pesquisa de XML e Desenhos
+              {hasAdminPermission ? "Pesquisa de XML e Desenhos" : "Pesquisa e Importação de XML"}
             </span>
           </div>
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${searchPanelOpen ? 'rotate-180' : ''}`} />
@@ -1353,212 +1456,210 @@ function createCanvasBadgeDataUrl(count: number): string | null {
           }`}
         >
           <div className="overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Search className="h-4.5 w-4.5 text-[#F1C40F]" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa e Importação de XML</h4>
-            </div>
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
-              <div className="relative flex-1 group">
-                <Input
-                  type="text"
-                  placeholder="Digite o nome do arquivo XML..."
-                  value={searchXmlTerm}
-                  onChange={(e) => setSearchXmlTerm(e.target.value)}
-                  onClear={() => setSearchXmlTerm("")}
-                  className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
-                  style={{ paddingLeft: "2.5rem" }}
-                />
-                <Search
-                  className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
-                  style={{ top: "50%", transform: "translateY(-50%)" }}
-                />
-                {searchingXml && (
-                  <Loader2
-                    className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
-                    style={{ top: "50%", transform: "translateY(-50%)" }}
-                  />
-                )}
-              </div>
-
-              <select
-                value={selectedXmlPath}
-                onChange={(e) => setSelectedXmlPath(e.target.value)}
-                className="flex-1 md:flex-none md:w-80 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
-                disabled={searchingXml || searchXmlResults.length === 0}
-              >
-                {searchingXml ? (
-                  <option value="">Buscando...</option>
-                ) : searchXmlResults.length === 0 ? (
-                  <option value="">Nenhum resultado encontrado</option>
-                ) : (
-                  <>
-                    <option value="">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
-                    {searchXmlResults.map((res, index) => (
-                      <option key={index} value={res.fullPath}>
-                        {res.name}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-
-              <Button
-                onClick={handleImportXml}
-                disabled={!selectedXmlPath || copyingXml}
-                className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9"
-              >
-                {copyingXml ? "Importando..." : "Importar"}
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileSearch className="h-4.5 w-4.5 text-[#F1C40F]" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa de Desenhos</h4>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBatchModalOpen(true)}
-                className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-semibold"
-                title="Abrir ou copiar múltiplos desenhos de uma só vez"
-              >
-                <Files className="h-3.5 w-3.5" />
-                Abrir / Copiar em Lote
-              </Button>
-            </div>
-            <div className="space-y-2.5">
-              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
-                <div className="relative flex-1 group">
-                  <Input
-                    type="text"
-                    placeholder="Digite o nome do desenho..."
-                    value={searchDrawingTerm}
-                    onChange={(e) => setSearchDrawingTerm(e.target.value)}
-                    onClear={() => setSearchDrawingTerm("")}
-                    className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
-                    style={{ paddingLeft: "2.5rem" }}
-                  />
-                  <FileSearch
-                    className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
-                    style={{ top: "50%", transform: "translateY(-50%)" }}
-                  />
-                  {searchingDrawings && (
-                    <Loader2
-                      className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
+            <div className={`grid grid-cols-1 ${hasAdminPermission ? "md:grid-cols-2" : ""} gap-4`}>
+              <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4.5 w-4.5 text-[#F1C40F]" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa e Importação de XML</h4>
+                </div>
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+                  <div className="relative flex-1 group">
+                    <Input
+                      type="text"
+                      placeholder="Digite o nome do arquivo XML..."
+                      value={searchXmlTerm}
+                      onChange={(e) => setSearchXmlTerm(e.target.value)}
+                      onClear={() => setSearchXmlTerm("")}
+                      className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
+                      style={{ paddingLeft: "2.5rem" }}
+                    />
+                    <Search
+                      className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
                       style={{ top: "50%", transform: "translateY(-50%)" }}
                     />
-                  )}
+                    {searchingXml && (
+                      <Loader2
+                        className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
+                        style={{ top: "50%", transform: "translateY(-50%)" }}
+                      />
+                    )}
+                  </div>
+
+                  <select
+                    value={selectedXmlPath}
+                    onChange={(e) => setSelectedXmlPath(e.target.value)}
+                    className="flex-1 md:flex-none md:w-80 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
+                    disabled={searchingXml || searchXmlResults.length === 0}
+                  >
+                    {searchingXml ? (
+                      <option value="">Buscando...</option>
+                    ) : searchXmlResults.length === 0 ? (
+                      <option value="">Nenhum resultado encontrado</option>
+                    ) : (
+                      <>
+                        <option value="">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
+                        {searchXmlResults.map((res, index) => (
+                          <option key={index} value={res.fullPath}>
+                            {res.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+
+                  <Button
+                    onClick={handleImportXml}
+                    disabled={!selectedXmlPath || copyingXml}
+                    className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9"
+                  >
+                    {copyingXml ? "Importando..." : "Importar"}
+                  </Button>
                 </div>
-
-                <select
-                  value={selectedDrawingPath}
-                  onChange={(e) => setSelectedDrawingPath(e.target.value)}
-                  className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
-                  disabled={searchingDrawings || searchDrawingResults.length === 0}
-                >
-                  {searchingDrawings ? (
-                    <option value="">Buscando...</option>
-                  ) : searchDrawingResults.length === 0 ? (
-                    <option value="">Nenhum resultado encontrado</option>
-                  ) : (
-                    <>
-                      <option value="">Selecione um desenho ({searchDrawingResults.length} encontrados)...</option>
-                      {searchDrawingResults.map((res, index) => (
-                        <option key={index} value={res.fullPath}>
-                          {res.name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
               </div>
 
-              {selectedDrawingPath && (
-                resolvingPedido ? (
-                  <div className="text-[10px] text-muted-foreground px-1 flex items-center gap-1.5">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Procurando pedido...
+              {hasAdminPermission && (
+                <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileSearch className="h-4.5 w-4.5 text-[#F1C40F]" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa de Desenhos</h4>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBatchModalOpen(true)}
+                      className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-semibold"
+                      title="Abrir ou copiar múltiplos desenhos de uma só vez"
+                    >
+                      <Files className="h-3.5 w-3.5" />
+                      Abrir / Copiar em Lote
+                    </Button>
                   </div>
-                ) : selectedPedidoInfo?.pedido ? (
-                  <div className="text-[10px] text-muted-foreground px-1">
-                    <span className="font-semibold text-primary">Pedido {selectedPedidoInfo.pedido}</span>
-                    {selectedPedidoInfo.pedidoFilename && <span className="ml-1.5 opacity-70">({selectedPedidoInfo.pedidoFilename})</span>}
-                    {selectedPedidoInfo.pedidoSource === 'erp' && (
-                      <span className="ml-1.5 opacity-70 italic">— encontrado no ERP</span>
+                  <div className="space-y-2.5">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+                      <div className="relative flex-1 group">
+                        <Input
+                          type="text"
+                          placeholder="Digite o nome do desenho..."
+                          value={searchDrawingTerm}
+                          onChange={(e) => setSearchDrawingTerm(e.target.value)}
+                          onClear={() => setSearchDrawingTerm("")}
+                          className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
+                          style={{ paddingLeft: "2.5rem" }}
+                        />
+                        <FileSearch
+                          className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
+                          style={{ top: "50%", transform: "translateY(-50%)" }}
+                        />
+                        {searchingDrawings && (
+                          <Loader2
+                            className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
+                            style={{ top: "50%", transform: "translateY(-50%)" }}
+                          />
+                        )}
+                      </div>
+
+                      <select
+                        value={selectedDrawingPath}
+                        onChange={(e) => setSelectedDrawingPath(e.target.value)}
+                        className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
+                        disabled={searchingDrawings || searchDrawingResults.length === 0}
+                      >
+                        {searchingDrawings ? (
+                          <option value="">Buscando...</option>
+                        ) : searchDrawingResults.length === 0 ? (
+                          <option value="">Nenhum resultado encontrado</option>
+                        ) : (
+                          <>
+                            <option value="">Selecione um desenho ({searchDrawingResults.length} encontrados)...</option>
+                            {searchDrawingResults.map((res, index) => (
+                              <option key={index} value={res.fullPath}>
+                                {res.name}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    {selectedDrawingPath && (
+                      resolvingPedido ? (
+                        <div className="text-[10px] text-muted-foreground px-1 flex items-center gap-1.5">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Procurando pedido...
+                        </div>
+                      ) : selectedPedidoInfo?.pedido ? (
+                        <div className="text-[10px] text-muted-foreground px-1">
+                          <span className="font-semibold text-primary">Pedido {selectedPedidoInfo.pedido}</span>
+                          {selectedPedidoInfo.pedidoFilename && <span className="ml-1.5 opacity-70">({selectedPedidoInfo.pedidoFilename})</span>}
+                          {selectedPedidoInfo.pedidoSource === 'erp' && (
+                            <span className="ml-1.5 opacity-70 italic">— encontrado no ERP</span>
+                          )}
+                          {selectedPedidoInfo.pedidoSource === 'busca' && (
+                            <span className="ml-1.5 opacity-70 italic">— encontrado na Pasta de Busca</span>
+                          )}
+                        </div>
+                      ) : null
                     )}
-                    {selectedPedidoInfo.pedidoSource === 'busca' && (
-                      <span className="ml-1.5 opacity-70 italic">— encontrado na Pasta de Busca</span>
-                    )}
+
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
+                      <Button
+                        onClick={handleShowDrawingInFolder}
+                        disabled={!selectedDrawingPath || locatingDrawing}
+                        variant="outline"
+                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                        title="Abrir pasta NESTING (SERVIDOR)"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        NESTING (SERVIDOR)
+                      </Button>
+
+                      <Button
+                        onClick={handleOpenMirrorFolderFromSearch}
+                        disabled={!selectedDrawingPath || !cfg.drawingsCopy || openingMirrorFolder}
+                        variant="outline"
+                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                        title={cfg.drawingsCopy ? "Abrir pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        NESTING(DXF ALESSANDRO)
+                      </Button>
+
+                      <Button
+                        onClick={handleOpenAspanFolderFromSearch}
+                        disabled={!selectedDrawingPath || !cfg.drawingsAspan || openingAspanFolder}
+                        variant="outline"
+                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                        title={cfg.drawingsAspan ? "Abrir pasta NANXING" : "Configure NANXING em Opções para habilitar"}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        NANXING
+                      </Button>
+
+                      <Button
+                        onClick={handleCopyDrawingToMirror}
+                        disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                        variant="outline"
+                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                        title={cfg.drawingsCopy ? "Copiar para pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        COPIAR PARA DXF
+                      </Button>
+
+                      <Button
+                        onClick={handleOpenDrawingFromSearch}
+                        disabled={!selectedDrawingPath || openingDrawing}
+                        className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {openingDrawing ? "Abrindo..." : "Abrir"}
+                      </Button>
+                    </div>
                   </div>
-                ) : null
+                </div>
               )}
-
-              <div className="flex items-center justify-end gap-2 flex-wrap">
-                <Button
-                  onClick={handleShowDrawingInFolder}
-                  disabled={!selectedDrawingPath || locatingDrawing}
-                  variant="outline"
-                  className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title="Abrir pasta NESTING (SERVIDOR)"
-                >
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  NESTING (SERVIDOR)
-                </Button>
-
-                <Button
-                  onClick={handleOpenMirrorFolderFromSearch}
-                  disabled={!selectedDrawingPath || !cfg.drawingsCopy || openingMirrorFolder}
-                  variant="outline"
-                  className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title={cfg.drawingsCopy ? "Abrir pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
-                >
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  NESTING(DXF ALESSANDRO)
-                </Button>
-
-                <Button
-                  onClick={handleOpenAspanFolderFromSearch}
-                  disabled={!selectedDrawingPath || !cfg.drawingsAspan || openingAspanFolder}
-                  variant="outline"
-                  className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  title={cfg.drawingsAspan ? "Abrir pasta NANXING" : "Configure NANXING em Opções para habilitar"}
-                >
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  NANXING
-                </Button>
-
-                {hasAdminPermission && (
-                  <Button
-                    onClick={handleCopyDrawingToMirror}
-                    disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
-                    variant="outline"
-                    className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                    title={cfg.drawingsCopy ? "Copiar para pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    COPIAR PARA DXF
-                  </Button>
-                )}
-
-                {hasAdminPermission && (
-                  <Button
-                    onClick={handleOpenDrawingFromSearch}
-                    disabled={!selectedDrawingPath || openingDrawing}
-                    className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    {openingDrawing ? "Abrindo..." : "Abrir"}
-                  </Button>
-                )}
-              </div>
             </div>
-          </div>
-        </div>
           </div>
         </div>
       </div>
@@ -2058,11 +2159,13 @@ function createCanvasBadgeDataUrl(count: number): string | null {
         </AlertDialogContent>
       </AlertDialog>
 
-      <BatchDrawingsModal
-        open={batchModalOpen}
-        onOpenChange={setBatchModalOpen}
-        defaultMirrorPath={cfg.drawingsCopy}
-      />
+      {hasAdminPermission && (
+        <BatchDrawingsModal
+          open={batchModalOpen}
+          onOpenChange={setBatchModalOpen}
+          defaultMirrorPath={cfg.drawingsCopy}
+        />
+      )}
 
       <SpecialOrdersModal
         open={specialOrdersOpen}
@@ -2071,6 +2174,16 @@ function createCanvasBadgeDataUrl(count: number): string | null {
         specialOrders={specialOrders}
         onRefresh={checkSpecialOrdersUpdates}
       />
+
+      {hasPlateSeparationPermission && (
+        <PlateSeparationModal
+          open={plateSeparationOpen}
+          onOpenChange={setPlateSeparationOpen}
+          currentUser={currentUser}
+          initialItems={plateSeparationItems}
+          onRefresh={checkPlateSeparationUpdates}
+        />
+      )}
 
       {/* toasts */}
     </div>

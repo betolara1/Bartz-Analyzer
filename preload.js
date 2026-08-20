@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electron', {
     loadHistory: () => ipcRenderer.invoke('analyzer:loadHistory'),
     saveHistory: (rows) => ipcRenderer.invoke('analyzer:saveHistory', rows),
     downloadPromob: (xmlFilename) => ipcRenderer.invoke('analyzer:downloadPromob', { xmlFilename }),
+    getPlateSeparationData: (customPath) => ipcRenderer.invoke('analyzer:getPlateSeparationData', customPath),
+    openPlateSeparationFile: (filePath) => ipcRenderer.invoke('analyzer:openPlateSeparationFile', filePath),
+    openPlateSeparationFolder: (folderPath) => ipcRenderer.invoke('analyzer:openPlateSeparationFolder', folderPath),
   },
 
   settings: {
