@@ -60,6 +60,10 @@ declare global {
         getPlateSeparationData?: (customPath?: string) => Promise<{ ok: boolean; data?: any[]; folderPath?: string; count?: number; message?: string }>;
         openPlateSeparationFile?: (filePath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         openPlateSeparationFolder?: (folderPath?: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
+        addPlateSeparationComment?: (params: { id: string; texto: string; autor?: string }) => Promise<{ ok: boolean; comment?: any; comentarios?: any[]; message?: string }>;
+        getPlateSeparationComments?: (id: string) => Promise<{ ok: boolean; id?: string; status?: string; responsavel?: string; concluido_em?: string; concluido_por?: string; comentarios?: any[]; message?: string }>;
+        getPlateSeparationErpPreview?: (loteId?: string) => Promise<{ ok: boolean; nextDocument?: number; tipoTransacao?: string; tipoTransacaoNome?: string; codigoDeposito?: number; depositoNome?: string; codigoCcusto?: number; ccustoNome?: string; dataMoviment?: string; message?: string }>;
+        postPlateSeparationMovement?: (params: { id: string; items: any[]; usuario?: string; usuarioId?: number; deposito?: number; centroCusto?: number; observacao?: string }) => Promise<{ ok: boolean; nroDocument?: number; count?: number; status?: string; lancado_erp?: any; comentarios?: any[]; message?: string }>;
       };
       settings?: {
         load: () => Promise<any>;

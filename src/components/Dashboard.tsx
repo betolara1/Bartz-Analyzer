@@ -463,33 +463,40 @@ function createCanvasBadgeDataUrl(count: number): string | null {
         const fetchedItems = res.data as any[];
         setPlateSeparationItems(fetchedItems);
 
-        const pendingCount = fetchedItems.filter((i) =>
-          !String(i.status || "").toLowerCase().includes("concluido")
-        ).length;
+        const isLotCompletedPendingLaunch = (item: any) => {
+          const st = String(item.status || "").toLowerCase();
+          const isLancado = st.includes("lançado") || st.includes("lancado") || !!item.lancado_erp;
+          return !isLancado && st.includes("concluido");
+        };
+
+        const completedCount = fetchedItems.filter(isLotCompletedPendingLaunch).length;
 
         if (isFirstPlateSeparationCheck.current) {
           const itemIds = new Set<string>();
           fetchedItems.forEach((it) => {
-            itemIds.add(String(it.id));
+            if (isLotCompletedPendingLaunch(it)) {
+              itemIds.add(String(it.id));
+            }
           });
           knownPlateSeparationIds.current = itemIds;
           isFirstPlateSeparationCheck.current = false;
         } else {
           fetchedItems.forEach((item) => {
-            if (!knownPlateSeparationIds.current.has(String(item.id))) {
+            const isConcluido = isLotCompletedPendingLaunch(item);
+            if (isConcluido && !knownPlateSeparationIds.current.has(String(item.id))) {
               knownPlateSeparationIds.current.add(String(item.id));
 
-              const notifTitle = `🔔 Novo Lote de Separação de Chapas!`;
-              const notifBody = `Lote ${item.id} ${item.loteTitle ? `(${item.loteTitle})` : ""}`;
+              const notifTitle = `✅ Lote de Separação Concluído!`;
+              const notifBody = `Lote ${item.id} ${item.loteTitle ? `(${item.loteTitle})` : ""}${item.concluido_por ? ` - ${item.concluido_por}` : ""}`;
 
               // Send Windows Native Notification + Flash Taskbar
               window.electron?.analyzer?.sendNotification?.({
                 title: notifTitle,
                 body: notifBody,
-                count: pendingCount,
+                count: completedCount,
               });
 
-              toast.info(notifTitle, {
+              toast.success(notifTitle, {
                 description: notifBody,
                 duration: 10000,
                 action: {
@@ -513,10 +520,12 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     return () => clearInterval(interval);
   }, [hasPlateSeparationPermission, checkPlateSeparationUpdates]);
 
-  const pendingPlatesCount = useMemo(() => {
-    return plateSeparationItems.filter((i) =>
-      !String(i.status || "").toLowerCase().includes("concluido")
-    ).length;
+  const completedPlatesCount = useMemo(() => {
+    return plateSeparationItems.filter((i) => {
+      const st = String(i.status || "").toLowerCase();
+      const isLancado = st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
+      return !isLancado && st.includes("concluido");
+    }).length;
   }, [plateSeparationItems]);
 
   const openOrdersCount = useMemo(() => {
@@ -1263,6 +1272,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       {/* Header */}
       <div className="border-b border-border bg-card/80 backdrop-blur-md px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
         {/* App Title & Info */}
+        
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 bg-purple-600 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md border border-purple-500/30">
             B
@@ -1271,7 +1281,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground flex items-center gap-2">
               Bartz Verificador XML
               <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
-                v6.0.3
+                v6.0.4
               </span>
             </div>
             {watchRoot && (
@@ -1329,7 +1339,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                 variant="outline"
                 onClick={() => setPlateSeparationOpen(true)}
                 className={`h-8.5 px-3 text-xs gap-1.5 font-bold transition-all border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer ${
-                  pendingPlatesCount > 0
+                  completedPlatesCount > 0
                     ? "bg-cyan-950/50 border-cyan-500/80 shadow-md shadow-cyan-500/20 text-cyan-200"
                     : "bg-cyan-950/20 hover:border-cyan-500/80 shadow-sm"
                 }`}
@@ -1337,9 +1347,9 @@ function createCanvasBadgeDataUrl(count: number): string | null {
               >
                 <Layers className="h-3.5 w-3.5 text-cyan-400" />
                 Separação Chapas
-                {pendingPlatesCount > 0 && (
+                {completedPlatesCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full bg-cyan-600 text-white text-[10px] font-extrabold animate-pulse ml-0.5 shadow-sm">
-                    {pendingPlatesCount}
+                    {completedPlatesCount}
                   </span>
                 )}
               </Button>

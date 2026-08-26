@@ -55,6 +55,10 @@ contextBridge.exposeInMainWorld('electron', {
     getPlateSeparationData: (customPath) => ipcRenderer.invoke('analyzer:getPlateSeparationData', customPath),
     openPlateSeparationFile: (filePath) => ipcRenderer.invoke('analyzer:openPlateSeparationFile', filePath),
     openPlateSeparationFolder: (folderPath) => ipcRenderer.invoke('analyzer:openPlateSeparationFolder', folderPath),
+    addPlateSeparationComment: (params) => ipcRenderer.invoke('analyzer:addPlateSeparationComment', params),
+    getPlateSeparationComments: (id) => ipcRenderer.invoke('analyzer:getPlateSeparationComments', id),
+    getPlateSeparationErpPreview: (loteId) => ipcRenderer.invoke('analyzer:getPlateSeparationErpPreview', loteId),
+    postPlateSeparationMovement: (params) => ipcRenderer.invoke('analyzer:postPlateSeparationMovement', params),
   },
 
   settings: {
