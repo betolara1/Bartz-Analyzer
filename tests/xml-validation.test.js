@@ -20,6 +20,26 @@ describe('XML Validation Logic', () => {
         expect(payload.meta.referenciaEmpty[0].id).toBe('1');
     });
 
+    it('should detect parent item (ID_PAI / ID_PROMOB) for ITEM SEM CÓDIGO', () => {
+        const xml = `
+        <XML>
+          <ITEM ID="parent_module_1" ID_PROMOB="1619" DESCRICAO="Tampo Deslizante 18mm" REFERENCIA="TA001195LM" DESENHO="TAM00069127A" CAMINHOITEMCATALOG="Bartz/Composicoes/Tampos" />
+          <ITEM ID="child_tapafuro_1" ID_PROMOB="1680" REFERENCIA="" ITEM_BASE="" DESCRICAO="Tapa furo 18mm Linum" CAMINHOITEMCATALOG="Bartz/Composicoes/Materia Prima">
+            <CONFIGURADO>
+              <CARACTERISTICA CODIGO="ID_PAI" RESPOSTA="1619" />
+            </CONFIGURADO>
+          </ITEM>
+        </XML>`;
+        const { payload } = validateXmlContent(xml);
+        expect(payload.meta.referenciaEmpty).toHaveLength(1);
+        const refItem = payload.meta.referenciaEmpty[0];
+        expect(refItem.id).toBe('child_tapafuro_1');
+        expect(refItem.descricaoPai).toBe('Tampo Deslizante 18mm');
+        expect(refItem.idPai).toBe('parent_module_1');
+        expect(refItem.referenciaPai).toBe('TA001195LM');
+        expect(refItem.desenhoPai).toBe('TAM00069127A');
+    });
+
     it('should detect ITEM SEM QUANTIDADE and apply auto-fix', () => {
         const xml = `<XML><ITEM REFERENCIA="REF1" QUANTIDADE="0" /></XML>`;
         const { payload, updatedTxt } = validateXmlContent(xml, { enableAutoFix: true });

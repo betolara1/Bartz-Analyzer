@@ -9,6 +9,7 @@
     "dev:renderer": "vite --port 5174 --strictPort",
     "dev:main": "wait-on http://localhost:5174 && cross-env VITE_DEV=1 electron .",
     "build": "vite build",
+    
     "dist:win": "npm run build && electron-builder --win",
     "start": "electron .",
     "test": "vitest run",

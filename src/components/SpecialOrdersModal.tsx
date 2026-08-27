@@ -29,6 +29,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Filter,
   Layers,
@@ -93,6 +95,8 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   const [orders, setOrders] = useState<SpecialOrder[]>(specialOrders || []);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({});
 
@@ -309,6 +313,32 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
     });
   }, [orders, searchTerm, statusFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
+
+  const getPageNumbers = (current: number, total: number) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, "...", total];
+    }
+    if (current >= total - 3) {
+      return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, "...", current - 1, current, current + 1, "...", total];
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -363,8 +393,14 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
               type="text"
               placeholder="Buscar por pedido, comentário, usuário..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onClear={() => setSearchTerm("")}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              onClear={() => {
+                setSearchTerm("");
+                setCurrentPage(1);
+              }}
               className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
               style={{ paddingLeft: "2.5rem" }}
             />
@@ -378,7 +414,10 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
             <Filter className="h-3.5 w-3.5 text-muted-foreground" />
             <div className="flex rounded-lg bg-background p-1 border border-border text-xs">
               <button
-                onClick={() => setStatusFilter("todos")}
+                onClick={() => {
+                  setStatusFilter("todos");
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "todos"
                     ? "bg-purple-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -387,7 +426,10 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                 Todos ({orders.length})
               </button>
               <button
-                onClick={() => setStatusFilter("em_aberto")}
+                onClick={() => {
+                  setStatusFilter("em_aberto");
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "em_aberto"
                     ? "bg-amber-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -397,7 +439,10 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                 {orders.filter((o) => (o.status_engenharia || "").toLowerCase().includes("aberto")).length})
               </button>
               <button
-                onClick={() => setStatusFilter("concluido")}
+                onClick={() => {
+                  setStatusFilter("concluido");
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "concluido"
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -434,7 +479,7 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
               </p>
             </div>
           ) : (
-            filteredOrders.map((order) => {
+            paginatedOrders.map((order) => {
               const isExpanded = !!expandedOrders[order.pk_pedido_engenharia];
               const isAberto = (order.status_engenharia || "").toLowerCase().includes("aberto");
 
@@ -690,10 +735,72 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 border-t border-border bg-muted/20 flex justify-end">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
+        <div className="p-3 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            {filteredOrders.length > 0 ? (
+              <span>
+                Mostrando <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span>–
+                <span className="font-semibold text-foreground">{Math.min(currentPage * itemsPerPage, filteredOrders.length)}</span> de{" "}
+                <span className="font-semibold text-foreground">{filteredOrders.length}</span> {filteredOrders.length === 1 ? "pedido" : "pedidos"}
+              </span>
+            ) : (
+              <span>0 pedidos</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 px-2.5 text-xs border-border bg-card hover:bg-muted text-muted-foreground disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                  Anterior
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(currentPage, totalPages).map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted-foreground select-none">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${item}`}
+                        onClick={() => setCurrentPage(item as number)}
+                        className={`h-8 min-w-[32px] px-2 rounded-md text-xs font-semibold transition-colors ${
+                          currentPage === item
+                            ? "bg-purple-600 text-white shadow-sm"
+                            : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 px-2.5 text-xs border-border bg-card hover:bg-muted text-muted-foreground disabled:opacity-40"
+                >
+                  Próxima
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            )}
+
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8 text-xs shrink-0">
+              Fechar
+            </Button>
+          </div>
         </div>
       </DialogContent>
 

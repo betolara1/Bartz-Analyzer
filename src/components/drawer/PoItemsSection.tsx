@@ -3,6 +3,14 @@ import { Layers, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen
 import { toast } from "sonner";
 import { Row } from "../../types";
 import { Input } from "../ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 interface PoItemsSectionProps {
   isOpen: boolean;
@@ -222,82 +230,98 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
-                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[340px]">Desenhos</th>
-                    <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[130px]">Ações</th>
+                    <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[290px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#232323]">
                   {filteredItems.map((item: any, i: number) => (
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
-                      <td className="px-4 py-3 font-mono text-indigo-400">{item.itemBase}</td>
-                      <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
-                      <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao}</td>
-                      <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[220px] break-words">
+                      <td className="px-4 py-3 font-mono text-indigo-400 font-medium">{item.itemBase}</td>
+                      <td className="px-4 py-3 text-white/80 font-mono text-xs">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
+                      <td className="px-4 py-3 text-muted-foreground truncate max-w-[120px]">{item.dimensao}</td>
+                      <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[280px] break-words">
                         {item.descricao || <span className="text-white/40 italic">vazio</span>}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex gap-2 justify-center">
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                          {/* Botão Primário: Abrir Desenho */}
                           {hasAdminPermission && (
                             <button
                               disabled={!item.desenho}
                               onClick={() => handleOpenDrawing(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir desenho"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                              title={item.desenho ? "Abrir arquivo do desenho" : "Sem desenho"}
                             >
                               <FileText className="h-3.5 w-3.5" />
-                              Abrir Desenho
+                              <span>Abrir</span>
                             </button>
                           )}
-                          <button
-                            disabled={!item.desenho}
-                            onClick={() => handleOpenDrawingFolder(item.desenho)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta NESTING (SERVIDOR)"
-                          >
-                            <FolderOpen className="h-3.5 w-3.5" />
-                            NESTING (SERVIDOR)
-                          </button>
-                          <button
-                            disabled={!item.desenho}
-                            onClick={() => handleOpenMirrorFolder(item.desenho)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta NESTING(DXF ALESSANDRO)"
-                          >
-                            <FolderCheck className="h-3.5 w-3.5" />
-                            NESTING(DXF ALESSANDRO)
-                          </button>
-                          <button
-                            disabled={!item.desenho}
-                            onClick={() => handleOpenAspanFolder(item.desenho)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Abrir pasta NANXING"
-                          >
-                            <FolderOpen className="h-3.5 w-3.5" />
-                            NANXING
-                          </button>
+
+                          {/* Dropdown de Pastas */}
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                disabled={!item.desenho}
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/80 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                title="Abrir pastas do desenho"
+                              >
+                                <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
+                                <span className="hidden sm:inline font-semibold">Pastas</span>
+                                <ChevronDown className="h-3 w-3 opacity-60" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-200 shadow-2xl z-[9999]">
+                              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 py-1.5">
+                                Pastas do Desenho ({item.desenho})
+                              </DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onSelect={() => handleOpenDrawingFolder(item.desenho)}
+                                className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-amber-300"
+                              >
+                                <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                <span>NESTING (SERVIDOR)</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => handleOpenMirrorFolder(item.desenho)}
+                                className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-purple-300"
+                              >
+                                <FolderCheck className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                                <span>NESTING (DXF ALESSANDRO)</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => handleOpenAspanFolder(item.desenho)}
+                                className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-emerald-300"
+                              >
+                                <FolderOpen className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                                <span>NANXING</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          {/* Botão Enviar DXF */}
                           {hasAdminPermission && (
                             <button
                               disabled={!item.desenho}
                               onClick={() => handleCopyToMirror(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Enviar desenho para a pasta espelho"
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                              title={item.desenho ? "Enviar desenho para a pasta espelho DXF" : "Sem desenho"}
                             >
                               <Copy className="h-3.5 w-3.5" />
-                              COPIAR PARA DXF
+                              <span>Enviar DXF</span>
+                            </button>
+                          )}
+
+                          {/* Botão de Trocar Descrição */}
+                          {hasAdminPermission && (
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 active:scale-[0.97] transition-all cursor-pointer shrink-0"
+                              title="Trocar Descrição"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {hasAdminPermission && (
-                          <button
-                            onClick={() => handleOpenEditModal(item)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 active:scale-[0.97] transition-all"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                            Trocar Descrição
-                          </button>
-                        )}
                       </td>
                     </tr>
                   ))}

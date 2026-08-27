@@ -2,6 +2,14 @@ import React from "react";
 import { Layers, ChevronDown, FileText, Wand2, FolderOpen, FolderCheck, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 interface MuxarabiSectionProps {
   isOpen: boolean;
@@ -187,7 +195,7 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
-                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[500px]">Ações</th>
+                    <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[310px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#232323]">
@@ -198,83 +206,104 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
                     const thickness = thMatch ? thMatch[1] : '18';
 
                     return (
-                      <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="px-4 py-3 font-mono text-orange-400">{item.itemBase}</td>
-                        <td className="px-4 py-3 text-white/80">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
-                        <td className="px-4 py-3 text-white text-[11px] leading-tight break-words max-w-[250px]">
+                      <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
+                        <td className="px-4 py-3 font-mono text-orange-400 font-medium">{item.itemBase}</td>
+                        <td className="px-4 py-3 text-white/80 font-mono text-xs">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
+                        <td className="px-4 py-3 text-white text-[11px] leading-tight break-words max-w-[300px]">
                           {item.descricao || <span className="text-white/40 italic">vazio</span>}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="inline-flex gap-2">
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                            {/* Botão Primário: Abrir Desenho */}
                             {hasAdminPermission && (
                               <button
                                 disabled={!item.desenho}
                                 onClick={() => handleOpenDrawing(item.desenho)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Abrir desenho principal do item"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                title={item.desenho ? "Abrir desenho principal do item" : "Sem desenho"}
                               >
                                 <FileText className="h-3.5 w-3.5" />
-                                Abrir Desenho
+                                <span>Abrir</span>
                               </button>
                             )}
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleOpenDrawingFolder(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta NESTING (SERVIDOR)"
-                            >
-                              <FolderOpen className="h-3.5 w-3.5" />
-                              NESTING (SERVIDOR)
-                            </button>
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleOpenMirrorFolder(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta NESTING(DXF ALESSANDRO)"
-                            >
-                              <FolderCheck className="h-3.5 w-3.5" />
-                              NESTING(DXF ALESSANDRO)
-                            </button>
-                            <button
-                              disabled={!item.desenho}
-                              onClick={() => handleOpenAspanFolder(item.desenho)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta NANXING"
-                            >
-                              <FolderOpen className="h-3.5 w-3.5" />
-                              NANXING
-                            </button>
+
+                            {/* Dropdown de Pastas / Muxarabi */}
+                            <DropdownMenu modal={false}>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  disabled={!item.desenho}
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/80 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                  title="Abrir pastas do desenho"
+                                >
+                                  <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
+                                  <span className="hidden sm:inline font-semibold">Pastas</span>
+                                  <ChevronDown className="h-3 w-3 opacity-60" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-200 shadow-2xl z-[9999]">
+                                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 py-1.5">
+                                  Pastas do Desenho ({item.desenho})
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onSelect={() => handleOpenDrawingFolder(item.desenho)}
+                                  className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-amber-300"
+                                >
+                                  <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                  <span>NESTING (SERVIDOR)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => handleOpenMirrorFolder(item.desenho)}
+                                  className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-purple-300"
+                                >
+                                  <FolderCheck className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                                  <span>NESTING (DXF ALESSANDRO)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => handleOpenAspanFolder(item.desenho)}
+                                  className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-emerald-300"
+                                >
+                                  <FolderOpen className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                                  <span>NANXING</span>
+                                </DropdownMenuItem>
+
+                                {hasAdminPermission && sizeCode && (
+                                  <>
+                                    <DropdownMenuSeparator className="bg-zinc-800" />
+                                    <DropdownMenuItem
+                                      onSelect={() => handleOpenMuxarabi(sizeCode)}
+                                      className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-orange-300"
+                                    >
+                                      <FileText className="h-3.5 w-3.5 text-orange-400 shrink-0" />
+                                      <span>Abrir Muxarabi ({sizeCode})</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Botão Enviar DXF */}
                             {hasAdminPermission && (
                               <button
                                 disabled={!item.desenho}
                                 onClick={() => handleCopyToMirror(item.desenho)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Enviar desenho para a pasta espelho"
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                title={item.desenho ? "Enviar desenho para a pasta espelho DXF" : "Sem desenho"}
                               >
                                 <Copy className="h-3.5 w-3.5" />
-                                COPIAR PARA DXF
+                                <span>Enviar DXF</span>
                               </button>
                             )}
-                            {hasAdminPermission && (
-                              <button
-                                disabled={!sizeCode}
-                                onClick={() => handleOpenMuxarabi(sizeCode)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                title={`Abrir desenho Muxarabi de tamanho ${sizeCode || 'desconhecido'}`}
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                Abrir Muxarabi
-                              </button>
-                            )}
+
+                            {/* Botão de Aplicar Muxarabi */}
                             {hasAdminPermission && (
                               <button
                                 disabled={!item.desenho || !sizeCode}
                                 onClick={() => handleInjectMuxarabi(item.desenho, sizeCode!, thickness)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                                 title={`Injetar as usinagens do muxarabi ${sizeCode || 'desconhecido'} (chapa ${thickness}mm) no desenho ITE automaticamente (50mm da borda)`}
                               >
                                 <Wand2 className="h-3.5 w-3.5" />
-                                Aplicar Muxarabi
+                                <span>Aplicar</span>
                               </button>
                             )}
                           </div>

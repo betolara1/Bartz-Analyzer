@@ -3,6 +3,14 @@ import { Zap, ChevronDown, FileText, FolderOpen, FolderCheck, Copy, RefreshCw, C
 import { toast } from "sonner";
 import { Row } from "../../types";
 import { Input } from "../ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 interface Es08SectionProps {
   isOpen: boolean;
@@ -242,8 +250,8 @@ export function Es08Section({
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
                     <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
-                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[110px]">Status</th>
-                    <th className="text-center px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[420px]">Ações</th>
+                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[100px]">Status</th>
+                    <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[310px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#232323]">
@@ -255,10 +263,10 @@ export function Es08Section({
 
                     return (
                       <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
-                        <td className="px-4 py-3 font-mono text-rose-400">{item.itemBase || "ES08"}</td>
-                        <td className="px-4 py-3 text-white/80">{drawing || <span className="text-[#444] italic">vazio</span>}</td>
-                        <td className="px-4 py-3 text-muted-foreground truncate max-w-[100px]">{item.dimensao || "—"}</td>
-                        <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[220px] break-words">
+                        <td className="px-4 py-3 font-mono text-rose-400 font-medium">{item.itemBase}</td>
+                        <td className="px-4 py-3 text-white/80 font-mono text-xs">{drawing || <span className="text-[#444] italic">vazio</span>}</td>
+                        <td className="px-4 py-3 text-muted-foreground truncate max-w-[120px]">{item.dimensao || "—"}</td>
+                        <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[280px] break-words">
                           {item.descricao || <span className="text-white/40 italic">vazio</span>}
                         </td>
                         <td className="px-4 py-3">
@@ -282,70 +290,93 @@ export function Es08Section({
                             <span className="text-[10px] uppercase font-bold text-red-500" title={result.message}>Falha</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="inline-flex gap-2 flex-wrap justify-center">
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                            {/* Botão Primário: Abrir Desenho */}
                             {hasAdminPermission && (
                               <button
                                 disabled={!drawing}
                                 onClick={() => handleOpenDrawing(drawing)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Abrir desenho"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                title={drawing ? "Abrir arquivo do desenho" : "Sem desenho"}
                               >
                                 <FileText className="h-3.5 w-3.5" />
-                                Abrir Desenho
+                                <span>Abrir</span>
                               </button>
                             )}
-                            <button
-                              disabled={!drawing}
-                              onClick={() => handleOpenDrawingFolder(drawing)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta NESTING (SERVIDOR)"
-                            >
-                              <FolderOpen className="h-3.5 w-3.5" />
-                              NESTING (SERVIDOR)
-                            </button>
-                            <button
-                              disabled={!drawing}
-                              onClick={() => handleOpenMirrorFolder(drawing)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta NESTING(DXF ALESSANDRO)"
-                            >
-                              <FolderCheck className="h-3.5 w-3.5" />
-                              NESTING(DXF ALESSANDRO)
-                            </button>
-                            <button
-                              disabled={!drawing}
-                              onClick={() => handleOpenAspanFolder(drawing)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              title="Abrir pasta NANXING"
-                            >
-                              <FolderOpen className="h-3.5 w-3.5" />
-                              NANXING
-                            </button>
+
+                            {/* Dropdown de Pastas */}
+                            <DropdownMenu modal={false}>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  disabled={!drawing}
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/80 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                  title="Abrir pastas do desenho"
+                                >
+                                  <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
+                                  <span className="hidden sm:inline font-semibold">Pastas</span>
+                                  <ChevronDown className="h-3 w-3 opacity-60" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-200 shadow-2xl z-[9999]">
+                                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 py-1.5">
+                                  Pastas do Desenho ({drawing})
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onSelect={() => handleOpenDrawingFolder(drawing)}
+                                  className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-amber-300"
+                                >
+                                  <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                  <span>NESTING (SERVIDOR)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => handleOpenMirrorFolder(drawing)}
+                                  className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-purple-300"
+                                >
+                                  <FolderCheck className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                                  <span>NESTING (DXF ALESSANDRO)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => handleOpenAspanFolder(drawing)}
+                                  className="flex items-center gap-2 text-xs py-2 px-2.5 cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 text-emerald-300"
+                                >
+                                  <FolderOpen className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                                  <span>NANXING</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Botão Enviar DXF */}
                             {hasAdminPermission && (
                               <button
                                 disabled={!drawing}
                                 onClick={() => handleCopyToMirror(drawing)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Enviar desenho para a pasta espelho"
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                title={drawing ? "Enviar desenho para a pasta espelho DXF" : "Sem desenho"}
                               >
                                 <Copy className="h-3.5 w-3.5" />
-                                COPIAR PARA DXF
+                                <span>Enviar DXF</span>
                               </button>
                             )}
+
+                            {/* Botão de Corrigir (se aplicável) */}
                             {hasAdminPermission && (
                               <button
                                 disabled={!needsFix || isFixing}
                                 onClick={() => onFix(drawing)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white active:scale-[0.97] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-rose-500/10 disabled:text-rose-400 disabled:border disabled:border-rose-500/20"
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer ${
+                                  needsFix
+                                    ? "bg-rose-600 hover:bg-rose-500 text-white shadow-sm active:scale-[0.97]"
+                                    : "bg-rose-500/10 text-rose-400/40 border border-rose-500/10 opacity-40 cursor-not-allowed"
+                                }`}
                                 title={needsFix ? "Corrigir fresa/usinagem/painel (37mm → 18mm / 31mm → 15mm)" : "Nenhuma correção necessária"}
                               >
                                 {isFixing ? (
-                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
                                 ) : (
-                                  <Zap className="h-3.5 w-3.5" />
+                                  <Zap className="h-3 w-3" />
                                 )}
-                                Corrigir
+                                <span>{isFixing ? "Corrigindo..." : "Corrigir"}</span>
                               </button>
                             )}
                           </div>

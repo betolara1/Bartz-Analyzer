@@ -11,9 +11,13 @@ import {
 import { toast } from "sonner";
 import {
   X,
-  FileText,
+  FileCode,
+  Copy,
   Minimize2,
   Maximize2,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
 } from "lucide-react";
 
 import { ChipStatus } from "./ChipStatus";
@@ -69,6 +73,9 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
 
   if (!data && open) return null;
 
+  const isOk = data?.status === 'OK';
+  const isErro = data?.status === 'ERRO';
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -84,46 +91,114 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
         >
           <div className="fd-modal-inner">
             {/* ═══ HEADER ═══ */}
-            <div className="fd-modal-header">
-              {/* Top Bar: Title + Window Controls */}
-              <div className="flex items-center justify-between gap-4 mb-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="p-2.5 rounded-xl bg-muted border border-border text-muted-foreground shadow-inner shrink-0">
-                    <FileText className="h-5 w-5" />
+            <div className="relative border-b border-border/80 bg-gradient-to-r from-card via-card/95 to-card px-6 py-4 shrink-0 overflow-hidden">
+              {/* Subtle ambient status glow at top */}
+              <div
+                className={`pointer-events-none absolute -top-14 left-6 h-28 w-56 rounded-full blur-3xl opacity-20 ${
+                  isOk ? 'bg-emerald-500' : isErro ? 'bg-rose-500' : 'bg-amber-500'
+                }`}
+              />
+
+              <div className="relative flex items-center justify-between gap-4">
+                {/* Left: Icon + File Info + Integrated Badges */}
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                  {/* Status-tinted File Icon */}
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-inner transition-all ${
+                      isOk
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : isErro
+                        ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                        : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    }`}
+                  >
+                    <FileCode className="h-5 w-5" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <DialogPrimitive.Title className="text-lg font-bold text-foreground tracking-tight leading-tight truncate">
-                      {data?.filename || "Detalhes do Arquivo"}
-                    </DialogPrimitive.Title>
-                    <DialogPrimitive.Description className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.2em]">
-                      Análise técnica profunda do componente
-                    </DialogPrimitive.Description>
+
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {/* Top Row: Filename + Copy button + Integrated Status */}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <DialogPrimitive.Title className="text-base sm:text-lg font-bold text-foreground font-mono tracking-tight leading-tight truncate max-w-[650px]">
+                        {data?.filename || "Detalhes do Arquivo"}
+                      </DialogPrimitive.Title>
+
+                      {data?.filename && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(data.filename);
+                            toast.success("Nome do arquivo copiado!");
+                          }}
+                          className="inline-flex items-center justify-center h-6 w-6 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                          title="Copiar nome do arquivo"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      {/* Integrated Status Badge with Glow */}
+                      <div className="shrink-0">
+                        {isOk ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-sm shadow-emerald-500/10">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            OK • Conforme
+                          </span>
+                        ) : isErro ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-sm shadow-rose-500/10">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                            Inconforme ({data?.errors?.length || 0})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm shadow-amber-500/10">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                            {data?.status || 'FERRAGENS'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Subtitle / Breadcrumbs metadata */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                      <span className="font-semibold text-[10px] tracking-widest uppercase text-muted-foreground/70">
+                        Análise Técnica do XML
+                      </span>
+                      {data?.meta?.clientName && (
+                        <>
+                          <span className="text-zinc-600">•</span>
+                          <span className="text-zinc-300 font-medium truncate max-w-[280px]">
+                            {data.meta.clientName}
+                          </span>
+                        </>
+                      )}
+                      {data?.fullpath && (
+                        <>
+                          <span className="text-zinc-600">•</span>
+                          <span className="text-[10px] font-mono text-zinc-500 truncate max-w-[340px]" title={data.fullpath}>
+                            {data.fullpath}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Window Controls */}
-                <div className="flex items-center gap-1 shrink-0">
+                {/* Right: Window Controls */}
+                <div className="flex items-center gap-1 shrink-0 self-center">
                   <button
                     onClick={() => setIsMaximized(!isMaximized)}
-                    className="fd-window-btn"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60 transition-all cursor-pointer active:scale-95"
                     title={isMaximized ? "Restaurar" : "Maximizar"}
                   >
-                    {isMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                    {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   </button>
                   <DialogPrimitive.Close asChild>
                     <button
-                      className="fd-window-btn fd-window-btn-close"
-                      title="Fechar"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted/40 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-400 hover:border-rose-500/30 border border-border/60 transition-all cursor-pointer active:scale-95"
+                      title="Fechar (Esc)"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </DialogPrimitive.Close>
                 </div>
-              </div>
-
-              {/* Status Strip */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <ChipStatus status={data?.status || 'ERRO'} />
               </div>
             </div>
 

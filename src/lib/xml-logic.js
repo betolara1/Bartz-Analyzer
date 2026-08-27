@@ -324,24 +324,33 @@ function validateXmlContent(txt, cfg = {}) {
                 }
 
                 const id = String(node.ID || "").trim();
+                let idPromob = String(node.ID_PROMOB || "").trim();
+                let idPai = String(node.ID_PAI || node.PAI || "").trim();
+                const caminhoItemCatalog = String(node.CAMINHOITEMCATALOG || "").trim();
                 const itemBase = String(node.ITEM_BASE || "").trim().toUpperCase();
                 const referencia = String(node.REFERENCIA || "").trim().toUpperCase();
                 const desenho = String(node.DESENHO || "").trim();
                 let descricao = String(node.DESCRICAO || "").trim();
 
-                // Extrair características (CODE_ASPAN, DESCRICAO, etc.) para busca rica
+                // Extrair características (CODE_ASPAN, DESCRICAO, ID_PAI, ID_PROMOB, etc.) para busca rica
                 const extraSearchParts = [];
                 if (node.CONFIGURADO && node.CONFIGURADO.CARACTERISTICA) {
                     const caracs = Array.isArray(node.CONFIGURADO.CARACTERISTICA)
                         ? node.CONFIGURADO.CARACTERISTICA
                         : [node.CONFIGURADO.CARACTERISTICA];
                     for (const c of caracs) {
-                        if (c && c.RESPOSTA) {
+                        if (c && c.RESPOSTA !== undefined) {
                             const resp = String(c.RESPOSTA).trim();
                             extraSearchParts.push(resp);
                             const cod = String(c.CODIGO || "").toUpperCase();
                             if (!descricao && (cod === "CODE_ASPAN" || cod === "DESCRICAO" || cod === "DESC")) {
                                 descricao = resp;
+                            }
+                            if (cod === "ID_PAI" && !idPai) {
+                                idPai = resp;
+                            }
+                            if (cod === "ID_PROMOB" && !idPromob) {
+                                idPromob = resp;
                             }
                         }
                     }
@@ -358,6 +367,9 @@ function validateXmlContent(txt, cfg = {}) {
                     childNodeIds: [],
                     descendantIds: [],
                     id,
+                    idPromob,
+                    idPai,
+                    caminhoItemCatalog,
                     itemBase,
                     referencia,
                     desenho,
@@ -412,6 +424,86 @@ function validateXmlContent(txt, cfg = {}) {
         }
 
         payload.meta.allItems = allTreeNodes;
+
+        // VINCULAÇÃO DE ITEM PAI PARA REFERENCIA EMPTY
+        if (payload.meta.referenciaEmpty && payload.meta.referenciaEmpty.length > 0) {
+            const mapByIdPromob = new Map();
+            const mapById = new Map();
+            const mapByNodeId = new Map();
+
+            for (const n of allTreeNodes) {
+                mapByNodeId.set(n.nodeId, n);
+                if (n.idPromob) mapByIdPromob.set(n.idPromob, n);
+                if (n.id) {
+                    if (!mapById.has(n.id)) mapById.set(n.id, n);
+                }
+            }
+
+            for (const refItem of payload.meta.referenciaEmpty) {
+                // Tenta encontrar o nó correspondente na árvore
+                const matchNode = allTreeNodes.find(n => n.id === refItem.id && (!refItem.descricao || n.descricao === refItem.descricao)) ||
+                                  allTreeNodes.find(n => n.id === refItem.id);
+
+                let parentNode = null;
+                if (matchNode) {
+                    if (matchNode.idPai) {
+                        parentNode = mapByIdPromob.get(matchNode.idPai) || mapById.get(matchNode.idPai);
+                    }
+                    if (!parentNode && matchNode.parentId !== null) {
+                        parentNode = mapByNodeId.get(matchNode.parentId);
+                    }
+                    if (!parentNode && matchNode.ancestorIds && matchNode.ancestorIds.length > 0) {
+                        const lastAncestorId = matchNode.ancestorIds[matchNode.ancestorIds.length - 1];
+                        parentNode = mapByNodeId.get(lastAncestorId);
+                    }
+                }
+
+                // Fallback via regex no XML se não encontrou via árvore
+                if (!parentNode && refItem.id) {
+                    try {
+                        const escapedId = refItem.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const itemBlockRx = new RegExp(`<ITEM\\b[^>]*\\bID="${escapedId}"[\\s\\S]*?<\\/ITEM>`, "i");
+                        const blockMatch = txt.match(itemBlockRx);
+                        if (blockMatch) {
+                            const idPaiMatch = blockMatch[0].match(/<CARACTERISTICA\\b[^>]*\\bCODIGO="ID_PAI"[^>]*\\bRESPOSTA="([^"]+)"/i) ||
+                                              blockMatch[0].match(/\\bID_PAI="([^"]+)"/i);
+                            if (idPaiMatch) {
+                                const foundIdPai = idPaiMatch[1];
+                                const parentTagRx = new RegExp(`<ITEM\\b[^>]*\\bID_PROMOB="${foundIdPai}"[^>]*>`, "i");
+                                const parentTagMatch = txt.match(parentTagRx);
+                                if (parentTagMatch) {
+                                    const pt = parentTagMatch[0];
+                                    const pDesc = pt.match(/\\bDESCRICAO="([^"]+)"/i);
+                                    const pId = pt.match(/\\bID="([^"]+)"/i);
+                                    const pDesenho = pt.match(/\\bDESENHO="([^"]+)"/i);
+                                    const pRef = pt.match(/\\bREFERENCIA="([^"]+)"/i);
+                                    const pBase = pt.match(/\\bITEM_BASE="([^"]+)"/i);
+                                    const pCaminho = pt.match(/\\bCAMINHOITEMCATALOG="([^"]+)"/i);
+                                    parentNode = {
+                                        id: pId ? pId[1] : foundIdPai,
+                                        idPromob: foundIdPai,
+                                        descricao: pDesc ? pDesc[1] : "",
+                                        desenho: pDesenho ? pDesenho[1] : "",
+                                        referencia: pRef ? pRef[1] : (pBase ? pBase[1] : ""),
+                                        caminhoItemCatalog: pCaminho ? pCaminho[1] : ""
+                                    };
+                                }
+                            }
+                        }
+                    } catch (e) { }
+                }
+
+                if (parentNode) {
+                    refItem.idPai = parentNode.id || parentNode.idPromob || "";
+                    refItem.descricaoPai = parentNode.descricao || parentNode.desenho || parentNode.id || "";
+                    refItem.caminhoPai = parentNode.caminhoItemCatalog || "";
+                    refItem.desenhoPai = parentNode.desenho || "";
+                    refItem.referenciaPai = parentNode.referencia || parentNode.itemBase || "";
+                    refItem.dimensaoPai = parentNode.dimensao || "";
+                    refItem.idPromobPai = parentNode.idPromob || "";
+                }
+            }
+        }
 
         // SEM ITEM FILHO: Analisa bloco por bloco de <ITEM> dentro de <ITENS_PEDIDO>
         // Se o bloco do item PAI não contém <UNIQUE_ID>, é inconsistência "sem filho"

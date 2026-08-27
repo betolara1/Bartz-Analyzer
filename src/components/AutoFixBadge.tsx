@@ -25,5 +25,12 @@ export function formatAutoFixText(fix: string): string {
 
 export function AutoFixBadge({ fix }: { fix: string }) {
   const displayText = formatAutoFixText(fix);
-  return <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 bg-emerald-500/10 text-xs">{displayText}</Badge>
+  return (
+    <Badge
+      variant="outline"
+      className="text-emerald-500 border-emerald-500/30 bg-emerald-500/10 text-xs whitespace-normal break-all max-w-full text-left py-1 px-2.5 h-auto leading-relaxed"
+    >
+      {displayText}
+    </Badge>
+  );
 }

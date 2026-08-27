@@ -983,13 +983,14 @@ function createCanvasBadgeDataUrl(count: number): string | null {
   }, [rowsFilteredByDay]);
 
   const kpis = useMemo(() => [
-    { key: "all", title: "Todos", value: rowsFilteredByDay.length, icon: <Filter className="h-5 w-5" />, color: "#3498DB" },
-    { key: "ok", title: "Corretos", value: resumo.ok, icon: <CheckCircle className="h-5 w-5" />, color: "#27AE60" },
-    { key: "erro", title: "Inconformidades", value: resumo.erro, icon: <XCircle className="h-5 w-5" />, color: "#E74C3C" },
-    { key: "muxarabi", title: "Muxarabi", value: resumo.mux, icon: <Grid3X3 className="h-5 w-5" />, color: "#9B59B6" },
-    { key: "coringa", title: "Cor Coringa", value: resumo.cor, icon: <Grid3X3 className="h-5 w-5" />, color: "#E67E22" },
-    { key: "duplado37mm", title: "Duplado 37MM", value: resumo.dup37, icon: <AlertTriangle className="h-5 w-5" />, color: "#C0392B" },
-    { key: "curvo", title: "Curvo", value: resumo.curvo, icon: <Grid3X3 className="h-5 w-5" />, color: "#ee5700ff" },
+    { key: "all", title: "Todos", value: rowsFilteredByDay.length, icon: <Filter className="h-4 w-4" />, color: "#38BDF8" },
+    { key: "ok", title: "Corretos", value: resumo.ok, icon: <CheckCircle2 className="h-4 w-4" />, color: "#34D399" },
+    { key: "erro", title: "Inconformidades", value: resumo.erro, icon: <XCircle className="h-4 w-4" />, color: "#FB7185" },
+    { key: "autofix", title: "Auto-Fix", value: resumo.autofix, icon: <Zap className="h-4 w-4" />, color: "#2DD4BF" },
+    { key: "muxarabi", title: "Muxarabi", value: resumo.mux, icon: <Grid3X3 className="h-4 w-4" />, color: "#C084FC" },
+    { key: "coringa", title: "Cor Coringa", value: resumo.cor, icon: <Grid3X3 className="h-4 w-4" />, color: "#FBBF24" },
+    { key: "duplado37mm", title: "Duplado 37MM", value: resumo.dup37, icon: <AlertTriangle className="h-4 w-4" />, color: "#F43F5E" },
+    { key: "curvo", title: "Curvo", value: resumo.curvo, icon: <Grid3X3 className="h-4 w-4" />, color: "#FB923C" },
   ] as const, [rowsFilteredByDay.length, resumo]);
 
   const filtered = useMemo(() => {
@@ -1270,23 +1271,29 @@ function createCanvasBadgeDataUrl(count: number): string | null {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="border-b border-border bg-card/80 backdrop-blur-md px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+      <div className="border-b border-border/80 bg-gradient-to-r from-card via-card/95 to-card px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-sm backdrop-blur-md sticky top-0 z-30">
         {/* App Title & Info */}
-        
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 bg-purple-600 rounded-xl flex items-center justify-center text-white font-extrabold shadow-md border border-purple-500/30">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="h-10 w-10 bg-gradient-to-br from-purple-600 via-indigo-600 to-violet-700 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg shadow-purple-900/30 border border-purple-400/30 shrink-0">
             B
           </div>
-          <div>
-            <div className="text-base font-bold text-foreground flex items-center gap-2">
-              Bartz Verificador XML
-              <span className="text-[10px] font-semibold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-full">
+          <div className="min-w-0 space-y-0.5">
+            <div className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 flex-wrap">
+              <span>Bartz Verificador XML</span>
+              <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full shadow-inner">
                 v6.0.4
               </span>
+              {monitoring && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Monitorando
+                </span>
+              )}
             </div>
             {watchRoot && (
-              <div className="text-xs text-muted-foreground max-w-xs truncate" title={watchRoot}>
-                Monitorando: <span className="font-mono text-foreground/80">{watchRoot}</span>
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5 truncate max-w-sm" title={watchRoot}>
+                <FolderOpen className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+                <span className="font-mono text-muted-foreground/80 truncate">{watchRoot}</span>
               </div>
             )}
           </div>
@@ -1294,23 +1301,23 @@ function createCanvasBadgeDataUrl(count: number): string | null {
 
         {/* Action Controls Toolbar */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Main Hero Actions: Iniciar / Parar & Especiais */}
-          <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-xl border border-border/50">
+          {/* Main Hero Actions: Iniciar / Parar & Especiais & Chapas */}
+          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-2xl border border-border/80 shadow-inner">
             {!monitoring ? (
               <Button
                 onClick={start}
-                className="h-8.5 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 gap-1.5 shadow-sm transition-all cursor-pointer"
+                className="h-8 px-3.5 text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-bold gap-1.5 rounded-xl shadow-sm transition-all cursor-pointer active:scale-95"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
-                Iniciar
+                <span>Iniciar</span>
               </Button>
             ) : (
               <Button
                 onClick={stop}
-                className="h-8.5 px-3.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold border-0 gap-1.5 shadow-sm transition-all cursor-pointer"
+                className="h-8 px-3.5 text-xs bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 font-bold gap-1.5 rounded-xl shadow-sm transition-all cursor-pointer active:scale-95"
               >
                 <Pause className="h-3.5 w-3.5 fill-current animate-pulse" />
-                Parar
+                <span>Parar</span>
               </Button>
             )}
 
@@ -1318,16 +1325,16 @@ function createCanvasBadgeDataUrl(count: number): string | null {
               <Button
                 variant="outline"
                 onClick={() => setSpecialOrdersOpen(true)}
-                className={`h-8.5 px-3 text-xs gap-1.5 font-bold transition-all border-purple-500/40 text-purple-400 hover:bg-purple-500/10 cursor-pointer ${
+                className={`h-8 px-3 text-xs gap-1.5 font-bold transition-all rounded-xl border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 shadow-sm cursor-pointer active:scale-95 ${
                   openOrdersCount > 0
-                    ? "bg-purple-950/50 border-purple-500/80 shadow-md shadow-purple-500/20 text-purple-200"
+                    ? "border-purple-500/80 shadow-md shadow-purple-500/20 text-purple-200"
                     : ""
                 }`}
               >
                 <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-                Especiais
+                <span>Especiais</span>
                 {openOrdersCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold animate-pulse ml-0.5 shadow-sm">
+                  <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold shadow-sm">
                     {openOrdersCount}
                   </span>
                 )}
@@ -1338,17 +1345,17 @@ function createCanvasBadgeDataUrl(count: number): string | null {
               <Button
                 variant="outline"
                 onClick={() => setPlateSeparationOpen(true)}
-                className={`h-8.5 px-3 text-xs gap-1.5 font-bold transition-all border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer ${
+                className={`h-8 px-3 text-xs gap-1.5 font-bold transition-all rounded-xl border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 shadow-sm cursor-pointer active:scale-95 ${
                   completedPlatesCount > 0
-                    ? "bg-cyan-950/50 border-cyan-500/80 shadow-md shadow-cyan-500/20 text-cyan-200"
-                    : "bg-cyan-950/20 hover:border-cyan-500/80 shadow-sm"
+                    ? "border-cyan-500/80 shadow-md shadow-cyan-500/20 text-cyan-200"
+                    : ""
                 }`}
                 title="Abrir Separação de Chapas"
               >
                 <Layers className="h-3.5 w-3.5 text-cyan-400" />
-                Separação Chapas
+                <span>Separação Chapas</span>
                 {completedPlatesCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-cyan-600 text-white text-[10px] font-extrabold animate-pulse ml-0.5 shadow-sm">
+                  <span className="px-1.5 py-0.5 rounded-full bg-cyan-600 text-white text-[10px] font-extrabold shadow-sm">
                     {completedPlatesCount}
                   </span>
                 )}
@@ -1357,70 +1364,70 @@ function createCanvasBadgeDataUrl(count: number): string | null {
           </div>
 
           {/* Maintenance & Report Actions */}
-          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/50">
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-2xl border border-border/80 shadow-inner">
             <Button
               variant="ghost"
               size="sm"
               onClick={exportReport}
-              className="h-8.5 px-2.5 text-xs text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 gap-1.5 font-medium cursor-pointer"
+              className="h-8 px-2.5 text-xs text-sky-400 hover:bg-sky-500/15 hover:text-sky-300 gap-1.5 font-semibold rounded-xl cursor-pointer transition-all active:scale-95"
               title="Exportar Relatório"
             >
               <Download className="h-3.5 w-3.5" />
-              Exportar
+              <span>Exportar</span>
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
               onClick={clearReport}
-              className="h-8.5 px-2.5 text-xs text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5 font-medium cursor-pointer"
+              className="h-8 px-2.5 text-xs text-amber-400 hover:bg-amber-500/15 hover:text-amber-300 gap-1.5 font-semibold rounded-xl cursor-pointer transition-all active:scale-95"
               title="Limpar Tabela"
             >
               <AlertCircle className="h-3.5 w-3.5" />
-              Limpar
+              <span>Limpar</span>
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
               onClick={handleClearFolders}
-              className="h-8.5 px-2.5 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 gap-1.5 font-medium cursor-pointer"
+              className="h-8 px-2.5 text-xs text-rose-400 hover:bg-rose-500/15 hover:text-rose-300 gap-1.5 font-semibold rounded-xl cursor-pointer transition-all active:scale-95"
               title="Excluir Arquivos"
             >
               <XCircle className="h-3.5 w-3.5" />
-              Excluir arquivos
+              <span>Excluir arquivos</span>
             </Button>
           </div>
 
           {/* Settings & User Profile Group */}
-          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border/50">
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-2xl border border-border/80 shadow-inner">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => window.electron?.updater?.checkForUpdates?.()}
-              className="h-8.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
+              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 gap-1.5 rounded-xl cursor-pointer transition-all active:scale-95"
               title="Verificar Atualizações"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Atualizar</span>
+              <span className="hidden xl:inline font-medium">Atualizar</span>
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
               onClick={onNavigateToConfig}
-              className="h-8.5 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
+              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 gap-1.5 rounded-xl cursor-pointer transition-all active:scale-95"
               title="Opções de Configuração"
             >
               <Sliders className="h-3.5 w-3.5" />
-              <span>Opções</span>
+              <span className="font-medium">Opções</span>
             </Button>
 
             <ThemeToggle />
 
             {currentUser && (
-              <div className="flex items-center gap-1 pl-2 border-l border-border/40 ml-1">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border/60 text-xs font-semibold text-foreground">
+              <div className="flex items-center gap-1 pl-1.5 border-l border-border/60 ml-0.5">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-card border border-border/80 text-xs font-semibold text-foreground shadow-sm">
                   <User className="h-3.5 w-3.5 text-purple-400" />
                   <span className="max-w-[110px] truncate" title={currentUser.txt_nome || currentUser.txt_login}>
                     {currentUser.txt_nome || currentUser.txt_login}
@@ -1431,7 +1438,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                     variant="ghost"
                     size="sm"
                     onClick={onLogout}
-                    className="h-8.5 w-8.5 p-0 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-lg cursor-pointer"
+                    className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/15 hover:text-rose-300 rounded-xl cursor-pointer transition-all active:scale-95"
                     title="Sair do sistema"
                   >
                     <LogOut className="h-3.5 w-3.5" />
@@ -1447,17 +1454,22 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       <div className="px-6 mt-4">
         <button
           onClick={() => setSearchPanelOpen(!searchPanelOpen)}
-          className="w-full flex items-center justify-between bg-card hover:bg-card/80 border border-border rounded-xl px-5 py-3 transition-all duration-200 group cursor-pointer"
+          className="w-full flex items-center justify-between bg-card/70 hover:bg-card border border-border/80 rounded-2xl px-5 py-3 transition-all duration-200 group cursor-pointer shadow-sm"
         >
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-[#F1C40F]">
+            <div className="p-1.5 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
               <Search className="h-4 w-4" />
             </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
-              {hasAdminPermission ? "Pesquisa de XML e Desenhos" : "Pesquisa e Importação de XML"}
-            </span>
+            <div className="text-left">
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                {hasAdminPermission ? "Pesquisa de XML e Desenhos" : "Pesquisa e Importação de XML"}
+              </span>
+              <p className="text-[10px] text-muted-foreground font-medium">Localização e importação rápida de arquivos do servidor</p>
+            </div>
           </div>
-          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${searchPanelOpen ? 'rotate-180' : ''}`} />
+          <div className={`flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 border border-border text-muted-foreground transition-transform duration-300 ${searchPanelOpen ? 'rotate-180 text-foreground' : ''}`}>
+            <ChevronDown className="h-4 w-4" />
+          </div>
         </button>
 
         <div
@@ -1466,105 +1478,107 @@ function createCanvasBadgeDataUrl(count: number): string | null {
           }`}
         >
           <div className="overflow-hidden">
-            <div className={`grid grid-cols-1 ${hasAdminPermission ? "md:grid-cols-2" : ""} gap-4`}>
-              <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Search className="h-4.5 w-4.5 text-[#F1C40F]" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa e Importação de XML</h4>
+            <div className={`grid grid-cols-1 ${hasAdminPermission ? "lg:grid-cols-2" : ""} gap-4`}>
+              {/* Coluna 1: Pesquisa e Importação de XML */}
+              <div className="bg-card/90 rounded-2xl border border-border/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-sky-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Pesquisa de XML</h4>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                    Servidor / Local
+                  </span>
                 </div>
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
-                  <div className="relative flex-1 group">
+
+                <div className="space-y-2.5">
+                  <div className="relative group">
                     <Input
                       type="text"
                       placeholder="Digite o nome do arquivo XML..."
                       value={searchXmlTerm}
                       onChange={(e) => setSearchXmlTerm(e.target.value)}
                       onClear={() => setSearchXmlTerm("")}
-                      className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
-                      style={{ paddingLeft: "2.5rem" }}
-                    />
-                    <Search
-                      className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
-                      style={{ top: "50%", transform: "translateY(-50%)" }}
+                      leftIcon={<Search className="h-3.5 w-3.5 text-muted-foreground" />}
+                      className="w-full bg-muted/40 border-border/80 text-xs focus:border-sky-500 font-medium h-9 rounded-xl"
                     />
                     {searchingXml && (
                       <Loader2
-                        className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
-                        style={{ top: "50%", transform: "translateY(-50%)" }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-sky-400 animate-spin pointer-events-none z-10"
                       />
                     )}
                   </div>
 
-                  <select
-                    value={selectedXmlPath}
-                    onChange={(e) => setSelectedXmlPath(e.target.value)}
-                    className="flex-1 md:flex-none md:w-80 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
-                    disabled={searchingXml || searchXmlResults.length === 0}
-                  >
-                    {searchingXml ? (
-                      <option value="">Buscando...</option>
-                    ) : searchXmlResults.length === 0 ? (
-                      <option value="">Nenhum resultado encontrado</option>
-                    ) : (
-                      <>
-                        <option value="">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
-                        {searchXmlResults.map((res, index) => (
-                          <option key={index} value={res.fullPath}>
-                            {res.name}
-                          </option>
-                        ))}
-                      </>
-                    )}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedXmlPath}
+                      onChange={(e) => setSelectedXmlPath(e.target.value)}
+                      className="flex-1 bg-muted/40 hover:bg-muted/60 text-foreground text-xs py-2 px-3 rounded-xl border border-border/80 focus:outline-none focus:border-sky-500 transition-all font-medium h-9"
+                      disabled={searchingXml || searchXmlResults.length === 0}
+                    >
+                      {searchingXml ? (
+                        <option value="">Buscando no servidor...</option>
+                      ) : searchXmlResults.length === 0 ? (
+                        <option value="">Nenhum resultado encontrado</option>
+                      ) : (
+                        <>
+                          <option value="">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
+                          {searchXmlResults.map((res, index) => (
+                            <option key={index} value={res.fullPath}>
+                              {res.name}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
 
-                  <Button
-                    onClick={handleImportXml}
-                    disabled={!selectedXmlPath || copyingXml}
-                    className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9"
-                  >
-                    {copyingXml ? "Importando..." : "Importar"}
-                  </Button>
+                    <Button
+                      onClick={handleImportXml}
+                      disabled={!selectedXmlPath || copyingXml}
+                      className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold uppercase py-2 px-4 rounded-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5 shadow-sm"
+                    >
+                      {copyingXml ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      <span>{copyingXml ? "Importando..." : "Importar"}</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
 
+              {/* Coluna 2: Pesquisa de Desenhos */}
               {hasAdminPermission && (
-                <div className="bg-card rounded-xl border border-border p-4 shadow-sm flex flex-col gap-3">
+                <div className="bg-card/90 rounded-2xl border border-border/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-3.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileSearch className="h-4.5 w-4.5 text-[#F1C40F]" />
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pesquisa de Desenhos</h4>
+                      <FileSearch className="h-4 w-4 text-amber-400" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Pesquisa de Desenhos (DXF)</h4>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setBatchModalOpen(true)}
-                      className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-semibold"
+                      className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 rounded-lg font-semibold cursor-pointer"
                       title="Abrir ou copiar múltiplos desenhos de uma só vez"
                     >
                       <Files className="h-3.5 w-3.5" />
-                      Abrir / Copiar em Lote
+                      <span>Em Lote</span>
                     </Button>
                   </div>
+
                   <div className="space-y-2.5">
-                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <div className="relative flex-1 group">
                         <Input
                           type="text"
-                          placeholder="Digite o nome do desenho..."
+                          placeholder="Digite o código do desenho..."
                           value={searchDrawingTerm}
                           onChange={(e) => setSearchDrawingTerm(e.target.value)}
                           onClear={() => setSearchDrawingTerm("")}
-                          className="w-full bg-muted/50 border-border text-xs focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-medium h-9"
-                          style={{ paddingLeft: "2.5rem" }}
-                        />
-                        <FileSearch
-                          className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
-                          style={{ top: "50%", transform: "translateY(-50%)" }}
+                          leftIcon={<FileSearch className="h-3.5 w-3.5 text-muted-foreground" />}
+                          className="w-full bg-muted/40 border-border/80 text-xs focus:border-amber-500 font-medium h-9 rounded-xl"
                         />
                         {searchingDrawings && (
                           <Loader2
-                            className="absolute right-8 h-3.5 w-3.5 text-primary animate-spin pointer-events-none z-10"
-                            style={{ top: "50%", transform: "translateY(-50%)" }}
+                            className="absolute right-8 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-400 animate-spin pointer-events-none z-10"
                           />
                         )}
                       </div>
@@ -1572,11 +1586,11 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                       <select
                         value={selectedDrawingPath}
                         onChange={(e) => setSelectedDrawingPath(e.target.value)}
-                        className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-xs py-2 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all select-none font-medium h-9"
+                        className="flex-1 bg-muted/40 hover:bg-muted/60 text-foreground text-xs py-2 px-3 rounded-xl border border-border/80 focus:outline-none focus:border-amber-500 transition-all font-medium h-9"
                         disabled={searchingDrawings || searchDrawingResults.length === 0}
                       >
                         {searchingDrawings ? (
-                          <option value="">Buscando...</option>
+                          <option value="">Buscando desenhos...</option>
                         ) : searchDrawingResults.length === 0 ? (
                           <option value="">Nenhum resultado encontrado</option>
                         ) : (
@@ -1595,76 +1609,81 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                     {selectedDrawingPath && (
                       resolvingPedido ? (
                         <div className="text-[10px] text-muted-foreground px-1 flex items-center gap-1.5">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Procurando pedido...
+                          <Loader2 className="h-3 w-3 animate-spin text-amber-400" />
+                          <span>Localizando pedido associado...</span>
                         </div>
                       ) : selectedPedidoInfo?.pedido ? (
-                        <div className="text-[10px] text-muted-foreground px-1">
-                          <span className="font-semibold text-primary">Pedido {selectedPedidoInfo.pedido}</span>
-                          {selectedPedidoInfo.pedidoFilename && <span className="ml-1.5 opacity-70">({selectedPedidoInfo.pedidoFilename})</span>}
-                          {selectedPedidoInfo.pedidoSource === 'erp' && (
-                            <span className="ml-1.5 opacity-70 italic">— encontrado no ERP</span>
-                          )}
-                          {selectedPedidoInfo.pedidoSource === 'busca' && (
-                            <span className="ml-1.5 opacity-70 italic">— encontrado na Pasta de Busca</span>
-                          )}
+                        <div className="text-[10px] text-muted-foreground px-1 flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                            Pedido {selectedPedidoInfo.pedido}
+                          </span>
+                          {selectedPedidoInfo.pedidoFilename && <span className="opacity-70 truncate max-w-xs font-mono">({selectedPedidoInfo.pedidoFilename})</span>}
                         </div>
                       ) : null
                     )}
 
-                    <div className="flex items-center justify-end gap-2 flex-wrap">
-                      <Button
-                        onClick={handleShowDrawingInFolder}
-                        disabled={!selectedDrawingPath || locatingDrawing}
-                        variant="outline"
-                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                        title="Abrir pasta NESTING (SERVIDOR)"
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                        NESTING (SERVIDOR)
-                      </Button>
+                    <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-border/50">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Button
+                          onClick={handleShowDrawingInFolder}
+                          disabled={!selectedDrawingPath || locatingDrawing}
+                          variant="ghost"
+                          size="sm"
+                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-lg border border-border/60 hover:bg-muted/80"
+                          title="Abrir pasta NESTING (SERVIDOR)"
+                        >
+                          <FolderOpen className="h-3 w-3 text-sky-400" />
+                          <span>Servidor</span>
+                        </Button>
 
-                      <Button
-                        onClick={handleOpenMirrorFolderFromSearch}
-                        disabled={!selectedDrawingPath || !cfg.drawingsCopy || openingMirrorFolder}
-                        variant="outline"
-                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                        title={cfg.drawingsCopy ? "Abrir pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                        NESTING(DXF ALESSANDRO)
-                      </Button>
+                        <Button
+                          onClick={handleOpenMirrorFolderFromSearch}
+                          disabled={!selectedDrawingPath || !cfg.drawingsCopy || openingMirrorFolder}
+                          variant="ghost"
+                          size="sm"
+                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-lg border border-border/60 hover:bg-muted/80"
+                          title={cfg.drawingsCopy ? "Abrir pasta NESTING(DXF ALESSANDRO)" : "Configure em Opções"}
+                        >
+                          <FolderOpen className="h-3 w-3 text-emerald-400" />
+                          <span>Alessandro</span>
+                        </Button>
 
-                      <Button
-                        onClick={handleOpenAspanFolderFromSearch}
-                        disabled={!selectedDrawingPath || !cfg.drawingsAspan || openingAspanFolder}
-                        variant="outline"
-                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                        title={cfg.drawingsAspan ? "Abrir pasta NANXING" : "Configure NANXING em Opções para habilitar"}
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                        NANXING
-                      </Button>
+                        <Button
+                          onClick={handleOpenAspanFolderFromSearch}
+                          disabled={!selectedDrawingPath || !cfg.drawingsAspan || openingAspanFolder}
+                          variant="ghost"
+                          size="sm"
+                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-lg border border-border/60 hover:bg-muted/80"
+                          title={cfg.drawingsAspan ? "Abrir pasta NANXING" : "Configure em Opções"}
+                        >
+                          <FolderOpen className="h-3 w-3 text-purple-400" />
+                          <span>Nanxing</span>
+                        </Button>
+                      </div>
 
-                      <Button
-                        onClick={handleCopyDrawingToMirror}
-                        disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
-                        variant="outline"
-                        className="text-xs font-bold uppercase py-2 px-3 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                        title={cfg.drawingsCopy ? "Copiar para pasta NESTING(DXF ALESSANDRO)" : "Configure NESTING(DXF ALESSANDRO) em Opções para habilitar"}
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        COPIAR PARA DXF
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={handleCopyDrawingToMirror}
+                          disabled={!selectedDrawingPath || !cfg.drawingsCopy || copyingDrawingToMirror}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs font-bold text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 h-8 px-3 rounded-xl gap-1.5 cursor-pointer active:scale-95"
+                          title="Copiar para pasta NESTING(DXF ALESSANDRO)"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          <span>Copiar DXF</span>
+                        </Button>
 
-                      <Button
-                        onClick={handleOpenDrawingFromSearch}
-                        disabled={!selectedDrawingPath || openingDrawing}
-                        className="bg-primary text-primary-foreground text-xs font-bold uppercase py-2 px-4 rounded-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        {openingDrawing ? "Abrindo..." : "Abrir"}
-                      </Button>
+                        <Button
+                          onClick={handleOpenDrawingFromSearch}
+                          disabled={!selectedDrawingPath || openingDrawing}
+                          size="sm"
+                          className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold h-8 px-3.5 rounded-xl active:scale-95 disabled:opacity-50 gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>{openingDrawing ? "Abrindo..." : "Abrir"}</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1684,201 +1703,201 @@ function createCanvasBadgeDataUrl(count: number): string | null {
         currentUser={currentUser}
       />
 
-      {/* Relatório + KPIs (2 colunas) */}
-      <div className="px-6 mt-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Coluna 1 - Relatório de Atividade */}
-          <div className="lg:col-span-1 space-y-3">
-            <button
-              onClick={() => setReportsAndMetricsOpen(!reportsAndMetricsOpen)}
-              className="w-full flex items-center justify-between bg-card hover:bg-card/80 border border-border rounded-xl px-5 py-3 transition-all duration-200 group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-[#F1C40F]">
-                  <BarChart3 className="h-4 w-4" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
-                  Relatório de Atividade
-                </span>
-              </div>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${reportsAndMetricsOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            <div
-              className={`grid transition-all duration-300 ease-in-out ${
-                reportsAndMetricsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-              }`}
-            >
-              <div className="overflow-hidden">
-                <div className="bg-card rounded-xl border border-border p-6 space-y-6 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-[#F1C40F]" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultados do Dia</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handlePrevDay}
-                        title="Dia anterior"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={selectedDay}
-                          onChange={(e) => {
-                            setSelectedDay(e.target.value);
-                            setCurrentPage(1);
-                          }}
-                          className="bg-muted hover:bg-muted/80 text-muted-foreground text-[10.5px] font-bold py-1 px-3 rounded-lg border border-border focus:outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer transition-all"
-                          style={{ colorScheme: "dark" }}
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleNextDay}
-                        title="Próximo dia"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground bg-muted/60 hover:bg-muted rounded-md border border-border/50 transition-colors"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                      {selectedDay !== getTodayISODate() && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedDay(getTodayISODate());
-                            setCurrentPage(1);
-                          }}
-                          className="h-6 px-2 text-[9px] text-[#27AE60] hover:text-[#2ECC71] font-bold uppercase tracking-wider bg-[#27AE60]/10 hover:bg-[#27AE60]/20 rounded-md border border-[#27AE60]/20"
-                        >
-                          Hoje
-                        </Button>
-                      )}
-                      {selectedDay && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedDay("");
-                            setCurrentPage(1);
-                          }}
-                          className="h-6 px-2 text-[9px] text-muted-foreground hover:text-foreground font-bold uppercase tracking-wider bg-muted/40 hover:bg-muted/60 rounded-md border border-border/50"
-                        >
-                          Todas as datas
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
-                      <CheckCircle2 className="h-5 w-5 text-[#27AE60] opacity-80" />
-                      <div className="text-2xl font-bold text-[#27AE60]">{okFiles}</div>
-                      <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Corretos</div>
-                    </div>
-                    <div className="bg-muted p-3 rounded-lg border border-border flex flex-col items-center justify-center space-y-1">
-                      <XCircle className="h-5 w-5 text-[#E74C3C] opacity-80" />
-                      <div className="text-2xl font-bold text-[#E74C3C]">{errorFiles}</div>
-                      <div className="text-[10px] uppercase tracking-tighter text-muted-foreground font-medium">Com Erro</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-end">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3" /> Taxa de Sucesso
-                          </span>
-                          <span className="text-2xl font-bold text-foreground">
-                            {totalFiles > 0 ? Math.round((okFiles / totalFiles) * 100) : 0}%
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Processado</span>
-                          <div className="text-lg font-medium text-foreground">{totalFiles} <span className="text-xs text-muted-foreground">XMLs</span></div>
-                        </div>
-                      </div>
-                      <div className="h-1.5 w-full bg-background rounded-full overflow-hidden border border-border">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#27AE60] to-[#2ECC71] transition-all duration-500"
-                          style={{ width: `${totalFiles > 0 ? (okFiles / totalFiles) * 100 : 0}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground bg-muted p-2 rounded border border-border">
-                      <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> Última atividade</span>
-                      <span className="text-white font-medium">{lastActivity}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      {/* Relatório + KPIs (2 colunas perfeitamente balanceadas) */}
+      <div className="px-6 mt-4 space-y-3">
+        <button
+          onClick={() => setReportsAndMetricsOpen(!reportsAndMetricsOpen)}
+          className="w-full flex items-center justify-between bg-card/70 hover:bg-card border border-border/80 rounded-2xl px-5 py-3 transition-all duration-200 group cursor-pointer shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <BarChart3 className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Relatório de Atividade & Métricas
+              </span>
+              <p className="text-[10px] text-muted-foreground font-medium">Indicadores de conformidade e filtros rápidos de projetos</p>
             </div>
           </div>
+          <div className={`flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 border border-border text-muted-foreground transition-transform duration-300 ${reportsAndMetricsOpen ? 'rotate-180 text-foreground' : ''}`}>
+            <ChevronDown className="h-4 w-4" />
+          </div>
+        </button>
 
-          {/* Coluna 2 - KPIs */}
-          <div className="lg:col-span-1 space-y-3">
-            <button
-              onClick={() => setReportsAndMetricsOpen(!reportsAndMetricsOpen)}
-              className="w-full flex items-center justify-between bg-card hover:bg-card/80 border border-border rounded-xl px-5 py-3 transition-all duration-200 group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-[#F1C40F]">
-                  <Activity className="h-4 w-4" />
+        <div
+          className={`grid transition-all duration-300 ease-in-out ${
+            reportsAndMetricsOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0 mt-0'
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Coluna 1 - Resumo do Dia e Performance */}
+              <div className="lg:col-span-5 bg-card/90 rounded-2xl border border-border/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-indigo-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">Desempenho Diário</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/80">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handlePrevDay}
+                      title="Dia anterior"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <input
+                      type="date"
+                      value={selectedDay}
+                      onChange={(e) => {
+                        setSelectedDay(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="bg-card text-foreground text-[10px] font-bold py-0.5 px-2 rounded-lg border border-border/60 focus:outline-none cursor-pointer"
+                      style={{ colorScheme: "dark" }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleNextDay}
+                      title="Próximo dia"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                    {selectedDay !== getTodayISODate() && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDay(getTodayISODate());
+                          setCurrentPage(1);
+                        }}
+                        className="h-6 px-1.5 text-[9px] text-emerald-400 font-bold uppercase bg-emerald-500/10 rounded-md"
+                      >
+                        Hoje
+                      </Button>
+                    )}
+                    {selectedDay && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDay("");
+                          setCurrentPage(1);
+                        }}
+                        className="h-6 px-1.5 text-[9px] text-muted-foreground hover:text-foreground font-semibold uppercase bg-muted/60 rounded-md"
+                      >
+                        Todas
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
-                  Métricas & Filtros
-                </span>
-              </div>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${reportsAndMetricsOpen ? 'rotate-180' : ''}`} />
-            </button>
 
-            <div
-              className={`grid transition-all duration-300 ease-in-out ${
-                reportsAndMetricsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-              }`}
-            >
-              <div className="overflow-hidden">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="space-y-3 p-3.5 bg-muted/30 rounded-xl border border-border/60">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <TrendingUp className="h-3 w-3 text-emerald-400" /> Taxa de Conformidade
+                      </span>
+                      <div className="text-2xl font-black text-foreground">
+                        {totalFiles > 0 ? Math.round((okFiles / totalFiles) * 100) : 0}%
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Total Analisado</span>
+                      <div className="text-base font-bold text-foreground">{totalFiles} <span className="text-xs font-normal text-muted-foreground">arquivos</span></div>
+                    </div>
+                  </div>
+
+                  <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-border/80">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500 rounded-full"
+                      style={{ width: `${totalFiles > 0 ? (okFiles / totalFiles) * 100 : 0}%` }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase font-bold tracking-tighter opacity-80 leading-none">Corretos</div>
+                        <div className="text-base font-bold leading-tight">{okFiles}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                      <span className="h-2 w-2 rounded-full bg-rose-400 shrink-0 animate-pulse" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase font-bold tracking-tighter opacity-80 leading-none">Inconformidades</div>
+                        <div className="text-base font-bold leading-tight">{errorFiles}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground p-2 rounded-xl bg-muted/20 border border-border/40">
+                  <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3 text-muted-foreground/70" /> Última atividade</span>
+                  <span className="text-foreground font-mono font-medium">{lastActivity}</span>
+                </div>
+              </div>
+
+              {/* Coluna 2 - KPIs (Grid 4x2 Perfeitamente Simétrico) */}
+              <div className="lg:col-span-7 bg-card/90 rounded-2xl border border-border/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-indigo-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Filtros Rápidos por Categoria</h4>
+                  </div>
+                  {filter !== 'all' && (
+                    <button
+                      onClick={() => { setFilter('all'); setCurrentPage(1); }}
+                      className="text-[10px] font-bold text-sky-400 hover:text-sky-300 underline cursor-pointer"
+                    >
+                      Limpar Filtro
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {kpis.map((k: any) => {
                     const isActive = filter === k.key;
                     return (
                       <button
                         key={k.key}
                         onClick={() => { setFilter(k.key); setCurrentPage(1); }}
-                        className={`group text-left bg-card border rounded-xl py-3 px-4 transition-all duration-300 relative overflow-hidden active:scale-95 ${isActive
-                          ? "border-primary shadow-[0_0_20px_rgba(0,0,0,0.2)] dark:shadow-[0_0_20px_rgba(0,0,0,0.4)]"
-                          : "border-border hover:border-primary/20 hover:-translate-y-1"
-                          }`}
+                        className={`group text-left rounded-xl p-3 transition-all duration-200 relative overflow-hidden active:scale-95 border cursor-pointer ${
+                          isActive
+                            ? "bg-card shadow-md shadow-primary/10 border-primary"
+                            : "bg-muted/30 hover:bg-muted/60 border-border/70 hover:border-border"
+                        }`}
                         style={{
-                          borderColor: isActive ? k.color : '#2C2C2C',
-                          boxShadow: isActive ? `0 0 15px ${k.color}33, inset 0 0 10px ${k.color}11` : ''
+                          borderColor: isActive ? k.color : undefined,
+                          boxShadow: isActive ? `0 0 12px ${k.color}25, inset 0 0 8px ${k.color}10` : undefined
                         }}
                       >
-                        {isActive && (
+                        <div className="flex items-center justify-between mb-1.5">
                           <div
-                            className="absolute top-0 right-0 w-16 h-16 opacity-10 pointer-events-none"
-                            style={{ background: `radial-gradient(circle at center, ${k.color} 0%, transparent 70%)` }}
-                          />
-                        )}
-                        <div className="flex items-start justify-between mb-2">
-                          <div className={`p-2 rounded-lg bg-background border border-border transition-colors duration-300 ${isActive ? 'bg-opacity-50' : 'group-hover:bg-muted'}`} style={{ color: k.color }}>
-                            {React.cloneElement(k.icon as React.ReactElement, { className: "h-4 w-4" })}
+                            className={`p-1.5 rounded-lg border transition-colors ${
+                              isActive ? 'bg-card' : 'bg-background/80 group-hover:bg-card'
+                            }`}
+                            style={{ color: k.color, borderColor: `${k.color}30` }}
+                          >
+                            {k.icon}
                           </div>
-                          {isActive && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 8px ${k.color}` }} />}
+                          {isActive && (
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 6px ${k.color}` }} />
+                          )}
                         </div>
                         <div className="space-y-0.5">
-                          <div className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          <div className={`text-[10px] uppercase tracking-wider font-bold truncate transition-colors ${
+                            isActive ? 'text-foreground font-extrabold' : 'text-muted-foreground'
+                          }`}>
                             {k.title}
                           </div>
-                          <div className="text-2xl font-bold tracking-tight text-foreground">{k.value}</div>
+                          <div className="text-xl font-black tracking-tight text-foreground">{k.value}</div>
                         </div>
                       </button>
                     );
@@ -1891,111 +1910,116 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       </div>
 
       {/* Tabela de Arquivos */}
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-5">
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-1">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="w-full max-w-md">
               <Input
                 type="text"
                 placeholder="Buscar arquivo, erro, tag..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 onClear={() => { setSearch(""); setCurrentPage(1); }}
-                className="w-80 bg-muted/50 border-border text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                style={{ paddingLeft: "2.5rem" }}
-              />
-              <Filter
-                className="absolute left-3 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10"
-                style={{ top: "50%", transform: "translateY(-50%)" }}
+                leftIcon={<Search className="h-4 w-4" />}
+                className="w-full bg-card/80 border-border/80 text-sm focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all rounded-xl shadow-inner"
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
             {bulkMoveEligible.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setConfirmBulkMoveOpen(true)}
-                className="gap-2 border-emerald-700 hover:bg-emerald-900/20 text-emerald-400 text-[11px] h-7"
+                className="gap-2 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold h-8 rounded-xl active:scale-[0.98] transition-all"
               >
                 <Send className="h-3.5 w-3.5" />
-                Enviar 'SEM GERAÇÃO DE MÁQUINAS' para OK? ({bulkMoveEligible.length})
+                <span>Enviar 'SEM GERAÇÃO' para OK ({bulkMoveEligible.length})</span>
               </Button>
             )}
-            <div className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border">
-              Mostrando <span className="text-foreground">{filtered.length}</span> de <span className="text-foreground">{rows.length}</span> arquivos
+            <div className="text-xs font-semibold text-muted-foreground bg-card/80 px-3.5 py-1.5 rounded-xl border border-border/80 flex items-center gap-2 shadow-sm">
+              <Files className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Mostrando <strong className="text-foreground font-bold">{filtered.length}</strong> de <strong className="text-foreground font-bold">{rows.length}</strong> arquivos</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xl">
+        <div className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-xl">
           <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-muted/40 border-b border-border/80">
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest pl-6">Arquivo</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Status</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Inconformidades (Erros)</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Avisos do Sistema</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Tags</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest whitespace-nowrap">Data / Hora</TableHead>
-                <TableHead className="text-[#666] text-[10px] uppercase font-bold tracking-widest text-center pr-6">Ações</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest pl-6 py-3.5">Arquivo</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest py-3.5">Status</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest py-3.5">Inconformidades (Erros)</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest py-3.5">Avisos do Sistema</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest py-3.5">Tags</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest whitespace-nowrap py-3.5">Data / Hora</TableHead>
+                <TableHead className="text-muted-foreground/70 text-[10px] uppercase font-bold tracking-widest text-center pr-6 py-3.5">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
-            <TableBody>
+            <TableBody className="divide-y divide-border/40">
               {paginatedData.map((file) => {
                 const autoFixed = (file.autoFixes || []).length > 0;
                 return (
-                  <TableRow key={file.fullpath} className="border-border hover:bg-primary/[0.02] transition-colors group/row">
-                    <TableCell className="pl-6 py-4">
+                  <TableRow key={file.fullpath} className="border-border hover:bg-muted/30 transition-colors group/row">
+                    <TableCell className="pl-6 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className={`h-2.5 w-2.5 rounded-full shrink-0 transition-shadow duration-300 ${file.status === 'OK' ? 'bg-[#27AE60] shadow-[0_0_8px_rgba(39,174,96,0.5)]' :
-                          file.status === 'ERRO' ? 'bg-[#E74C3C] shadow-[0_0_8px_rgba(231,76,60,0.5)]' :
-                            'bg-[#F39C12] shadow-[0_0_8px_rgba(243,156,18,0.5)]'
-                          }`} />
-                        <div className="flex flex-col">
-                          <span className="font-mono text-sm text-foreground group-hover/row:text-primary transition-colors truncate max-w-[280px]">
+                        <div
+                          className={`h-2.5 w-2.5 rounded-full shrink-0 transition-shadow duration-300 ${
+                            file.status === 'OK'
+                              ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]'
+                              : file.status === 'ERRO'
+                              ? 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.7)] animate-pulse'
+                              : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]'
+                          }`}
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span
+                            className="font-mono text-xs sm:text-sm text-foreground group-hover/row:text-primary font-medium transition-colors truncate max-w-[420px]"
+                            title={file.filename}
+                          >
                             {file.filename}
                           </span>
                         </div>
                       </div>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="py-3.5">
                       <StatusChip status={file.status} />
                     </TableCell>
 
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1.5 max-w-60">
+                    <TableCell className="py-3.5">
+                      <div className="flex flex-wrap gap-1.5 max-w-64">
                         {(file.errors || []).length > 0 ? (
                           (file.errors || []).map((e, i) => <ErrorBadge key={i} error={e} />)
                         ) : (
-                          <span className="text-[#444] text-[10px]">—</span>
+                          <span className="text-muted-foreground/25 font-mono text-xs select-none">—</span>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="py-3.5">
                       <div className="flex flex-wrap gap-1.5">
                         {(file.warnings || []).length > 0 ? (
                           (file.warnings || []).map((w, i) => (
                             <Badge
                               key={i}
                               variant="outline"
-                              className="text-[#F39C12] border-[#F39C12]/20 bg-[#F39C12]/5 text-[9px] font-bold uppercase py-0 px-2 h-5"
+                              className="text-amber-400 border-amber-500/25 bg-amber-500/10 text-[9px] font-bold uppercase py-0.5 px-2 rounded-md"
                             >
                               {typeof w === "string" ? w.toUpperCase() : "AVISO"}
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-[#444] text-[10px]">—</span>
+                          <span className="text-muted-foreground/25 font-mono text-xs select-none">—</span>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1.5 max-w-32">
+                    <TableCell className="py-3.5">
+                      <div className="flex flex-wrap gap-1.5 max-w-44">
                         {(() => {
                           const displayTags = filterTags(file.tags || []);
                           const hasAutofixTag = displayTags.some(t => t.toLowerCase().includes("autofix"));
@@ -2006,54 +2030,54 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                               {showGenericAutofix && (
                                 <Badge
                                   variant="outline"
-                                  className="text-[#1ABC9C] border-[#1ABC9C]/20 bg-[#1ABC9C]/5 text-[9px] font-bold uppercase py-0 px-2 h-5 flex items-center gap-1"
+                                  className="text-teal-400 border-teal-500/25 bg-teal-500/10 text-[9px] font-bold uppercase py-0.5 px-2 rounded-md flex items-center gap-1"
                                 >
-                                  <Zap className="h-2.5 w-2.5 text-[#1ABC9C]" /> AUTO-FIX
+                                  <Zap className="h-2.5 w-2.5 text-teal-400" /> AUTO-FIX
                                 </Badge>
                               )}
                               {displayTags.map((t, i) => (
                                 <Badge
                                   key={i}
                                   variant="outline"
-                                  className="text-[#3498DB] border-[#3498DB]/20 bg-[#3498DB]/5 text-[9px] font-bold uppercase py-0 px-2 h-5"
+                                  className="text-sky-400 border-sky-500/25 bg-sky-500/10 text-[9px] font-bold uppercase py-0.5 px-2 rounded-md"
                                 >
                                   {formatTag(t)}
                                 </Badge>
                               ))}
                             </>
                           ) : (
-                            <span className="text-[#444] text-[10px]">—</span>
+                            <span className="text-muted-foreground/25 font-mono text-xs select-none">—</span>
                           );
                         })()}
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-[#888] text-[11px] font-medium whitespace-nowrap">
-                      {file.timestamp || "-"}
+                    <TableCell className="text-muted-foreground text-xs font-mono whitespace-nowrap py-3.5">
+                      {file.timestamp || "—"}
                     </TableCell>
 
-                    <TableCell className="text-center pr-6 py-4">
-                      <div className="inline-flex gap-2 p-1.5 bg-background rounded-lg border border-border transition-colors group-hover/row:border-border/80">
+                    <TableCell className="text-center pr-6 py-3.5">
+                      <div className="inline-flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/80 transition-colors group-hover/row:border-border">
                         <button
                           title="Ver detalhes"
                           onClick={() => handleFileDetail(file)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-primary transition-all text-muted-foreground"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-sky-500/20 hover:text-sky-400 transition-all text-muted-foreground cursor-pointer active:scale-95"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3.5 w-3.5" />
                         </button>
                         <button
                           title="Abrir na pasta"
                           onClick={() => handleOpenFolder(file.fullpath)}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-muted hover:text-primary transition-all text-muted-foreground"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-amber-500/20 hover:text-amber-400 transition-all text-muted-foreground cursor-pointer active:scale-95"
                         >
-                          <FolderOpen className="h-4 w-4" />
+                          <FolderOpen className="h-3.5 w-3.5" />
                         </button>
                         <button
                           title="Excluir projeto"
                           onClick={() => { setDeleteTarget(file); setConfirmDeleteOpen(true); }}
-                          className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-rose-500/10 hover:text-rose-500 transition-all text-muted-foreground"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-rose-500/20 hover:text-rose-400 transition-all text-muted-foreground cursor-pointer active:scale-95"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </TableCell>

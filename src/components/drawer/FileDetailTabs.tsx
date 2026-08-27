@@ -171,15 +171,13 @@ function OverviewTab({ data, actions, canCopyXml }: { data: Row | null; actions:
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Coluna da Esquerda */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <ErrorWarningSection data={data} onMoveToOk={actions.handleMoveToOk} />
           <ImportKeySection data={data} />
         </div>
 
-
-
         {/* Coluna da Direita */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <MachineSection data={data} />
           <OrderInfoSection
             isOpen={actions.orderInfoOpen}

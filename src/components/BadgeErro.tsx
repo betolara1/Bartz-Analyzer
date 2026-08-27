@@ -33,7 +33,7 @@ export function BadgeErro({ type, error, className }: BadgeErroProps) {
   return (
     <span 
       className={cn(
-        "inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-[#E74C3C]/10 text-[#E74C3C] border border-[#E74C3C]/20 whitespace-nowrap",
+        "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/25 whitespace-normal break-all max-w-full leading-tight text-left shadow-sm",
         className
       )}
     >

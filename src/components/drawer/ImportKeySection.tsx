@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Send, CheckCircle, Copy, Download, Loader2 } from "lucide-react";
+import { KeyRound, CheckCircle2, Copy, Download, Loader2, FileBox, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 
@@ -8,13 +8,14 @@ interface ImportKeySectionProps {
 }
 
 export function ImportKeySection({ data }: ImportKeySectionProps) {
+  const [isOpen, setIsOpen] = useState(true);
   const key = data?.meta?.importKey;
   const [downloading, setDownloading] = useState(false);
 
   const handleCopy = () => {
     if (!key) return;
     navigator.clipboard.writeText(key);
-    toast.success("Chave copiada para a área de transferência!");
+    toast.success("Chave ERP copiada para a área de transferência!");
   };
 
   const handleDownloadPromob = async () => {
@@ -48,50 +49,76 @@ export function ImportKeySection({ data }: ImportKeySectionProps) {
   };
 
   return (
-    <section className="space-y-3 bg-muted/30 p-4 rounded-xl border border-border hover:border-primary/50 transition-colors">
-      <div className="flex items-center gap-2 px-1">
-        <Send className="h-4 w-4 text-zinc-500" />
-        <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Chave de Importação ERP</h4>
-      </div>
-      
-      <div className="relative group">
-        <div className={`p-4 rounded-xl border font-mono text-xs flex items-center justify-between transition-all ${
-          key ? 'bg-[#1B1B1B] border-[#3498DB]/30 text-[#3498DB] shadow-[0_0_15px_rgba(52,152,219,0.05)]' : 'bg-[#1B1B1B] border-[#2C2C2C] text-zinc-600 italic'
-        }`}>
-          <div className="flex items-center gap-2.5 truncate pr-8">
-            {key && <CheckCircle className="h-3.5 w-3.5 shrink-0" />}
-            <span className="truncate">{key || "Chave não disponível para este item"}</span>
+    <section className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm transition-all">
+      <div
+        className="flex items-center justify-between p-4 sm:p-5 cursor-pointer group hover:bg-muted/40 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            <KeyRound className="h-4 w-4" />
           </div>
-          
-          {key && (
-            <button 
-              onClick={handleCopy}
-              className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all absolute right-2 opacity-0 group-hover:opacity-100"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            Chave de Importação ERP
+          </h4>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border">
+            Focco ERP
+          </span>
+          <div className={`flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 border border-border text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-180 text-foreground' : ''}`}>
+            <ChevronDown className="h-4 w-4" />
+          </div>
         </div>
       </div>
+      
+      {isOpen && (
+        <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-1 space-y-3.5 border-t border-border/60">
+          <div className="relative group pt-1">
+            <div className={`p-3.5 rounded-xl border font-mono text-xs flex items-center justify-between transition-all ${
+              key 
+                ? 'bg-sky-500/5 border-sky-500/25 text-sky-300 shadow-inner' 
+                : 'bg-muted/30 border-border/60 text-muted-foreground/50 italic'
+            }`}>
+              <div className="flex items-center gap-2.5 truncate pr-8">
+                {key && <CheckCircle2 className="h-4 w-4 text-sky-400 shrink-0" />}
+                <span className="truncate select-all">{key || "Chave não disponível para este item"}</span>
+              </div>
+              
+              {key && (
+                <button 
+                  onClick={handleCopy}
+                  className="p-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/30 text-sky-400 hover:text-white transition-all absolute right-2.5 cursor-pointer"
+                  title="Copiar chave"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
 
-      {/* Botão Baixar .promob */}
-      <button
-        onClick={handleDownloadPromob}
-        disabled={downloading}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        {downloading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Baixando...
-          </>
-        ) : (
-          <>
-            <Download className="h-4 w-4" />
-            Baixar .promob
-          </>
-        )}
-      </button>
+          {/* Botão Baixar .promob */}
+          <button
+            onClick={handleDownloadPromob}
+            disabled={downloading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-500/30 shadow-md shadow-emerald-900/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {downloading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Buscando e Baixando...</span>
+              </>
+            ) : (
+              <>
+                <FileBox className="h-4 w-4" />
+                <span>Baixar Arquivo .Promob</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
+
+

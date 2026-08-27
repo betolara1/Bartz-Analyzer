@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, ChevronDown, Package, CheckCircle } from "lucide-react";
+import { AlertTriangle, ChevronDown, Package, CheckCircle, FolderTree, Layers } from "lucide-react";
 import { Row } from "../../types";
 import { Input } from "../ui/input";
 
@@ -77,7 +77,7 @@ export function PendingRefSection({
                   const key = `${r.id}|${r.descricao || ''}`;
                   return (
                     <option key={i} value={key}>
-                      ID: {r.id} {r.descricao ? `| ${r.descricao.slice(0, 35)}...` : ''}
+                      ID: {r.id} {r.descricao ? `| ${r.descricao.slice(0, 35)}...` : ''} {r.descricaoPai ? `[Pai: ${r.descricaoPai.slice(0, 25)}]` : ''}
                     </option>
                   );
                 })}
@@ -88,9 +88,49 @@ export function PendingRefSection({
               const item = referenciaEmpty.find(r => `${r.id}|${r.descricao || ''}` === selectedRefSingle);
               if (!item) return null;
               return (
-                <div className="p-4 rounded-xl bg-black/40 border border-rose-500/10 space-y-3 relative overflow-hidden group">
+                <div className="p-4 rounded-xl bg-black/40 border border-rose-500/10 space-y-3.5 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity"><Package className="h-12 w-12 text-rose-500" /></div>
                   
+                  {/* Item Pai / Módulo Superior */}
+                  {(item.descricaoPai || item.idPai) && (
+                    <div className="relative z-10 p-3 rounded-xl bg-muted/40 border border-border/80 space-y-1.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[9px] dark:text-purple-300 text-purple-700 font-bold uppercase tracking-wider">
+                          <FolderTree className="h-3.5 w-3.5 text-purple-400" />
+                          <span>Item Pai / Módulo Vinculado</span>
+                        </div>
+                        {item.referenciaPai && (
+                          <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-md">
+                            REF: {item.referenciaPai}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-foreground flex items-center gap-2 flex-wrap">
+                        <span>{item.descricaoPai || item.idPai}</span>
+                        {item.desenhoPai && (
+                          <span className="text-[10px] text-muted-foreground font-mono bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                            Desenho: {item.desenhoPai}
+                          </span>
+                        )}
+                        {item.dimensaoPai && (
+                          <span className="text-[10px] text-muted-foreground font-mono bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                            {item.dimensaoPai}
+                          </span>
+                        )}
+                      </div>
+                      {item.caminhoPai && (
+                        <div className="text-[10px] text-muted-foreground font-mono break-all leading-tight bg-background/50 p-1.5 rounded border border-border/40">
+                          {item.caminhoPai}
+                        </div>
+                      )}
+                      {item.idPai && item.idPai !== item.descricaoPai && (
+                        <div className="text-[9px] text-muted-foreground/70 font-mono truncate">
+                          ID: {item.idPai} {item.idPromobPai ? `(Promob #${item.idPromobPai})` : ''}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {item.caminhoItemCatalog && (
                     <div className="relative z-10">
                       <div className="text-[9px] dark:text-rose-300 text-rose-700 font-bold uppercase mb-1 opacity-60 tracking-tighter">Localização no Catálogo</div>
@@ -141,3 +181,4 @@ export function PendingRefSection({
     </section>
   );
 }
+
