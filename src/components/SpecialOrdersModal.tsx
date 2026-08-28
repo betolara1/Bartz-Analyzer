@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -103,13 +103,18 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   const [xmlExistenceMap, setXmlExistenceMap] = useState<Record<string, boolean>>({});
   const [isCheckingXml, setIsCheckingXml] = useState(false);
 
+  const ordersRef = useRef(orders);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
   const toggleCommentExpand = (commentId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedComments((prev) => ({ ...prev, [commentId]: !prev[commentId] }));
   };
 
   const checkXmlExistence = useCallback(async (ordersList?: SpecialOrder[]) => {
-    const list = ordersList || orders;
+    const list = ordersList || ordersRef.current;
     if (!list || list.length === 0) return;
 
     const orderNumbers = Array.from(
@@ -149,7 +154,7 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
     } finally {
       setIsCheckingXml(false);
     }
-  }, [orders]);
+  }, []);
 
   // Sync with specialOrders prop passed from Dashboard background monitor
   useEffect(() => {
@@ -159,17 +164,24 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
     }
   }, [specialOrders, checkXmlExistence]);
 
-  // Reset filter to 'em_aberto' on modal open and start periodic XML check
+  // Reset filter to 'em_aberto' ONLY when the modal transitions from closed to open
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       setStatusFilter("em_aberto");
       setCurrentPage(1);
-      checkXmlExistence();
-      const xmlInterval = setInterval(() => {
-        checkXmlExistence();
-      }, 30000);
-      return () => clearInterval(xmlInterval);
     }
+    prevOpenRef.current = open;
+  }, [open]);
+
+  // Periodic XML check while modal is open
+  useEffect(() => {
+    if (!open) return;
+    checkXmlExistence();
+    const xmlInterval = setInterval(() => {
+      checkXmlExistence();
+    }, 30000);
+    return () => clearInterval(xmlInterval);
   }, [open, checkXmlExistence]);
 
   const handleDownloadOrderXml = async (order: SpecialOrder, e: React.MouseEvent) => {

@@ -778,11 +778,11 @@ export default function ConfigurationScreen({ onBack, currentUser, onLogout }: C
                 <select
                   value={form.schedulerDays}
                   onChange={(e) => setVal("schedulerDays", e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-border/80 bg-background/80 px-3 py-2 text-sm text-foreground focus:border-amber-500 focus:outline-none transition-colors"
+                  className="flex h-10 w-full rounded-md border border-border/80 bg-background/80 px-3 py-2 text-sm text-foreground focus:border-amber-500 focus:outline-none transition-colors [color-scheme:dark]"
                 >
-                  <option value="seg-sex">Segunda a Sexta-feira (Dias Úteis)</option>
-                  <option value="seg-sab">Segunda a Sábado</option>
-                  <option value="todos">Todos os dias (Segunda a Domingo)</option>
+                  <option value="seg-sex" className="bg-[#18181b] text-zinc-100">Segunda a Sexta-feira (Dias Úteis)</option>
+                  <option value="seg-sab" className="bg-[#18181b] text-zinc-100">Segunda a Sábado</option>
+                  <option value="todos" className="bg-[#18181b] text-zinc-100">Todos os dias (Segunda a Domingo)</option>
                 </select>
                 <p className="text-[11px] text-muted-foreground">
                   Define em quais dias da semana as exportações serão disparadas automaticamente.

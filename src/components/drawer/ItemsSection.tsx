@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Boxes, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen, FolderCheck, Copy } from "lucide-react";
+import { Boxes, ChevronDown, ChevronRight, Edit2, AlertTriangle, Search, FileText, FolderOpen, FolderCheck, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
 import { Input } from "../ui/input";
@@ -25,12 +25,71 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
   // Filter State
   const [filterText, setFilterText] = useState("");
 
+  // Collapse / Expand State for Parent Items (inicia vazio = todos fechados por padrão)
+  const [expandedIds, setExpandedIds] = useState<Set<number | string>>(new Set());
+
+  // Reseta para todos fechados sempre que mudar de arquivo no drawer
+  React.useEffect(() => {
+    setExpandedIds(new Set());
+  }, [data?.fullpath]);
+
   // Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [newDescription, setNewDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Helper methods to identify hierarchy
+  const getItemId = (item: any, index: number): number | string => {
+    if (item.nodeId !== undefined && item.nodeId !== null) return item.nodeId;
+    if (item.id !== undefined && item.id !== null) return item.id;
+    return index;
+  };
+
+  const isParentItem = (item: any): boolean => {
+    if (Array.isArray(item.childNodeIds) && item.childNodeIds.length > 0) return true;
+    if (Array.isArray(item.descendantIds) && item.descendantIds.length > 0) return true;
+    return false;
+  };
+
+  const getChildrenCount = (item: any): number => {
+    if (Array.isArray(item.descendantIds) && item.descendantIds.length > 0) {
+      return item.descendantIds.length;
+    }
+    if (Array.isArray(item.childNodeIds) && item.childNodeIds.length > 0) {
+      return item.childNodeIds.length;
+    }
+    return 0;
+  };
+
+  const toggleExpand = (id: number | string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    const allParents = new Set<number | string>();
+    allItems.forEach((it, idx) => {
+      if (isParentItem(it)) {
+        allParents.add(getItemId(it, idx));
+      }
+    });
+    setExpandedIds(allParents);
+  };
+
+  const collapseAll = () => {
+    setExpandedIds(new Set());
+  };
+
+  const parentCount = useMemo(() => allItems.filter(isParentItem).length, [allItems]);
 
   // Filtro hierárquico: exibe o item correspondente, todos os seus filhos/descendentes abaixo e todos os seus pais/ancestrais acima
   const filteredItems = useMemo(() => {
@@ -77,6 +136,22 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
       return visibleIds.has(id);
     });
   }, [allItems, filterText]);
+
+  // Itens visíveis: quando não há busca por texto, exibe apenas os pais raiz e filhos cujos pais estejam em expandedIds
+  const visibleItems = useMemo(() => {
+    if (filterText.trim()) {
+      return filteredItems;
+    }
+
+    return filteredItems.filter((item: any) => {
+      // Itens raiz (nível 0) sempre aparecem
+      if (!item.ancestorIds || item.ancestorIds.length === 0 || (item.depth || 0) === 0) {
+        return true;
+      }
+      // Sub-itens só aparecem se todos os seus ancestrais estiverem expandidos
+      return item.ancestorIds.every((ancId: number | string) => expandedIds.has(ancId));
+    });
+  }, [filteredItems, expandedIds, filterText]);
 
   if (allItems.length === 0) return null;
 
@@ -232,7 +307,8 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
       </div>
       <div className="px-5 pb-5 pt-4 space-y-3">
         {allItems.length > 0 && (
-            <div className="relative max-w-md group">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div className="relative flex-1 max-w-md group">
               <Input
                 type="text"
                 value={filterText}
@@ -247,37 +323,115 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                 style={{ top: "50%", transform: "translateY(-50%)" }}
               />
             </div>
-          )}
 
-          {filteredItems.length > 0 ? (
-            <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[360px] overflow-y-auto overflow-x-auto custom-scrollbar">
-              <table className="w-full text-xs min-w-[600px]">
-                <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
-                  <tr>
-                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base / Ref</th>
-                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
-                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
-                    <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
-                    <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[290px]">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#232323]">
-                  {filteredItems.map((item: any, i: number) => (
-                    <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
+            {parentCount > 0 && !filterText.trim() && (
+              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={expandAll}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-border/60 transition-all cursor-pointer shadow-xs"
+                  title="Expandir todos os itens pais"
+                >
+                  <ChevronDown className="h-3.5 w-3.5 text-sky-400" />
+                  <span>Expandir Tudo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={collapseAll}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-border/60 transition-all cursor-pointer shadow-xs"
+                  title="Recolher todos os itens pais"
+                >
+                  <ChevronRight className="h-3.5 w-3.5 text-sky-400" />
+                  <span>Recolher Tudo</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {visibleItems.length > 0 ? (
+          <div className="rounded-lg border border-[#232323] bg-[#111] overflow-hidden shadow-inner max-h-[380px] overflow-y-auto overflow-x-auto custom-scrollbar">
+            <table className="w-full text-xs min-w-[600px]">
+              <thead className="bg-[#1B1B1B] text-muted-foreground border-b border-[#232323] sticky top-0 z-10">
+                <tr>
+                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Item Base / Ref</th>
+                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
+                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
+                  <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
+                  <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[290px]">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#232323]">
+                {visibleItems.map((item: any, i: number) => {
+                  const itemId = getItemId(item, i);
+                  const isParent = isParentItem(item);
+                  const isExpanded = expandedIds.has(itemId);
+                  const childCount = getChildrenCount(item);
+
+                  return (
+                    <tr
+                      key={itemId}
+                      className={`hover:bg-white/[0.03] transition-colors group/inner ${
+                        isParent ? "bg-white/[0.015]" : ""
+                      }`}
+                    >
                       <td className="px-4 py-3 font-mono text-sky-400">
                         <div
                           className="flex items-center gap-1.5"
                           style={{
-                            paddingLeft: `${Math.min(item.depth || 0, 4) * 10}px`,
+                            paddingLeft: `${Math.min(item.depth || 0, 4) * 12}px`,
                           }}
                         >
-                          {(item.depth || 0) > 0 && (
-                            <span className="text-[#555] font-sans text-[10px]">
-                              {"└".repeat(1)}
+                          {isParent ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(itemId);
+                              }}
+                              className="flex items-center justify-center h-5 w-5 rounded-md text-sky-400 hover:text-sky-200 bg-sky-500/10 hover:bg-sky-500/25 border border-sky-500/20 transition-all cursor-pointer shrink-0"
+                              title={isExpanded ? "Clique para recolher sub-itens" : "Clique para expandir sub-itens"}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-sky-400" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5 text-sky-400" />
+                              )}
+                            </button>
+                          ) : (item.depth || 0) > 0 ? (
+                            <span className="text-[#555] font-sans text-[10px] pl-1 select-none">
+                              └
                             </span>
+                          ) : (
+                            <span className="w-5" />
                           )}
-                          <div className="truncate">
-                            <span className="font-medium">{item.itemBase || item.referencia || "—"}</span>
+
+                          <div className="truncate flex items-center gap-1.5 flex-wrap">
+                            <span
+                              onClick={isParent ? () => toggleExpand(itemId) : undefined}
+                              className={`truncate ${
+                                isParent
+                                  ? "text-sky-300 font-bold cursor-pointer hover:underline"
+                                  : "font-medium"
+                              }`}
+                            >
+                              {item.itemBase || item.referencia || "—"}
+                            </span>
+
+                            {isParent && childCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleExpand(itemId);
+                                }}
+                                className="text-[9px] font-sans font-semibold px-1.5 py-0.5 rounded-full bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/25 cursor-pointer transition-colors"
+                                title={isExpanded ? `Clique para recolher ${childCount} itens` : `Clique para expandir ${childCount} itens`}
+                              >
+                                {childCount} {childCount === 1 ? "item" : "itens"}
+                              </button>
+                            )}
+
                             {item.referencia && item.referencia !== item.itemBase && (
                               <span className="text-[10px] text-muted-foreground block font-sans">
                                 Ref: {item.referencia}
@@ -373,20 +527,21 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : allItems.length > 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
-              <p className="text-xs italic text-[#555]">Nenhum item corresponde à busca.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
-              <p className="text-xs italic text-[#555]">Nenhum item detectado.</p>
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : allItems.length > 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
+            <p className="text-xs italic text-[#555]">Nenhum item corresponde à busca.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 rounded-lg border border-dashed border-[#232323] opacity-40">
+            <p className="text-xs italic text-[#555]">Nenhum item detectado.</p>
+          </div>
+        )}
+      </div>
 
       {/* MODAL 1: EDITAR DESCRIÇÃO */}
       {isEditModalOpen && selectedItem && (

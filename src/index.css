@@ -5331,3 +5331,22 @@ html {
     display: none;
   }
 }
+
+/* --- Native Select & Option Dark Theme Styling --- */
+select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+

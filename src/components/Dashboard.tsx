@@ -1274,14 +1274,14 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       <div className="border-b border-border/80 bg-gradient-to-r from-card via-card/95 to-card px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-sm backdrop-blur-md sticky top-0 z-30">
         {/* App Title & Info */}
         <div className="flex items-center gap-3.5 min-w-0">
-          <div className="h-10 w-10 bg-gradient-to-br from-purple-600 via-indigo-600 to-violet-700 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg shadow-purple-900/30 border border-purple-400/30 shrink-0">
+          <div className="h-10 w-10 bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center text-zinc-950 font-black text-lg shadow-lg shadow-amber-500/20 border border-yellow-300/60 shrink-0">
             B
           </div>
           <div className="min-w-0 space-y-0.5">
             <div className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 flex-wrap">
               <span>Bartz Verificador XML</span>
               <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full shadow-inner">
-                v6.2.0
+                v6.3.1
               </span>
               {monitoring && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1509,22 +1509,22 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full min-w-0">
                     <select
                       value={selectedXmlPath}
                       onChange={(e) => setSelectedXmlPath(e.target.value)}
-                      className="flex-1 bg-muted/40 hover:bg-muted/60 text-foreground text-xs py-2 px-3 rounded-xl border border-border/80 focus:outline-none focus:border-sky-500 transition-all font-medium h-9"
+                      className="flex-1 min-w-0 bg-muted/40 hover:bg-muted/60 text-foreground text-xs py-2 px-3 rounded-xl border border-border/80 focus:outline-none focus:border-sky-500 transition-all font-medium h-9 [color-scheme:dark] truncate cursor-pointer"
                       disabled={searchingXml || searchXmlResults.length === 0}
                     >
                       {searchingXml ? (
-                        <option value="">Buscando no servidor...</option>
+                        <option value="" className="bg-[#18181b] text-zinc-100">Buscando no servidor...</option>
                       ) : searchXmlResults.length === 0 ? (
-                        <option value="">Nenhum resultado encontrado</option>
+                        <option value="" className="bg-[#18181b] text-zinc-100">Nenhum resultado encontrado</option>
                       ) : (
                         <>
-                          <option value="">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
+                          <option value="" className="bg-[#18181b] text-zinc-100">Selecione um arquivo ({searchXmlResults.length} encontrados)...</option>
                           {searchXmlResults.map((res, index) => (
-                            <option key={index} value={res.fullPath}>
+                            <option key={index} value={res.fullPath} className="bg-[#18181b] text-zinc-100">
                               {res.name}
                             </option>
                           ))}
@@ -1535,7 +1535,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                     <Button
                       onClick={handleImportXml}
                       disabled={!selectedXmlPath || copyingXml}
-                      className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold uppercase py-2 px-4 rounded-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5 shadow-sm"
+                      className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 px-3.5 rounded-xl active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 h-9 gap-1.5 shadow-sm transition-all cursor-pointer"
                     >
                       {copyingXml ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                       <span>{copyingXml ? "Importando..." : "Importar"}</span>
@@ -1565,8 +1565,8 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                   </div>
 
                   <div className="space-y-2.5">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <div className="relative flex-1 group">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full min-w-0">
+                      <div className="relative flex-1 min-w-0 group">
                         <Input
                           type="text"
                           placeholder="Digite o código do desenho..."
@@ -1586,18 +1586,18 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                       <select
                         value={selectedDrawingPath}
                         onChange={(e) => setSelectedDrawingPath(e.target.value)}
-                        className="flex-1 bg-muted/40 hover:bg-muted/60 text-foreground text-xs py-2 px-3 rounded-xl border border-border/80 focus:outline-none focus:border-amber-500 transition-all font-medium h-9"
+                        className="flex-1 min-w-0 bg-muted/40 hover:bg-muted/60 text-foreground text-xs py-2 px-3 rounded-xl border border-border/80 focus:outline-none focus:border-amber-500 transition-all font-medium h-9 [color-scheme:dark] truncate cursor-pointer"
                         disabled={searchingDrawings || searchDrawingResults.length === 0}
                       >
                         {searchingDrawings ? (
-                          <option value="">Buscando desenhos...</option>
+                          <option value="" className="bg-[#18181b] text-zinc-100">Buscando desenhos...</option>
                         ) : searchDrawingResults.length === 0 ? (
-                          <option value="">Nenhum resultado encontrado</option>
+                          <option value="" className="bg-[#18181b] text-zinc-100">Nenhum resultado encontrado</option>
                         ) : (
                           <>
-                            <option value="">Selecione um desenho ({searchDrawingResults.length} encontrados)...</option>
+                            <option value="" className="bg-[#18181b] text-zinc-100">Selecione um desenho ({searchDrawingResults.length} encontrados)...</option>
                             {searchDrawingResults.map((res, index) => (
-                              <option key={index} value={res.fullPath}>
+                              <option key={index} value={res.fullPath} className="bg-[#18181b] text-zinc-100">
                                 {res.name}
                               </option>
                             ))}

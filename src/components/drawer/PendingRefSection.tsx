@@ -70,13 +70,13 @@ export function PendingRefSection({
                     setRefDescValue('');
                   }
                 }}
-                className="w-full bg-muted/50 border border-border text-foreground px-3 h-9 rounded-lg text-xs outline-none focus:border-rose-500 transition-all font-bold cursor-pointer"
+                className="w-full bg-muted/50 border border-border text-foreground px-3 h-9 rounded-lg text-xs outline-none focus:border-rose-500 transition-all font-bold cursor-pointer [color-scheme:dark]"
               >
-                <option value="">-- SELECIONE O COMPONENTE --</option>
+                <option value="" className="bg-[#18181b] text-zinc-100">-- SELECIONE O COMPONENTE --</option>
                 {referenciaEmpty.filter(r => !!r.id).map((r, i) => {
                   const key = `${r.id}|${r.descricao || ''}`;
                   return (
-                    <option key={i} value={key}>
+                    <option key={i} value={key} className="bg-[#18181b] text-zinc-100">
                       ID: {r.id} {r.descricao ? `| ${r.descricao.slice(0, 35)}...` : ''} {r.descricaoPai ? `[Pai: ${r.descricaoPai.slice(0, 25)}]` : ''}
                     </option>
                   );
