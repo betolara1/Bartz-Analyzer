@@ -4,7 +4,7 @@
 
 ### Sistema Industrial de Monitoramento, Validação de Engenharia, Integração ERP DB2/MySQL e Auto-Fix de XML/DXF para Produção CNC
 
-[![Versão](https://img.shields.io/badge/Versão-6.0.0-8B5CF6?style=for-the-badge&logo=electron&logoColor=white)](https://github.com/betolara1/Bartz-Analyzer)
+[![Versão](https://img.shields.io/badge/Versão-6.0.4-8B5CF6?style=for-the-badge&logo=electron&logoColor=white)](https://github.com/betolara1/Bartz-Analyzer)
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-37.3-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
@@ -41,7 +41,7 @@ No ecossistema fabril da **Bartz Móveis Planejados**, os projetos elaborados pe
 
 Inconsistências em arquivos exportados (como furações dupladas de 31mm/37mm descalibradas, ausência de código de peças, cores coringa não substituídas, ausência de parâmetros de máquinas ou falhas na estrutura de sub-itens) historicamente geravam **interrupções na linha de produção**, **quebra de ferramentas de usinagem** e **desperdício de chapas de MDF/MDP**.
 
-O **Bartz Analyzer** é uma aplicação **Desktop Cross-Platform de Missão Crítica (v6.0.0)** que atua como uma sentinela autônoma de monitoramento de rede. Ele inspeciona, valida contra APIs e banco de dados corporativo **IBM DB2 (`bartznew`)** e **MySQL**, gerencia pedidos especiais da engenharia, gera relatórios analíticos e **executa correções automáticas (Auto-Fix) diretamente na estrutura de tags do XML e em arquivos vetoriais CAD (.DXF)** antes que os arquivos cheguem ao chão de fábrica.
+O **Bartz Analyzer** é uma aplicação **Desktop Cross-Platform de Missão Crítica (v6.0.4)** que atua como uma sentinela autônoma de monitoramento de rede. Ele inspeciona, valida contra APIs e banco de dados corporativo **IBM DB2 (`bartznew`)** e **MySQL**, gerencia pedidos especiais da engenharia, gera relatórios analíticos e **executa correções automáticas (Auto-Fix) diretamente na estrutura de tags do XML e em arquivos vetoriais CAD (.DXF)** antes que os arquivos cheguem ao chão de fábrica.
 
 ---
 
@@ -53,6 +53,7 @@ A aplicação foi projetada seguindo padrões modernos de arquitetura de softwar
 graph TD
     subgraph Monitoramento ["🛰️ Camada de Entrada & Watcher"]
         A["Diretório de Entrada / Redes UNC"] -->|Debounced File Event| B["Chokidar File Watcher"]
+        UPL["Upload Múltiplo (Drag & Drop / File Pick)"] -->|Validação Concorrente| B
     end
 
     subgraph CoreEngine ["🔬 Motor de Processamento (Main Process)"]
@@ -64,12 +65,14 @@ graph TD
         D -->|3. Fresa 31mm/37mm / ES08| G["DXF Vector Rewriter - dxf-tools.js"]
         D -->|4. Injeção de Muxarabi / MX008| H["DXF Grid Template Injector"]
         D -->|5. Checagem de Máquinas| I["Filtro de Plugins ASPAN / NCB612"]
+        D -->|6. Vínculo de Itens Pais| PARENT["Mapeamento ID_PAI / ID_PROMOB"]
         
         E --> J{"Decisão do Pipeline"}
         F --> J
         G --> J
         H --> J
         I --> J
+        PARENT --> J
     end
 
     subgraph OutputRouting ["📁 Roteamento de Arquivos & Desenhos"]
@@ -84,9 +87,10 @@ graph TD
     subgraph UserInterface ["🎨 Processo de Renderização (React 18 UI)"]
         K --> O["Dashboard React em Tempo Real"]
         L --> O
-        O --> P["Fila de Atividade, KPIs & Logs"]
+        O --> P["Fila de Atividade, KPIs Simétricos & Logs"]
         O --> Q["Drawer de Edição Interativa & Backup/Undo"]
         O --> SPE["Central de Pedidos Especiais"]
+        O --> PLATES["Gestão de Separação de Chapas"]
         O --> BATCH["Modal de Lote DXF & XML"]
     end
 
@@ -100,7 +104,7 @@ graph TD
 ### 🏢 Modelo Multi-Processo (Electron IPC Architecture)
 
 * **Processo Principal (Main Process - Node.js):** Executa o daemon de monitoramento (`chokidar`), manipulação de arquivos no SO, parsing AST de XMLs com `fast-xml-parser`, reescrita binária/vetorial de arquivos CAD DXF, conector direto ODBC com **IBM DB2** (`ibm_db`), autenticação segura com **MySQL** (`mysql2`), rotinas de backup, agendamento de relatórios e requisições HTTP para as APIs do ERP.
-* **Processo de Renderização (Renderer Process - React 18 + Vite):** Interface SPA reativa construída com TypeScript e Tailwind CSS. Exibe o estado em tempo real da fila de produção, dashboards de métricas (KPIs), busca avançada, central de pedidos especiais, gerenciador de desenhos com vinculação de pedidos e drawer de inspeção detalhada.
+* **Processo de Renderização (Renderer Process - React 18 + Vite):** Interface SPA reativa construída com TypeScript e Tailwind CSS. Exibe o estado em tempo real da fila de produção, dashboards de métricas (KPIs), busca avançada, central de pedidos especiais, gerenciador de desenhos com vinculação de pedidos, separador de chapas e drawer de inspeção detalhada.
 * **Preload Bridge (`preload.js`):** Camada de isolamento de contexto (`contextBridge`) que expõe uma API fortemente tipada (`window.electron.analyzer`, `window.electron.settings`, `window.electron.updater`, `window.electron.auth`) via IPC, garantindo que a UI não possua acesso direto ao Node.js nativo (cumprindo os mais rígidos padrões de segurança do Electron).
 
 ---
@@ -125,7 +129,38 @@ graph TD
 
 ---
 
-### 3. 🔐 Autenticação Corporativa & Controle de Acesso Granular por Permissão
+### 3. 🪵 Módulo de Separação de Chapas (MDF / MDP)
+* **Agrupamento e Triagem por Lote:** Interface dedicada (`PlateSeparationModal` e `PlateSeparationSection`) para controle de chapas especiais e lotes de produção.
+* **Rastreabilidade de Responsáveis:** Filtros por código de peça, descrição do material, responsável técnico e histórico de comentários.
+* **Controle de Status de Corte:** Visualização clara do fluxo de corte para otimização da matéria-prima antes do envio para as seccionadoras.
+
+---
+
+### 4. 🔗 Rastreamento Hierárquico de Item Pai em Referências Pendentes
+* **Identificação Automática de Módulos Superiores:** O motor `xml-logic.js` inspeciona as características `<CARACTERISTICA CODIGO="ID_PAI" RESPOSTA="..." />` e a árvore DOM do Promob, associando cada componente sem código ao seu respectivo item/módulo pai (`ID_PROMOB`).
+* **Visualização Contextual no Drawer (`PendingRefSection`):** Ao selecionar uma peça com referência pendente, a interface exibe um card destacado com o nome do módulo pai (ex: *Tampo deslizante 18mm*), referência ERP do pai, número de desenho CAD, dimensões e localização completa no catálogo, permitindo ao operador identificar e cadastrar o código ERP correto com precisão imediata.
+
+---
+
+### 5. 📤 Upload Múltiplo & Ingestão em Massa
+* **Suporte a Drag & Drop e Seleção Múltipla:** Permite arrastar múltiplos arquivos XML ou DXF simultaneamente para a interface.
+* **Processamento Concorrente e Atualização em Tempo Real:** Ingestão paralela de arquivos com atualização reativa do dashboard e métricas sem travamento da interface.
+
+---
+
+### 6. 🎨 Redesign Moderno & Layout de Duas Colunas Despoluído
+* **Painel de Busca Unificado (2 Colunas):**
+  * *Coluna 1 (Pesquisa de XML):* Campo com autocomplete no servidor e importação de 1 clique.
+  * *Coluna 2 (Pesquisa de Desenhos):* Seletor de pastas em pílulas (`Servidor`, `Alessandro`, `Nanxing`), visualização de pedido vinculado e botões diretos de `Copiar DXF` e `Abrir`.
+* **Painel de Relatório & Métricas (2 Colunas Simétricas):**
+  * *Coluna 1 (Desempenho Diário):* Seletor de data integrado (`Hoje`, `Todas`), Taxa de Conformidade (%) e resumo consolidado sem redundâncias.
+  * *Coluna 2 (Filtros por Categoria):* Grid 4x2 perfeitamente balanceado (8 KPIs: *Todos, Corretos, Inconformidades, Auto-Fix, Muxarabi, Cor Coringa, Duplado 37mm, Curvo*).
+* **Campos de Entrada Inteligentes (`Input` com `leftIcon`):** Recuo interno automático que elimina sobreposição de texto em ícones de busca.
+* **Cards Colapsáveis com Chevron:** Toggles colapsáveis com animação fluida em todos os cards do Drawer e da Visão Geral (*Inconformidades, Correções Automáticas/Manuais, Avisos, Maquinário e Chave ERP*).
+
+---
+
+### 7. 🔐 Autenticação Corporativa & Controle de Acesso Granular por Permissão
 * **Sistema de Permissões Centralizado:** Integração com autenticação MySQL com o mesmo login do sistema *Pedidos Online*:
   * **Permissão 37 (Admin Analisador):** Libera os botões de ação restrita no Drawer (*Pasta Espelho*, *Enviar para*, *Corrigir Fresa*, *Trocar Descrição*, *Auto-Fix Geral* e conexão de banco de dados).
   * **Permissão 36 (Pedidos Especiais / Engenharia):** Habilita o acesso e notificações automáticas de Pedidos Especiais da Engenharia.
@@ -133,13 +168,13 @@ graph TD
 
 ---
 
-### 4. 🔬 Motor de Validação de Engenharia de Produção
+### 8. 🔬 Motor de Validação de Engenharia de Produção
 
 O sistema realiza inspeções profundas na estrutura XML de cada pedido de produção:
 
 | Validação | Código / Tag | Ação do Sistema | Impacto Evitado |
 | :--- | :--- | :--- | :--- |
-| **Itens sem Código** | `REFERENCIA=""` / `ITEM_BASE=""` | Flag de Erro Impeditivo (`SEM CÓDIGO`) + Destaque no Drawer | Paralisação da CNC por falta de especificação de usinagem. |
+| **Itens sem Código** | `REFERENCIA=""` / `ITEM_BASE=""` | Flag de Erro Impeditivo (`SEM CÓDIGO`) + Vínculo com Item Pai no Drawer | Paralisação da CNC por falta de especificação de usinagem. |
 | **Itens Sem Preço/Qtd** | `PRECO_TOTAL="0"` / `QUANTIDADE="0"` | Flag de Alerta / Correção via Auto-Fix | Inconsistência no faturamento e falha no envio de insumos. |
 | **Item Duplado 31mm / 37mm** | `ITEM_BASE="ES08"` | Alerta `DUPLADO` + Auto-Fix de fresa para 18mm no DXF | Quebra de fresa em usinagens dupladas com diâmetro descalibrado. |
 | **Cores Coringa** | `PAINEL_CG1_18`, `FITA_CG2_22`, etc. | Alerta `COR CORINGA` + Tela de substituição em lote com Undo | Produção de móveis com chapas em cores genéricas incorretas. |
@@ -150,7 +185,7 @@ O sistema realiza inspeções profundas na estrutura XML de cada pedido de produ
 
 ---
 
-### 5. 🤖 Auto-Fix Inteligente (Correção Automática de XML & DXF)
+### 9. 🤖 Auto-Fix Inteligente (Correção Automática de XML & DXF)
 
 #### 🛠️ Auto-Fix em XML:
 * **Preços e Quantidades:** Ajusta automaticamente quantidades zero para `1` e preços zero para `R$ 0,10` quando ativado nas opções.
@@ -163,7 +198,7 @@ O sistema realiza inspeções profundas na estrutura XML de cada pedido de produ
 
 ---
 
-### 6. 📦 Processamento de Desenhos em Lote & Gestão de Diretórios
+### 10. 📦 Processamento de Desenhos em Lote & Gestão de Diretórios
 * **Modal de Desenhos em Lote (`BatchDrawingsModal`):** Permite abrir, consultar, editar e disparar múltiplos desenhos DXF simultaneamente para a pasta de usinagem.
 * **Mapeamento Flexível de Diretórios:**
   * **Pasta de Desenhos DXF (Nesting)**
@@ -174,13 +209,15 @@ O sistema realiza inspeções profundas na estrutura XML de cada pedido de produ
 
 ---
 
-### 7. 🎨 Drawer de Inspeção Detalhada & Edição Interativa
+### 11. 🎨 Drawer de Inspeção Detalhada & Edição Interativa
 
 Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta produtividade** é exibido com abas especializadas:
 
+* **Referências Pendentes:** Identificação do item pai e preenchimento ágil de códigos de referência ERP.
 * **Cores Coringa:** Interface otimizada com inputs padronizados, substituição rápida de siglas (`CG1`, `CG2`, `CORINGA1`) por cores do ERP e sistema de **Backup & Undo** de 1 clique.
 * **Peças Dupladas (ES08):** Visualização de espessuras, status de usinagem e acionador de correção de fresa.
 * **Itens do Pedido:** Tabela completa com itens pai/filho, edição de descrições e re-associação de arquivos `DESENHO`.
+* **Separação de Chapas:** Gestão de lotes de MDF/MDP associados ao projeto.
 * **Pesquisa de Produtos ERP:** Modal integrado de busca no ERP corporativo por código ou descrição para inserção direta no pedido.
 * **Lote de Pedidos de Compra (PO):** Filtragem e exibição isolada de itens em formato `POXXXXXX`.
 * **ImportKey & Promob:** Verificação de chave de importação e download do arquivo `.promob`.
@@ -188,7 +225,7 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
 
 ---
 
-### 8. ⏰ Agendador de Tarefas & Relatórios Diários (Scheduler)
+### 12. ⏰ Agendador de Tarefas & Relatórios Diários (Scheduler)
 
 * **Relatórios Diários Automatizados:** O motor `reports-scheduler.js` gera automaticamente às **11:30** e **17:30** relatórios completos em formato **CSV** na pasta de relatórios.
 * **Compatibilidade nativa com Excel (UTF-8 BOM):** Arquivos salvos com marca d'água de bytes `\uFEFF` para abertura direta no Microsoft Excel sem corrupção de acentuação.
@@ -225,18 +262,24 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
  │    │    ├── 📊 Dashboard.tsx      # Dashboard principal (KPIs, Fila, Busca DXF com Pedido & Filtros)
  │    │    ├── ⚙️ ConfigurationScreen.tsx # Painel de Opções, Diretórios e Teste de Conexão DB2/MySQL
  │    │    ├── 📂 FileDetailDrawer.tsx# Drawer deslizante com abas especializadas e permissões
+ │    │    ├── 🪵 PlateSeparationModal.tsx # Modal de gestão e separação de chapas de MDF/MDP
  │    │    ├── 🔍 BatchDrawingsModal.tsx # Modal de busca e cópia em lote de arquivos CAD e XMLs
  │    │    ├── 🌟 SpecialOrdersModal.tsx # Modal de gestão e acompanhamento de Pedidos Especiais
  │    │    ├── 🔐 LoginModal.tsx      # Modal de autenticação de usuários
  │    │    ├── 📈 ProcessingStats.tsx# Cards de métricas de engajamento e erros
  │    │    ├── 🏷️ AutoFixBadge.tsx   # Badges indicativos de correções efetuadas pelo robô
  │    │    ├── 🏷️ BadgeErro.tsx      # Badges com estilo e severidade de inconformidades
+ │    │    ├── 🏷️ ChipStatus.tsx     # Chips visuais com micro-pontos para status de arquivos
  │    │    └── 🗂️ drawer/            # Abas especializadas do Drawer
  │    │         ├── 🎨 CoringaSection.tsx       # Substituição de cores coringa e histórico
  │    │         ├── 📐 Es08Section.tsx          # Gestão e correção de peças dupladas 31/37mm
  │    │         ├── 🪟 MuxarabiSection.tsx      # Injeção e inspeção de gabaritos Muxarabi
  │    │         ├── 📋 ItemsSection.tsx         # Tabela de itens pai/filho e referências
+ │    │         ├── 🔗 PendingRefSection.tsx   # Referências pendentes com identificação do Item Pai
+ │    │         ├── 🪵 PlateSeparationSection.tsx # Seção de chapas e lotes no Drawer
  │    │         ├── 🌟 SpecialItemsSection.tsx  # Gestão de itens especiais da engenharia
+ │    │         ├── ⚙️ MachineSection.tsx       # Validação de plugins e parâmetros de máquinas
+ │    │         ├── 🚨 ErrorWarningSection.tsx  # Cards colapsáveis de erros, correções e avisos
  │    │         ├── 🔑 ImportKeySection.tsx     # Validação de chaves e download de .promob
  │    │         ├── 📦 PoItemsSection.tsx       # Filtro de pedidos de compra (PO)
  │    │         ├── 🔍 ErpSearchSection.tsx     # Busca de produtos e substituição rápida
@@ -288,7 +331,7 @@ npm run dist:win
 1. Executa `vite build` compilando a UI otimizada para a pasta `/dist`.
 2. Empacota a aplicação incluindo os recursos vetoriais da pasta `Muxarabi/`.
 3. Descompacta o driver nativo `ibm_db` e suas DLLs no diretório `app.asar.unpacked`.
-4. Gera o instalador **`Bartz-Analyzer-Setup-6.0.0.exe`** dentro do diretório **`release/`**.
+4. Gera o instalador **`Bartz-Analyzer-Setup-6.0.4.exe`** dentro do diretório **`release/`**.
 
 ---
 
@@ -302,8 +345,9 @@ npm test
 Os testes cobrem:
 * Parsing de tags de pedidos e identificação de atributos ausentes.
 * Detecção de itens `ES08` (duplado 31mm/37mm) e `MX008` (Muxarabi).
+* Validação e vinculação de nós pai (`ID_PAI` / `ID_PROMOB`) em itens sem referência.
 * Validação de regras de substituição de cores coringa (`CG1`/`CG2`).
-* Validação de geração de XML simplificado.
+* Validação de geração de XML simplificado e auto-fix de quantidades.
 
 ---
 
@@ -340,6 +384,5 @@ Desenvolvido por **Beto Lara** — *Backend & Desktop Software Engineer*
 
 **Bartz Analyzer** — *Engenharia de Software de Alta Performance Garantindo a Continuidade e Precisão do Chão de Fábrica.*
 
-> **Nota:** Este projeto utiliza o agente de inteligência artificial **Antigravity** (Google DeepMind) para aceleração de desenvolvimento, arquitetura de sistemas, refinamento estético de interface e garantia de conformidade com boas práticas de engenharia de software.
-
 </div>
+

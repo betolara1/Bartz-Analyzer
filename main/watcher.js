@@ -71,6 +71,65 @@ ipcMain.handle('analyzer:searchXmlFiles', async (_e, { searchTerm }) => {
   }
 });
 
+ipcMain.handle('analyzer:checkOrdersXmlExistence', async (_e, { orderNumbers }) => {
+  try {
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const searchFolder = cfg?.busca;
+    if (!searchFolder) {
+      return { ok: false, message: "A pasta de busca XML não está configurada." };
+    }
+    const folderExists = await fse.pathExists(searchFolder);
+    if (!folderExists) {
+      return { ok: false, message: `Pasta de busca não encontrada: ${searchFolder}` };
+    }
+
+    const orderSet = new Set((orderNumbers || []).map(n => String(n).trim().toLowerCase()).filter(Boolean));
+    if (orderSet.size === 0) {
+      return { ok: true, existsMap: {} };
+    }
+
+    const existsMap = {};
+    for (const num of orderSet) {
+      existsMap[num] = false;
+    }
+
+    let remaining = orderSet.size;
+
+    async function scanDir(directory) {
+      if (remaining <= 0) return;
+      let items;
+      try {
+        items = await fse.readdir(directory, { withFileTypes: true });
+      } catch (e) {
+        return;
+      }
+
+      for (const item of items) {
+        if (remaining <= 0) return;
+        const full = path.join(directory, item.name);
+        if (item.isDirectory()) {
+          await scanDir(full);
+        } else if (item.isFile()) {
+          const lowerName = item.name.toLowerCase();
+          if (lowerName.endsWith('.xml')) {
+            for (const num of orderSet) {
+              if (!existsMap[num] && lowerName.includes(num)) {
+                existsMap[num] = true;
+                remaining--;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    await scanDir(searchFolder);
+    return { ok: true, existsMap };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e) };
+  }
+});
+
 ipcMain.handle('analyzer:copyXmlToEntrada', async (_e, { sourceFullPath }) => {
   try {
     if (!sourceFullPath) {

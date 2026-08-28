@@ -16,6 +16,7 @@ import {
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -94,23 +95,82 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   const [confirmCompleteOrder, setConfirmCompleteOrder] = useState<SpecialOrder | null>(null);
   const [orders, setOrders] = useState<SpecialOrder[]>(specialOrders || []);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [statusFilter, setStatusFilter] = useState<string>("em_aberto");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({});
+  const [xmlExistenceMap, setXmlExistenceMap] = useState<Record<string, boolean>>({});
+  const [isCheckingXml, setIsCheckingXml] = useState(false);
 
   const toggleCommentExpand = (commentId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedComments((prev) => ({ ...prev, [commentId]: !prev[commentId] }));
   };
 
+  const checkXmlExistence = useCallback(async (ordersList?: SpecialOrder[]) => {
+    const list = ordersList || orders;
+    if (!list || list.length === 0) return;
+
+    const orderNumbers = Array.from(
+      new Set(
+        list
+          .map((o) => String(o.num_pedido || o.pk_pedido || "").trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
+
+    if (orderNumbers.length === 0) return;
+
+    setIsCheckingXml(true);
+    try {
+      if (window.electron?.analyzer?.checkOrdersXmlExistence) {
+        const res = await window.electron.analyzer.checkOrdersXmlExistence(orderNumbers);
+        if (res?.ok && res.existsMap) {
+          setXmlExistenceMap((prev) => ({ ...prev, ...res.existsMap }));
+        }
+      } else {
+        // Fallback usando busca individual
+        const newMap: Record<string, boolean> = {};
+        await Promise.all(
+          orderNumbers.map(async (num) => {
+            try {
+              const res = await window.electron?.analyzer?.searchXmlFiles?.(num);
+              newMap[num] = !!(res?.ok && Array.isArray(res.results) && res.results.length > 0);
+            } catch {
+              newMap[num] = false;
+            }
+          })
+        );
+        setXmlExistenceMap((prev) => ({ ...prev, ...newMap }));
+      }
+    } catch (err) {
+      console.error("[SpecialOrdersModal] Erro ao verificar existência de XMLs na pasta:", err);
+    } finally {
+      setIsCheckingXml(false);
+    }
+  }, [orders]);
+
   // Sync with specialOrders prop passed from Dashboard background monitor
   useEffect(() => {
     if (specialOrders) {
       setOrders(specialOrders);
+      checkXmlExistence(specialOrders);
     }
-  }, [specialOrders]);
+  }, [specialOrders, checkXmlExistence]);
+
+  // Reset filter to 'em_aberto' on modal open and start periodic XML check
+  useEffect(() => {
+    if (open) {
+      setStatusFilter("em_aberto");
+      setCurrentPage(1);
+      checkXmlExistence();
+      const xmlInterval = setInterval(() => {
+        checkXmlExistence();
+      }, 30000);
+      return () => clearInterval(xmlInterval);
+    }
+  }, [open, checkXmlExistence]);
 
   const handleDownloadOrderXml = async (order: SpecialOrder, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,6 +193,7 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
       const results = searchRes.results || [];
       if (results.length === 0) {
         toast.error(`Nenhum arquivo XML encontrado para o Pedido #${numPedido} na Pasta de Busca XML.`);
+        setXmlExistenceMap((prev) => ({ ...prev, [numPedido.toLowerCase()]: false }));
         return;
       }
 
@@ -146,6 +207,7 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
 
       if (copiedCount > 0) {
         toast.success(`XML do Pedido #${numPedido} copiado e importado com sucesso! (${copiedCount} arquivo(s))`);
+        checkXmlExistence();
       } else {
         toast.error(`Não foi possível copiar o XML do Pedido #${numPedido} para a pasta de entrada.`);
       }
@@ -223,7 +285,9 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
       } else {
         const res = await window.electron?.analyzer?.getSpecialOrders?.();
         if (res?.ok && Array.isArray(res.data)) {
-          setOrders(res.data as SpecialOrder[]);
+          const list = res.data as SpecialOrder[];
+          setOrders(list);
+          checkXmlExistence(list);
           if (!isBackground) {
             setExpandedOrders({});
           }
@@ -365,14 +429,6 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
           </div>
 
           <div className="flex items-center gap-2 mr-4">
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 text-[10px] font-medium border border-purple-500/20">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Auto-Sync (5s)
-            </span>
-
             <Button
               variant="outline"
               size="sm"
@@ -415,25 +471,14 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
             <div className="flex rounded-lg bg-background p-1 border border-border text-xs">
               <button
                 onClick={() => {
-                  setStatusFilter("todos");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "todos"
-                    ? "bg-purple-600 text-white shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                Todos ({orders.length})
-              </button>
-              <button
-                onClick={() => {
                   setStatusFilter("em_aberto");
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "em_aberto"
+                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                  statusFilter === "em_aberto"
                     ? "bg-amber-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                  }`}
+                }`}
               >
                 Em Aberto (
                 {orders.filter((o) => (o.status_engenharia || "").toLowerCase().includes("aberto")).length})
@@ -443,13 +488,27 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                   setStatusFilter("concluido");
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${statusFilter === "concluido"
+                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                  statusFilter === "concluido"
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                  }`}
+                }`}
               >
                 Concluídos (
                 {orders.filter((o) => (o.status_engenharia || "").toLowerCase().includes("conclui")).length})
+              </button>
+              <button
+                onClick={() => {
+                  setStatusFilter("todos");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                  statusFilter === "todos"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Todos ({orders.length})
               </button>
             </div>
           </div>
@@ -543,21 +602,48 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                       </div>
 
                       {/* Botão Baixar pedido */}
-                      <Button
-                        size="sm"
-                        onClick={(e) => handleDownloadOrderXml(order, e)}
-                        disabled={downloadingOrderXmlId === order.pk_pedido_engenharia}
-                        variant="outline"
-                        className="h-8 px-3 text-xs border-purple-500/40 hover:bg-purple-500/20 text-purple-300 font-bold gap-1.5 shadow-md transition-all shrink-0 cursor-pointer"
-                        title="Buscar e importar XML do pedido na pasta de entrada"
-                      >
-                        {downloadingOrderXmlId === order.pk_pedido_engenharia ? (
-                          <RefreshCw className="h-3.5 w-3.5 animate-spin text-purple-400" />
-                        ) : (
-                          <Download className="h-3.5 w-3.5 text-purple-400" />
-                        )}
-                        Baixar pedido
-                      </Button>
+                      {(() => {
+                        const numKey = String(order.num_pedido || order.pk_pedido || "").trim().toLowerCase();
+                        const hasXml = !!xmlExistenceMap[numKey];
+                        const isDownloading = downloadingOrderXmlId === order.pk_pedido_engenharia;
+
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-block">
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => handleDownloadOrderXml(order, e)}
+                                  disabled={!hasXml || isDownloading}
+                                  variant="outline"
+                                  className={`h-8 px-3 text-xs font-bold gap-1.5 shadow-md transition-all shrink-0 ${
+                                    hasXml
+                                      ? "border-purple-500/40 hover:bg-purple-500/20 text-purple-300 cursor-pointer active:scale-95"
+                                      : "border-border/60 bg-muted/20 text-muted-foreground/40 opacity-50 cursor-not-allowed pointer-events-none"
+                                  }`}
+                                  title={
+                                    hasXml
+                                      ? "Buscar e importar XML do pedido na pasta de entrada"
+                                      : "Arquivo XML não encontrado na pasta de busca"
+                                  }
+                                >
+                                  {isDownloading ? (
+                                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-purple-400" />
+                                  ) : (
+                                    <Download className={`h-3.5 w-3.5 ${hasXml ? "text-purple-400" : "text-muted-foreground/40"}`} />
+                                  )}
+                                  Baixar pedido
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-xs max-w-xs bg-popover text-popover-foreground border border-border shadow-md">
+                              {hasXml
+                                ? "XML encontrado na Pasta de Busca. Clique para baixar e copiar para a pasta de entrada."
+                                : "Nenhum arquivo XML encontrado na Pasta de Busca para este pedido. Botão desativado."}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
 
                       {/* Botão Concluído */}
                       {isAberto ? (
