@@ -358,7 +358,7 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Desenho</th>
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Dimensão</th>
                   <th className="text-left px-4 py-3 uppercase font-bold tracking-widest text-[9px]">Descrição</th>
-                  <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[290px]">Ações</th>
+                  <th className="text-right px-4 py-3 uppercase font-bold tracking-widest text-[9px] w-[240px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#232323]">
@@ -442,8 +442,22 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                       </td>
                       <td className="px-4 py-3 text-white/80 font-mono text-xs">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
                       <td className="px-4 py-3 text-muted-foreground truncate max-w-[120px]">{item.dimensao}</td>
-                      <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[280px] break-words">
-                        {item.descricao || <span className="text-white/40 italic">vazio</span>}
+                      <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[280px]">
+                        <div className="flex items-center gap-2">
+                          {hasAdminPermission && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(item)}
+                              className="inline-flex items-center justify-center h-6 w-6 rounded-md text-sky-400 bg-sky-500/10 hover:bg-sky-500/25 border border-sky-500/20 active:scale-[0.97] transition-all cursor-pointer shrink-0 shadow-sm"
+                              title="Trocar Descrição"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </button>
+                          )}
+                          <span className="break-words">
+                            {item.descricao || <span className="text-white/40 italic">vazio</span>}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-nowrap">
@@ -511,17 +525,6 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                             >
                               <Copy className="h-3.5 w-3.5" />
                               <span>Enviar DXF</span>
-                            </button>
-                          )}
-
-                          {/* Botão de Trocar Descrição */}
-                          {hasAdminPermission && (
-                            <button
-                              onClick={() => handleOpenEditModal(item)}
-                              className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 active:scale-[0.97] transition-all cursor-pointer shrink-0"
-                              title="Trocar Descrição"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>
