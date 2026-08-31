@@ -556,3 +556,429 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
     return { ok: false, message: String((e && e.message) || e) };
   }
 });
+
+/** --- replace LARGURA, ALTURA, PROFUNDIDADE attributes for specific ITEM IDs --- **/
+ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
+  try {
+    const { filePath, ids, newDimension, desenho } = obj || {};
+    if (!filePath || !Array.isArray(ids) || ids.length === 0 || !newDimension) {
+      send('error', { where: 'replaceItemDimension', message: 'Parâmetros inválidos.' });
+      return { ok: false, message: 'invalid-params' };
+    }
+
+    let l = "", a = "", p = "";
+    if (typeof newDimension === 'object' && newDimension !== null) {
+      l = String(newDimension.largura ?? newDimension.l ?? "").trim();
+      a = String(newDimension.altura ?? newDimension.a ?? "").trim();
+      p = String(newDimension.profundidade ?? newDimension.p ?? "").trim();
+    } else if (typeof newDimension === 'string') {
+      const parts = newDimension.toLowerCase().split(/[x*]/).map(s => s.trim());
+      if (parts.length >= 3) {
+        l = parts[0];
+        a = parts[1];
+        p = parts[2];
+      }
+    }
+
+    if (!l || !a || !p) {
+      send('error', { where: 'replaceItemDimension', message: 'Dimensão inválida (necessário Largura, Altura e Profundidade).' });
+      return { ok: false, message: 'invalid-dimension' };
+    }
+
+    const cfg = state.currentCfg || (await loadCfg());
+    const real = await resolveFilePathMaybeBase(filePath, cfg);
+    if (!real) {
+      send('error', { where: 'replaceItemDimension', message: 'Arquivo não encontrado.' });
+      return { ok: false, message: 'not-found' };
+    }
+
+    let raw = await fsp.readFile(real, 'utf8');
+    const counts = {};
+
+    const setAttr = (tagStr, attrName, attrValue) => {
+      const attrRegex = new RegExp(`\\b${attrName}\\s*=\\s*"([^"]*)"`, 'i');
+      if (tagStr.match(attrRegex)) {
+        return tagStr.replace(attrRegex, `${attrName}="${attrValue}"`);
+      }
+      return tagStr.replace(/(\s*\/?>)$/, (m) => ` ${attrName}="${attrValue}"${m.startsWith(' ') ? m : ' ' + m}`);
+    };
+
+    // Helper: update RESPOSTA attribute on tags matched by CODIGO
+    const updateResposta = (xmlChunk, tagName, codigoValue, newResposta) => {
+      const escapedCod = escapeRegExp(codigoValue);
+      const regex = new RegExp(`<${tagName}\\b([^>]*?\\bCODIGO\\s*=\\s*"${escapedCod}"[^>]*?)\\/?>`, 'gi');
+      return xmlChunk.replace(regex, (fullTag) => {
+        const respRegex = /\bRESPOSTA\s*=\s*"([^"]*)"/i;
+        if (fullTag.match(respRegex)) {
+          return fullTag.replace(respRegex, `RESPOSTA="${newResposta}"`);
+        }
+        return fullTag.replace(/(\s*\/?>)$/, ` RESPOSTA="${newResposta}"$1`);
+      });
+    };
+
+    for (const id of ids) {
+      if (!id) continue;
+
+      const escapedId = escapeRegExp(String(id));
+      let c = 0;
+
+      // Find each opening <ITEM ... ID="xxx" ...> tag
+      const openTagRegex = new RegExp(`<ITEM\\b(?=[^>]*\\bID\\s*=\\s*"${escapedId}")[^>]*>`, 'gi');
+      let match;
+      const itemBlocks = [];
+
+      while ((match = openTagRegex.exec(raw)) !== null) {
+        const startIdx = match.index;
+        const openTag = match[0];
+
+        // Filter by DESENHO if specified
+        if (desenho) {
+          const mDes = openTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+          if (mDes && mDes[1] !== desenho) continue;
+        }
+
+        // Self-closing tag
+        if (openTag.endsWith('/>')) {
+          itemBlocks.push({ startIdx, endIdx: startIdx + openTag.length, block: openTag });
+          continue;
+        }
+
+        // Find matching </ITEM> respecting nesting
+        let depth = 1;
+        const tagRegex = /<(\/?)ITEM\b([^>]*?)(\/?)>/gi;
+        tagRegex.lastIndex = startIdx + openTag.length;
+        let tagMatch;
+        let foundEnd = false;
+
+        while ((tagMatch = tagRegex.exec(raw)) !== null) {
+          const isClose = tagMatch[1] === '/';
+          const isSelfClose = tagMatch[3] === '/';
+          if (isClose) {
+            depth--;
+            if (depth === 0) {
+              const endIdx = tagMatch.index + tagMatch[0].length;
+              itemBlocks.push({ startIdx, endIdx, block: raw.substring(startIdx, endIdx) });
+              foundEnd = true;
+              break;
+            }
+          } else if (!isSelfClose) {
+            depth++;
+          }
+        }
+
+        if (!foundEnd) {
+          itemBlocks.push({ startIdx, endIdx: startIdx + openTag.length, block: openTag });
+        }
+      }
+
+      // Process from back to front to preserve string indices
+      itemBlocks.sort((a, b) => b.startIdx - a.startIdx);
+
+      for (const blockInfo of itemBlocks) {
+        let block = blockInfo.block;
+
+        // 1. Update the main <ITEM> opening tag attributes
+        const openMatch = block.match(/^<ITEM\b[^>]*>/i);
+        if (openMatch) {
+          let updatedOpen = openMatch[0];
+          updatedOpen = setAttr(updatedOpen, 'LARGURA', l);
+          updatedOpen = setAttr(updatedOpen, 'ALTURA', a);
+          updatedOpen = setAttr(updatedOpen, 'PROFUNDIDADE', p);
+          block = updatedOpen + block.slice(openMatch[0].length);
+        }
+
+        // Detect ESPESSURA (doors/panels where ALTURA 2D = PROFUNDIDADE)
+        const hasEspessura = /<CARACTERISTICA\b[^>]*\bCODIGO\s*=\s*"ESPESSURA"/i.test(block) ||
+                             /<COLUNA\b[^>]*\bCODIGO\s*=\s*"ESPESSURA"/i.test(block);
+
+        const alt2dValue = hasEspessura ? p : a;
+        const espessuraValue = a;
+
+        // 2. Update <CONFIGURADO> section
+        block = updateResposta(block, 'CARACTERISTICA', 'LARGURA', l);
+        block = updateResposta(block, 'CARACTERISTICA', 'ALTURA', alt2dValue);
+        block = updateResposta(block, 'CARACTERISTICA', 'PROFUNDIDADE', p);
+        if (hasEspessura) {
+          block = updateResposta(block, 'CARACTERISTICA', 'ESPESSURA', espessuraValue);
+          block = updateResposta(block, 'CARACTERISTICA', 'THICKNESS_PLATECUTTING', String(Math.round(parseFloat(a)) || a));
+        }
+
+        // 3. Update <OTIMIZACAO_CORTE> section
+        block = updateResposta(block, 'OTIMIZACAO', 'LARGURA_CORTE', l);
+        block = updateResposta(block, 'OTIMIZACAO', 'ALTURA_CORTE', alt2dValue);
+
+        // 4. Update <COLUNAS> section (inside SETUP)
+        block = updateResposta(block, 'COLUNA', 'LARGURA', l);
+        block = updateResposta(block, 'COLUNA', 'ALTURA', alt2dValue);
+        block = updateResposta(block, 'COLUNA', 'PROFUNDIDADE', p);
+        if (hasEspessura) {
+          block = updateResposta(block, 'COLUNA', 'ESPESSURA', espessuraValue);
+        }
+
+        // 5. Update known child <ITEM> tags in <ESTRUTURA> (chapa, EMBALAGEM_FIXO, painel, frente, porta)
+        block = block.replace(
+          /(<ITEM\b(?=[^>]*\bID\s*=\s*"(?:chapa|EMBALAGEM_FIXO|painel|frente|porta)"[^>]*)[^>]*>)/gi,
+          (childTag) => {
+            let u = childTag;
+            u = setAttr(u, 'LARGURA', l);
+            u = setAttr(u, 'ALTURA', a);
+            u = setAttr(u, 'PROFUNDIDADE', p);
+            return u;
+          }
+        );
+
+        // Replace in raw
+        raw = raw.substring(0, blockInfo.startIdx) + block + raw.substring(blockInfo.endIdx);
+        c++;
+      }
+
+      counts[id] = c;
+    }
+
+    const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
+    if (total === 0) return { ok: false, message: 'no-match' };
+
+    // backup
+    await fse.ensureDir(state.REPLACE_BACKUP_DIR);
+    const base = path.basename(real);
+    const backupName = `${base.replace(/\\.xml$/i, '')}_backup_dim_${Date.now()}.xml`;
+    const backupPath = path.join(state.REPLACE_BACKUP_DIR, backupName);
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
+
+    // escrever arquivo
+    await fsp.writeFile(real, raw, 'utf8');
+
+    // history
+    const entry = {
+      id: Date.now(),
+      file: path.resolve(real),
+      backupPath,
+      timestamp: new Date().toISOString(),
+      type: 'replace-dimension',
+      ids,
+      newDimension: `${l}x${a}x${p}`,
+      counts,
+      undone: false,
+    };
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignorar */ }
+
+    // Reprocessar arquivo
+    let finalPath = path.resolve(real);
+    const originalPath = finalPath;
+    try {
+      const analysis = await validateXml(real, cfg);
+      const isOK = (analysis.erros || []).length === 0;
+      const baseName = path.basename(real);
+      const destDir = isOK ? (cfg.ok || cfg.exportacao) : (cfg.erro || cfg.exportacao);
+
+      if (destDir) {
+        await fse.ensureDir(destDir);
+        const target = path.join(destDir, baseName);
+        if (path.resolve(target).toLowerCase() !== finalPath.toLowerCase()) {
+          try {
+            await fse.move(finalPath, target, { overwrite: true });
+            finalPath = path.resolve(target);
+
+            if (isOK && originalPath.toLowerCase() !== finalPath.toLowerCase()) {
+              try {
+                await fse.remove(originalPath);
+              } catch (delErr) { }
+            }
+          } catch { }
+        }
+      }
+
+      send('file-validated', { ...analysis, arquivo: finalPath });
+    } catch (e) {
+      send('error', { where: 'replaceItemDimension-processOne', message: String(e?.message || e) });
+    }
+
+    return { ok: true, counts, backupPath, arquivo: finalPath };
+  } catch (e) {
+    send('error', { where: 'replaceItemDimension', message: String((e && e.message) || e) });
+    return { ok: false, message: String((e && e.message) || e) };
+  }
+});
+
+/** --- delete ITEM (and its entire subtree if parent) from XML --- **/
+ipcMain.handle('analyzer:deleteItem', async (_e, obj) => {
+  try {
+    const { filePath, id, desenho, isParent } = obj || {};
+    if (!filePath || !id) {
+      return { ok: false, message: 'Parâmetros inválidos.' };
+    }
+
+    const cfg = state.currentCfg || (await loadCfg());
+    const real = await resolveFilePathMaybeBase(filePath, cfg);
+    if (!real) {
+      send('error', { where: 'deleteItem', message: 'Arquivo não encontrado.' });
+      return { ok: false, message: 'not-found' };
+    }
+
+    let raw = await fsp.readFile(real, 'utf8');
+    let deletedCount = 0;
+
+    const escapedId = escapeRegExp(String(id));
+
+    // Find the opening <ITEM ... ID="xxx" ...> tag
+    const openTagRegex = new RegExp(`<ITEM\\b(?=[^>]*\\bID\\s*=\\s*"${escapedId}")[^>]*>`, 'gi');
+    let match;
+    const blocksToRemove = [];
+
+    while ((match = openTagRegex.exec(raw)) !== null) {
+      const startIdx = match.index;
+      const openTag = match[0];
+
+      // Filter by DESENHO if specified
+      if (desenho) {
+        const mDes = openTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+        if (mDes && mDes[1] !== desenho) continue;
+      }
+
+      // Self-closing tag - just remove the tag line
+      if (openTag.endsWith('/>')) {
+        // Also remove trailing newline/whitespace
+        let endIdx = startIdx + openTag.length;
+        while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
+        // Remove leading whitespace on the same line
+        let startAdj = startIdx;
+        while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
+        blocksToRemove.push({ startIdx: startAdj, endIdx });
+        continue;
+      }
+
+      if (isParent) {
+        // Find matching </ITEM> respecting nesting for parent items
+        let depth = 1;
+        const tagRegex = /<(\/?)ITEM\b([^>]*?)(\/?)>/gi;
+        tagRegex.lastIndex = startIdx + openTag.length;
+        let tagMatch;
+
+        while ((tagMatch = tagRegex.exec(raw)) !== null) {
+          const isClose = tagMatch[1] === '/';
+          const isSelfClose = tagMatch[3] === '/';
+          if (isClose) {
+            depth--;
+            if (depth === 0) {
+              let endIdx = tagMatch.index + tagMatch[0].length;
+              while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
+              let startAdj = startIdx;
+              while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
+              blocksToRemove.push({ startIdx: startAdj, endIdx });
+              break;
+            }
+          } else if (!isSelfClose) {
+            depth++;
+          }
+        }
+      } else {
+        // Child item with content: still find full block
+        let depth = 1;
+        const tagRegex = /<(\/?)ITEM\b([^>]*?)(\/?)>/gi;
+        tagRegex.lastIndex = startIdx + openTag.length;
+        let tagMatch;
+        let foundEnd = false;
+
+        while ((tagMatch = tagRegex.exec(raw)) !== null) {
+          const isClose = tagMatch[1] === '/';
+          const isSelfClose = tagMatch[3] === '/';
+          if (isClose) {
+            depth--;
+            if (depth === 0) {
+              let endIdx = tagMatch.index + tagMatch[0].length;
+              while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
+              let startAdj = startIdx;
+              while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
+              blocksToRemove.push({ startIdx: startAdj, endIdx });
+              foundEnd = true;
+              break;
+            }
+          } else if (!isSelfClose) {
+            depth++;
+          }
+        }
+
+        if (!foundEnd) {
+          // Fallback: just remove the opening tag
+          let endIdx = startIdx + openTag.length;
+          while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
+          let startAdj = startIdx;
+          while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
+          blocksToRemove.push({ startIdx: startAdj, endIdx });
+        }
+      }
+    }
+
+    if (blocksToRemove.length === 0) {
+      return { ok: false, message: 'no-match' };
+    }
+
+    // Remove from back to front to preserve indices
+    blocksToRemove.sort((a, b) => b.startIdx - a.startIdx);
+    for (const block of blocksToRemove) {
+      raw = raw.substring(0, block.startIdx) + raw.substring(block.endIdx);
+      deletedCount++;
+    }
+
+    // backup
+    await fse.ensureDir(state.REPLACE_BACKUP_DIR);
+    const base = path.basename(real);
+    const backupName = `${base.replace(/\.xml$/i, '')}_backup_del_${Date.now()}.xml`;
+    const backupPath = path.join(state.REPLACE_BACKUP_DIR, backupName);
+    try { await fse.copy(real, backupPath, { overwrite: true }); } catch (e) { /* continue */ }
+
+    // write
+    await fsp.writeFile(real, raw, 'utf8');
+
+    // history
+    const entry = {
+      id: Date.now(),
+      file: path.resolve(real),
+      backupPath,
+      timestamp: new Date().toISOString(),
+      type: 'delete-item',
+      itemId: id,
+      desenho: desenho || null,
+      deletedCount,
+      undone: false,
+    };
+    try { await appendReplaceHistory(entry); } catch (e) { /* ignorar */ }
+
+    // Reprocess file
+    let finalPath = path.resolve(real);
+    const originalPath = finalPath;
+    try {
+      const analysis = await validateXml(real, cfg);
+      const isOK = (analysis.erros || []).length === 0;
+      const baseName = path.basename(real);
+      const destDir = isOK ? (cfg.ok || cfg.exportacao) : (cfg.erro || cfg.exportacao);
+
+      if (destDir) {
+        await fse.ensureDir(destDir);
+        const target = path.join(destDir, baseName);
+        if (path.resolve(target).toLowerCase() !== finalPath.toLowerCase()) {
+          try {
+            await fse.move(finalPath, target, { overwrite: true });
+            finalPath = path.resolve(target);
+
+            if (isOK && originalPath.toLowerCase() !== finalPath.toLowerCase()) {
+              try {
+                await fse.remove(originalPath);
+              } catch (delErr) { }
+            }
+          } catch { }
+        }
+      }
+
+      send('file-validated', { ...analysis, arquivo: finalPath });
+    } catch (e) {
+      send('error', { where: 'deleteItem-processOne', message: String(e?.message || e) });
+    }
+
+    return { ok: true, deletedCount, backupPath, arquivo: finalPath };
+  } catch (e) {
+    send('error', { where: 'deleteItem', message: String((e && e.message) || e) });
+    return { ok: false, message: String((e && e.message) || e) };
+  }
+});
+

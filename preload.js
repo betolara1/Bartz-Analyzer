@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electron', {
     fillReferencia: (filePath, value) => ipcRenderer.invoke('analyzer:fillReferencia', { filePath, value }),
     fillReferenciaByIds: (filePath, replacements) => ipcRenderer.invoke('analyzer:fillReferenciaByIds', { filePath, replacements }),
     replaceItemDescription: (filePath, ids, newDescription, desenho) => ipcRenderer.invoke('analyzer:replaceItemDescription', { filePath, ids, newDescription, desenho }),
+    replaceItemDimension: (filePath, ids, newDimension, desenho) => ipcRenderer.invoke('analyzer:replaceItemDimension', { filePath, ids, newDimension, desenho }),
+    deleteItem: (filePath, id, desenho, isParent) => ipcRenderer.invoke('analyzer:deleteItem', { filePath, id, desenho, isParent }),
     findDrawingFile: (drawingCode, xmlFilePath) => ipcRenderer.invoke('analyzer:findDrawingFile', { drawingCode, xmlFilePath }),
     openDrawing: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawing', { drawingCode }),
     openDrawingFolder: (drawingCode) => ipcRenderer.invoke('analyzer:openDrawingFolder', { drawingCode }),

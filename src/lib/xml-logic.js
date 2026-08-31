@@ -169,6 +169,9 @@ function validateXmlContent(txt, cfg = {}) {
                     itemBase,
                     desenho: desenhoMatch ? desenhoMatch[1] : "",
                     descricao: descMatch ? descMatch[1] : "",
+                    largura: l,
+                    altura: a,
+                    profundidade: p,
                     dimensao: `${l}x${a}x${p}`
                 });
             }
@@ -182,6 +185,9 @@ function validateXmlContent(txt, cfg = {}) {
                     itemBase: s.itemBase,
                     desenho: s.desenho,
                     descricao: s.descricao,
+                    largura: s.largura,
+                    altura: s.altura,
+                    profundidade: s.profundidade,
                     dimensao: s.dimensao,
                     ids: [s.id]
                 });
@@ -219,6 +225,9 @@ function validateXmlContent(txt, cfg = {}) {
                     referencia,
                     desenho: desenhoMatch ? desenhoMatch[1] : "",
                     descricao: descMatch ? descMatch[1] : "",
+                    largura: l,
+                    altura: a,
+                    profundidade: p,
                     dimensao: `${l}x${a}x${p}`
                 });
             }
@@ -233,6 +242,9 @@ function validateXmlContent(txt, cfg = {}) {
                     referencia: s.referencia,
                     desenho: s.desenho,
                     descricao: s.descricao,
+                    largura: s.largura,
+                    altura: s.altura,
+                    profundidade: s.profundidade,
                     dimensao: s.dimensao,
                     ids: [s.id]
                 });
@@ -374,6 +386,9 @@ function validateXmlContent(txt, cfg = {}) {
                     referencia,
                     desenho,
                     descricao,
+                    largura: l,
+                    altura: a,
+                    profundidade: p,
                     extraSearch: extraSearchParts.join(" "),
                     dimensao: `${l}x${a}x${p}`,
                     depth,

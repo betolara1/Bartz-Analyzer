@@ -25,12 +25,21 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
   // Filter State
   const [filterText, setFilterText] = useState("");
 
-  // Modal States
+  // Modal States - Description
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [newDescription, setNewDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Modal States - Dimension
+  const [isEditDimModalOpen, setIsEditDimModalOpen] = useState(false);
+  const [isConfirmDimModalOpen, setIsConfirmDimModalOpen] = useState(false);
+  const [selectedDimItem, setSelectedDimItem] = useState<any>(null);
+  const [newLargura, setNewLargura] = useState("");
+  const [newAltura, setNewAltura] = useState("");
+  const [newProfundidade, setNewProfundidade] = useState("");
+  const [isSavingDim, setIsSavingDim] = useState(false);
 
   const filteredItems = poItems.filter((item: any) => {
     if (!filterText.trim()) return true;
@@ -75,6 +84,57 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
       toast.error("Erro ao alterar.", { description: String(error?.message || error) });
     } finally {
       setIsSaving(false);
+      toast.dismiss(id);
+    }
+  };
+
+  const handleOpenEditDimModal = (item: any) => {
+    setSelectedDimItem(item);
+    let l = item.largura ? String(item.largura) : "";
+    let a = item.altura ? String(item.altura) : "";
+    let p = item.profundidade ? String(item.profundidade) : "";
+    if (!l || !a || !p) {
+      const parts = (item.dimensao || "").split(/[xX*]/).map((s: string) => s.trim());
+      if (parts.length >= 3) {
+        if (!l) l = parts[0];
+        if (!a) a = parts[1];
+        if (!p) p = parts[2];
+      }
+    }
+    setNewLargura(l);
+    setNewAltura(a);
+    setNewProfundidade(p);
+    setIsEditDimModalOpen(true);
+  };
+
+  const handleApplyDimensionChange = async () => {
+    if (!data || !selectedDimItem || !newLargura.trim() || !newAltura.trim() || !newProfundidade.trim()) return;
+
+    setIsSavingDim(true);
+    const id = toast.loading("Salvando nova dimensão...");
+    try {
+      const res = await window.electron?.analyzer?.replaceItemDimension?.(
+        data.fullpath,
+        selectedDimItem.ids || [selectedDimItem.id],
+        {
+          largura: newLargura.trim(),
+          altura: newAltura.trim(),
+          profundidade: newProfundidade.trim()
+        },
+        selectedDimItem.desenho
+      );
+
+      if (res?.ok) {
+        toast.success("Dimensão alterada com sucesso!");
+        setIsConfirmDimModalOpen(false);
+        setSelectedDimItem(null);
+      } else {
+        toast.error(`Falha ao alterar dimensão: ${res?.message || "erro desconhecido"}`);
+      }
+    } catch (error: any) {
+      toast.error("Erro ao alterar dimensão.", { description: String(error?.message || error) });
+    } finally {
+      setIsSavingDim(false);
       toast.dismiss(id);
     }
   };
@@ -238,7 +298,23 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors group/inner">
                       <td className="px-4 py-3 font-mono text-indigo-400 font-medium">{item.itemBase}</td>
                       <td className="px-4 py-3 text-white/80 font-mono text-xs">{item.desenho || <span className="text-[#444] italic">vazio</span>}</td>
-                      <td className="px-4 py-3 text-muted-foreground truncate max-w-[120px]">{item.dimensao}</td>
+                      <td className="px-4 py-3 text-muted-foreground truncate max-w-[140px]">
+                        <div className="flex items-center gap-2">
+                          {hasAdminPermission && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditDimModal(item)}
+                              className="inline-flex items-center justify-center h-6 w-6 rounded-md text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/20 active:scale-[0.97] transition-all cursor-pointer shrink-0 shadow-sm"
+                              title="Trocar Dimensão"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </button>
+                          )}
+                          <span className="truncate font-mono">
+                            {item.dimensao || <span className="text-white/40 italic font-sans">vazio</span>}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-white text-[11px] leading-tight max-w-[280px]">
                         <div className="flex items-center gap-2">
                           {hasAdminPermission && (
@@ -465,6 +541,169 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isSaving ? "Salvando..." : "Confirmar Troca"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: EDITAR DIMENSÃO */}
+      {isEditDimModalOpen && selectedDimItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-[#151515] border border-indigo-500/30 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 bg-[#1B1B1B] border-b border-[#232323] flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                <Edit2 className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Trocar Dimensão</h3>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração de dimensões de item POXXXX</p>
+              </div>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Dimensão Atual</label>
+                <div className="px-3 py-2.5 rounded-lg bg-[#0E0E0E] border border-[#232323] text-xs font-mono text-zinc-400 select-all font-medium leading-relaxed">
+                  {selectedDimItem.dimensao || <span className="italic text-zinc-600 font-sans">vazio</span>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest pl-1">Nova Dimensão (mm)</label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium pl-1">Largura (L)</span>
+                    <Input
+                      type="text"
+                      value={newLargura}
+                      onChange={(e) => setNewLargura(e.target.value)}
+                      placeholder="Ex: 2365"
+                      className="w-full bg-[#0E0E0E] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs font-mono outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium pl-1">Altura (A)</span>
+                    <Input
+                      type="text"
+                      value={newAltura}
+                      onChange={(e) => setNewAltura(e.target.value)}
+                      placeholder="Ex: 19"
+                      className="w-full bg-[#0E0E0E] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs font-mono outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium pl-1">Profundidade (P)</span>
+                    <Input
+                      type="text"
+                      value={newProfundidade}
+                      onChange={(e) => setNewProfundidade(e.target.value)}
+                      placeholder="Ex: 932"
+                      className="w-full bg-[#0E0E0E] border border-[#2C2C2C] text-white px-3 py-2 rounded-lg text-xs font-mono outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#0E0E0E]/60 border border-[#232323] text-[11px] text-zinc-400">
+                  <span>Resultado:</span>
+                  <span className="font-mono font-bold text-indigo-400">
+                    {newLargura.trim() || "?"} x {newAltura.trim() || "?"} x {newProfundidade.trim() || "?"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-[#1B1B1B] border-t border-[#232323] flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setIsEditDimModalOpen(false);
+                  setSelectedDimItem(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#222] hover:bg-[#2A2A2A] text-white/80 transition-colors uppercase tracking-wider"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={
+                  !newLargura.trim() ||
+                  !newAltura.trim() ||
+                  !newProfundidade.trim() ||
+                  `${newLargura.trim()}x${newAltura.trim()}x${newProfundidade.trim()}` === selectedDimItem.dimensao
+                }
+                onClick={() => {
+                  setIsEditDimModalOpen(false);
+                  setIsConfirmDimModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONFIRMAR ALTERAÇÃO DE DIMENSÃO */}
+      {isConfirmDimModalOpen && selectedDimItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#151515] border border-indigo-500/40 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 bg-[#1B1B1B] border-b border-[#232323] flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">Confirmar Troca de Dimensão</h3>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Aviso de segurança</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+                Você tem certeza que deseja alterar as dimensões deste produto no arquivo XML? Esta alteração será gravada diretamente nas tags de largura, altura e profundidade correspondentes.
+              </p>
+
+              <div className="space-y-3 p-4 rounded-xl bg-[#0E0E0E] border border-[#232323]">
+                <div>
+                  <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest mb-1">De:</div>
+                  <div className="text-xs text-rose-400 font-mono font-medium line-through leading-relaxed">
+                    {selectedDimItem.dimensao || "—"}
+                  </div>
+                </div>
+                <div className="border-t border-[#232323] pt-2">
+                  <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest mb-1">Para:</div>
+                  <div className="text-xs text-emerald-400 font-mono font-bold leading-relaxed">
+                    {`${newLargura.trim()}x${newAltura.trim()}x${newProfundidade.trim()}`}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-zinc-500 font-medium italic">
+                * Um backup do arquivo original será criado antes de aplicar esta alteração.
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-[#1B1B1B] border-t border-[#232323] flex justify-end gap-2">
+              <button
+                disabled={isSavingDim}
+                onClick={() => {
+                  setIsConfirmDimModalOpen(false);
+                  setIsEditDimModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#222] hover:bg-[#2A2A2A] text-white/80 transition-colors uppercase tracking-wider disabled:opacity-50"
+              >
+                Voltar
+              </button>
+              <button
+                disabled={isSavingDim}
+                onClick={handleApplyDimensionChange}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors uppercase tracking-wider disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isSavingDim ? "Salvando..." : "Confirmar Troca"}
               </button>
             </div>
           </div>
