@@ -51,10 +51,17 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
     return userPerms.some((id: number) => id === 37 || id === 38);
   }, [userPerms, currentUser]);
 
+  const isPermission38 = React.useMemo(() => {
+    const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
+    if (userId === 38) return true;
+    return userPerms.includes(38);
+  }, [userPerms, currentUser]);
+
   const canViewEs08 = React.useMemo(() => {
-    // Aparecer SOMENTE para quem possui a permissão código 38
-    return userPerms.includes(37);
-  }, [userPerms]);
+    const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
+    if (userId === 37 || userId === 38) return true;
+    return userPerms.includes(37) || userPerms.includes(38);
+  }, [userPerms, currentUser]);
 
   const canCopyXml = React.useMemo(() => {
     const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
@@ -211,6 +218,7 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
               hasAdminPermission={hasAdminPermission}
               canViewEs08={canViewEs08}
               canCopyXml={canCopyXml}
+              isPermission38={isPermission38}
             />
 
             {/* Resize Grip */}

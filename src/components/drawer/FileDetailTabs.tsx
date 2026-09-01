@@ -47,9 +47,10 @@ interface FileDetailTabsProps {
   hasAdminPermission?: boolean;
   canViewEs08?: boolean;
   canCopyXml?: boolean;
+  isPermission38?: boolean;
 }
 
-export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission, canViewEs08, canCopyXml }: FileDetailTabsProps) {
+export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdminPermission, canViewEs08, canCopyXml, isPermission38 }: FileDetailTabsProps) {
   const hasCG1 = !!data?.meta?.cg1_detected;
   const hasCG2 = !!data?.meta?.cg2_detected;
   const hasCoringa1 = !!data?.meta?.coringa1_detected;
@@ -70,7 +71,31 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdmin
 
   const hasSemFilho = !!data?.tags?.includes('sem_filho');
   const hasEs08 = !!canViewEs08 && (data?.meta?.es08Matches || []).length > 0;
-  const hasSpecialItems = (data?.meta?.specialItems || []).length > 0;
+  
+  const hasSpecialItems = React.useMemo(() => {
+    const rawList = (data?.meta?.specialItems || []) as any[];
+    if (!isPermission38) return rawList.length > 0;
+
+    const es08List = (data?.meta?.es08Matches || []) as any[];
+    const es08Keys = new Set(
+      es08List.map((e: any) => `${(e.itemBase || '').toUpperCase()}|${e.desenho || ''}`)
+    );
+    const es08Ids = new Set(es08List.map((e: any) => e.id).filter(Boolean));
+
+    const remaining = rawList.filter((item: any) => {
+      const base = (item.itemBase || '').toUpperCase();
+      const desc = (item.descricao || '').toLowerCase();
+      if (base === 'ES08' || base.startsWith('ES08')) return false;
+      if (desc.includes('duplad') || desc.includes('37mm')) return false;
+      if (item.id && es08Ids.has(item.id)) return false;
+      const key = `${base}|${item.desenho || ''}`;
+      if (es08Keys.has(key)) return false;
+      return true;
+    });
+
+    return remaining.length > 0;
+  }, [data?.meta?.specialItems, data?.meta?.es08Matches, isPermission38]);
+
   const hasPoItems = (data?.meta?.poItems || []).length > 0;
   const hasMuxarabi = (data?.meta?.muxarabiItems || []).length > 0;
   const hasAllItems = (data?.meta?.allItems || []).length > 0;
@@ -142,7 +167,7 @@ export function FileDetailTabs({ data, actions, activeTab, onTabChange, hasAdmin
             <OverviewTab data={data} actions={actions} canCopyXml={canCopyXml} />
           )}
           {activeTab === "components" && (
-            <ComponentsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} canViewEs08={canViewEs08} />
+            <ComponentsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} canViewEs08={canViewEs08} isPermission38={isPermission38} />
           )}
           {activeTab === "items" && (
             <ItemsTab data={data} actions={actions} hasAdminPermission={hasAdminPermission} />
@@ -197,7 +222,7 @@ function OverviewTab({ data, actions, canCopyXml }: { data: Row | null; actions:
 }
 
 /* ─── TAB: Componentes ─── */
-function ComponentsTab({ data, actions, hasAdminPermission, canViewEs08 }: { data: Row | null; actions: ReturnType<typeof useFileActions>; hasAdminPermission?: boolean; canViewEs08?: boolean }) {
+function ComponentsTab({ data, actions, hasAdminPermission, canViewEs08, isPermission38 }: { data: Row | null; actions: ReturnType<typeof useFileActions>; hasAdminPermission?: boolean; canViewEs08?: boolean; isPermission38?: boolean }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <div className="lg:col-span-2">
@@ -240,6 +265,7 @@ function ComponentsTab({ data, actions, hasAdminPermission, canViewEs08 }: { dat
           onToggle={() => actions.setSpecialItemsOpen(!actions.specialItemsOpen)}
           data={data}
           hasAdminPermission={hasAdminPermission}
+          isPermission38={isPermission38}
         />
       </div>
       <div className="lg:col-span-2">
