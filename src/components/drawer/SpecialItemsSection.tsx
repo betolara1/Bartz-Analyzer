@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { Package, ChevronDown, Edit2, AlertTriangle, Search, FileText, FolderOpen, FolderCheck, Copy, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Row } from "../../types";
@@ -17,37 +17,29 @@ interface SpecialItemsSectionProps {
   onToggle: () => void;
   data: Row | null;
   hasAdminPermission?: boolean;
-  isPermission38?: boolean;
+  isPerm38?: boolean;
 }
 
-export function SpecialItemsSection({ isOpen, onToggle, data, hasAdminPermission, isPermission38 }: SpecialItemsSectionProps) {
-  const specialItems = useMemo(() => {
-    const rawList = (data?.meta?.specialItems || []) as any[];
-    if (!isPermission38) return rawList;
-
-    // Quando for permissão 38, oculta itens duplados (ES08 ou com descrição de duplado ou presentes em es08Matches)
+export function SpecialItemsSection({ isOpen, onToggle, data, hasAdminPermission, isPerm38 }: SpecialItemsSectionProps) {
+  const isDupladoItem = (item: any) => {
+    const base = (item.itemBase || "").toUpperCase();
+    if (base.startsWith("ES08")) return true;
+    const desc = (item.descricao || "").toLowerCase();
+    if (desc.includes("duplado") || desc.includes("37mm")) return true;
     const es08List = (data?.meta?.es08Matches || []) as any[];
-    const es08Keys = new Set(
-      es08List.map((e: any) => `${(e.itemBase || '').toUpperCase()}|${e.desenho || ''}`)
-    );
-    const es08Ids = new Set(es08List.map((e: any) => e.id).filter(Boolean));
-
-    return rawList.filter((item: any) => {
-      const base = (item.itemBase || '').toUpperCase();
-      const desc = (item.descricao || '').toLowerCase();
-
-      // Checa se é ES08 (duplado padrão) ou tem duplad/37mm na descrição
-      if (base === 'ES08' || base.startsWith('ES08')) return false;
-      if (desc.includes('duplad') || desc.includes('37mm')) return false;
-
-      // Checa se bate com algum registro em es08Matches
-      if (item.id && es08Ids.has(item.id)) return false;
-      const key = `${base}|${item.desenho || ''}`;
-      if (es08Keys.has(key)) return false;
-
+    if (es08List.some((e: any) => (e.id && e.id === item.id) || (e.desenho && item.desenho && e.desenho === item.desenho))) {
       return true;
-    });
-  }, [data?.meta?.specialItems, data?.meta?.es08Matches, isPermission38]);
+    }
+    return false;
+  };
+
+  const rawSpecialItems = (data?.meta?.specialItems || []) as any[];
+  const specialItems = React.useMemo(() => {
+    if (isPerm38) {
+      return rawSpecialItems.filter(item => !isDupladoItem(item));
+    }
+    return rawSpecialItems;
+  }, [rawSpecialItems, isPerm38, data?.meta?.es08Matches]);
 
   // Filter State
   const [filterText, setFilterText] = useState("");

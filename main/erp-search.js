@@ -239,23 +239,74 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
 });
 
 ipcMain.handle('analyzer:getOrderComments', async (_e, numPedido) => {
+  let connection;
   try {
     if (!numPedido) return { ok: false, message: 'Número do pedido não informado.' };
 
-    const url = `http://192.168.1.10:8080/api_pedidos.php?num_pedido=${encodeURIComponent(numPedido)}`;
-    console.log(`[Order API] Solicitando: ${url}`);
+    const cfg = state.currentCfg || (await loadCfg());
+    const dbHost = (cfg.dbHost || "mysql55-farm2.uni5.net").trim();
+    const dbPort = Number(cfg.dbPort) || 3306;
+    const dbUser = (cfg.dbUser || "bartzpedidosph").trim();
+    const dbPassword = cfg.dbPassword !== undefined && cfg.dbPassword !== "" ? cfg.dbPassword : "mangaROSA2006";
+    const dbName = (cfg.dbName || "bartzpedidosph").trim();
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+    connection = await mysql.createConnection({
+      host: dbHost,
+      port: dbPort,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName,
+      connectTimeout: 8000,
+    });
+
+    // First find the pk_pedido from num_pedido
+    const [pedidos] = await connection.execute(
+      `SELECT pk_pedido FROM tab_pedido WHERE num_pedido = ? LIMIT 1`,
+      [numPedido]
+    );
+
+    if (!Array.isArray(pedidos) || pedidos.length === 0) {
+      await connection.end();
+      return { ok: true, data: [] };
     }
 
-    const data = await response.json();
-    // A API retorna um array de comentários
-    return { ok: true, data: Array.isArray(data) ? data : (data ? [data] : []) };
+    const pkPedido = pedidos[0].pk_pedido;
+
+    const [comments] = await connection.execute(`
+      SELECT 
+        c.pk_pedido_comentario, 
+        c.pk_pedido, 
+        c.txt_titulo, 
+        c.txt_comentario,
+        c.int_situacao,
+        DATE_FORMAT(c.dat_data, '%d/%m/%Y %H:%i') AS dat_data,
+        u.txt_nome AS nome_usuario,
+        o.txt_arquivo
+      FROM tab_pedido_comentario c
+      LEFT JOIN tab_usuario u ON c.pk_usuario = u.pk_usuario
+      LEFT JOIN tab_pedido_xml_outros o ON c.pk_pedido_comentario = o.pk_pedido_comentario
+      WHERE c.pk_pedido = ?
+      ORDER BY c.dat_data DESC, c.pk_pedido_comentario DESC
+    `, [pkPedido]);
+
+    await connection.end();
+
+    return { ok: true, data: Array.isArray(comments) ? comments : [] };
   } catch (e) {
-    console.error(`[Order API Error] ${e.message}`);
-    return { ok: false, message: `Erro ao buscar pedido: ${e.message}` };
+    if (connection) try { await connection.end(); } catch (_) { }
+    console.error(`[Order Comments DB Error] ${e.message}`);
+
+    // Fallback to PHP API if MySQL fails
+    try {
+      const url = `http://192.168.1.10:8080/api_pedidos.php?num_pedido=${encodeURIComponent(numPedido)}`;
+      console.log(`[Order API Fallback] Solicitando: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      return { ok: true, data: Array.isArray(data) ? data : (data ? [data] : []) };
+    } catch (fallbackErr) {
+      return { ok: false, message: `Erro ao buscar pedido: ${e.message}` };
+    }
   }
 });
 

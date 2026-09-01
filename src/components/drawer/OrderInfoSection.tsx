@@ -1,5 +1,6 @@
-import React from "react";
-import { MessageSquareText, ChevronDown, Database, RefreshCw, AlertTriangle, FileText } from "lucide-react";
+import React, { useState } from "react";
+import { MessageSquareText, ChevronDown, Database, RefreshCw, AlertTriangle, FileText, Paperclip, Download } from "lucide-react";
+import { toast } from "sonner";
 
 interface OrderInfoSectionProps {
   isOpen: boolean;
@@ -19,6 +20,31 @@ function cleanComment(text: string): string {
 }
 
 export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch }: OrderInfoSectionProps) {
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+
+  const handleDownloadFile = async (filename: string) => {
+    setDownloadingFile(filename);
+    try {
+      const res = await window.electron?.analyzer?.downloadCommentFile?.(filename);
+      if (res?.ok && res.destPath) {
+        toast.success("Arquivo baixado com sucesso!", {
+          description: `Salvo em: ${res.destPath}`,
+          action: {
+            label: "Abrir Arquivo",
+            onClick: () => window.electron?.analyzer?.openFile?.(res.destPath!),
+          },
+        });
+      } else if (res?.message && !res.message.toLowerCase().includes("cancelado")) {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      console.error("[OrderInfoSection] Erro no download:", err);
+      toast.error("Falha ao baixar o arquivo.");
+    } finally {
+      setDownloadingFile(null);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm transition-all duration-300">
       <div
@@ -82,6 +108,33 @@ export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch 
                         </React.Fragment>
                       ))}
                     </div>
+
+                    {/* Anexo do comentário */}
+                    {c.txt_arquivo && (
+                      <div className="mt-2 p-2 px-3 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 overflow-hidden text-xs text-indigo-200">
+                          <Paperclip className="h-4 w-4 text-indigo-400 shrink-0" />
+                          <span className="truncate font-semibold text-xs" title={c.txt_arquivo}>
+                            {c.txt_arquivo}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadFile(c.txt_arquivo);
+                          }}
+                          disabled={downloadingFile === c.txt_arquivo}
+                          className="h-7 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all rounded-md flex items-center cursor-pointer disabled:opacity-50"
+                        >
+                          {downloadingFile === c.txt_arquivo ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          <span className="ml-1">Baixar Anexo</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -97,4 +150,3 @@ export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch 
     </section>
   );
 }
-
