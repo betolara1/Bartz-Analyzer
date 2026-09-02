@@ -2,11 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import Dashboard from "./components/Dashboard";
 import ConfigurationScreen from "./components/ConfigurationScreen";
 import LoginModal from "./components/LoginModal";
+import UpdateModal, { UpdateStage } from "./components/UpdateModal";
 import { Toaster, toast } from "sonner";
-import { Button } from "./components/ui/button";
-import { Download, RefreshCw, Rocket, Loader2 } from "lucide-react";
-
-type UpdateStage = "available" | "downloading" | "downloaded";
+import { Loader2 } from "lucide-react";
 
 export default function App() {
   const [screen, setScreen] = useState<'dash' | 'cfg'>('dash');
@@ -133,82 +131,16 @@ export default function App() {
         }}
       />
 
-      {/* Popup de atualização — aparece por cima de tudo, mesmo com o programa em uso */}
-      {updateStage && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-[440px] max-w-[92vw] rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            {updateStage === "available" && (
-              <>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
-                    <Rocket className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">Nova atualização disponível!</h2>
-                    <p className="text-xs text-muted-foreground">Versão {updateVersion || "nova"} publicada</p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-5">
-                  Uma nova versão do Bartz Analyzer está pronta para ser baixada. Recomendamos atualizar para receber as últimas correções e melhorias.
-                </p>
-                <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={snoozeUpdate}>Depois</Button>
-                  <Button onClick={startDownload} className="gap-2">
-                    <Download className="h-4 w-4" /> Baixar e instalar
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {updateStage === "downloading" && (
-              <>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
-                    <Download className="h-5 w-5 text-blue-400 animate-bounce" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">Baixando atualização…</h2>
-                    <p className="text-xs text-muted-foreground">Versão {updateVersion || "nova"}</p>
-                  </div>
-                </div>
-                <div className="mb-2 h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mb-5">{progress}% — você pode continuar usando o programa durante o download.</p>
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => setUpdateStage(null)}>Ocultar</Button>
-                </div>
-              </>
-            )}
-
-            {updateStage === "downloaded" && (
-              <>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-11 w-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-                    <RefreshCw className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">Atualização pronta!</h2>
-                    <p className="text-xs text-muted-foreground">Versão {updateVersion || "nova"} baixada</p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-5">
-                  Reinicie agora para aplicar a atualização, ou ela será instalada automaticamente quando o programa for fechado.
-                </p>
-                <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setUpdateStage(null)}>Instalar ao fechar</Button>
-                  <Button onClick={() => window.electron?.updater?.installUpdate()} className="gap-2">
-                    <RefreshCw className="h-4 w-4" /> Reiniciar e atualizar agora
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Modal de atualização — renderizado via Radix Portal no body para sobrepor qualquer tela/modal com suporte total a cliques */}
+      <UpdateModal
+        stage={updateStage}
+        version={updateVersion}
+        progress={progress}
+        onStartDownload={startDownload}
+        onSnooze={snoozeUpdate}
+        onClose={() => setUpdateStage(null)}
+        onInstall={() => window.electron?.updater?.installUpdate()}
+      />
 
       <Toaster position="bottom-left" richColors closeButton />
     </>
