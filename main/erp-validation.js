@@ -15,7 +15,7 @@ function extractItemCodes(txt) {
     const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"([^"]*)"/i);
     const ref = refMatch ? refMatch[1].trim() : "";
     const base = baseMatch ? baseMatch[1].trim() : "";
-    const codigo = ref || base;
+    const codigo = base || ref;
     if (codigo) {
       codes.push(codigo);
     }
@@ -239,7 +239,7 @@ async function runErpValidation(updatedTxt, payload) {
 
       const ref = refMatch ? refMatch[1].trim() : "";
       const base = baseMatch ? baseMatch[1].trim() : "";
-      const code = ref || base;
+      const code = base || ref;
 
       if (code) {
         const parseDim = (val) => {
