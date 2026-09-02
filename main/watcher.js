@@ -130,6 +130,29 @@ ipcMain.handle('analyzer:checkOrdersXmlExistence', async (_e, { orderNumbers }) 
   }
 });
 
+ipcMain.handle('analyzer:checkXmlDownloaded', async (_e, { sourceFullPath, fileName }) => {
+  try {
+    const name = fileName || (sourceFullPath ? path.basename(sourceFullPath) : '');
+    if (!name) return { ok: true, exists: false };
+
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const folders = [cfg?.entrada, cfg?.ok, cfg?.erro, cfg?.exportacao].filter(Boolean);
+
+    for (const folder of folders) {
+      try {
+        const full = path.join(folder, name);
+        if (await fse.pathExists(full)) {
+          return { ok: true, exists: true, foundIn: folder, fullPath: full };
+        }
+      } catch {}
+    }
+
+    return { ok: true, exists: false };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message || e), exists: false };
+  }
+});
+
 ipcMain.handle('analyzer:copyXmlToEntrada', async (_e, { sourceFullPath }) => {
   try {
     if (!sourceFullPath) {
@@ -148,7 +171,7 @@ ipcMain.handle('analyzer:copyXmlToEntrada', async (_e, { sourceFullPath }) => {
     const fileName = path.basename(sourceFullPath);
     const destFullPath = path.join(destFolder, fileName);
 
-    await fse.copy(sourceFullPath, destFullPath);
+    await fse.copy(sourceFullPath, destFullPath, { overwrite: true });
     return { ok: true, destPath: destFullPath };
   } catch (e) {
     return { ok: false, message: String(e && e.message || e) };

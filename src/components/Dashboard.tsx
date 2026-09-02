@@ -24,6 +24,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import FileDetailDrawer from "./FileDetailDrawer";
@@ -272,6 +273,7 @@ export default function Dashboard({
   const [plateSeparationOpen, setPlateSeparationOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const [confirmOverwriteXml, setConfirmOverwriteXml] = useState<{ sourcePath: string; fileName: string } | null>(null);
 
   const mounted = useRef(true);
   const isConnected = !!window.electron?.analyzer;
@@ -576,9 +578,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     };
   }, [searchXmlTerm]);
 
-  const handleImportXml = async () => {
-    if (!selectedXmlPath) return;
-
+  const executeImportXml = async (xmlPath: string) => {
     if (!monitoring) {
       await start();
     }
@@ -586,7 +586,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     setCopyingXml(true);
     const id = toast.loading("Copiando arquivo XML para a pasta de entrada...");
     try {
-      const res = await window.electron?.analyzer?.copyXmlToEntrada?.(selectedXmlPath);
+      const res = await window.electron?.analyzer?.copyXmlToEntrada?.(xmlPath);
       if (res?.ok) {
         toast.success("XML copiado e importado com sucesso!");
         setSearchXmlTerm("");
@@ -600,7 +600,39 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     } finally {
       setCopyingXml(false);
       toast.dismiss(id);
+      setConfirmOverwriteXml(null);
     }
+  };
+
+  const handleImportXml = async () => {
+    if (!selectedXmlPath) return;
+
+    const fileName = selectedXmlPath.split(/[/\\]/).pop() || "";
+
+    // 1. Verificar se já existe na lista em memória (Dashboard rows)
+    const existsInRows = rows.some((r) => {
+      const rName = r.filename || (r.fullpath ? r.fullpath.split(/[/\\]/).pop() : "");
+      return rName?.toLowerCase() === fileName.toLowerCase();
+    });
+
+    // 2. Verificar se já existe no disco (pastas entrada, ok, erro ou exportacao)
+    let existsOnDisk = false;
+    try {
+      const checkRes = await window.electron?.analyzer?.checkXmlDownloaded?.(selectedXmlPath, fileName);
+      if (checkRes?.exists) {
+        existsOnDisk = true;
+      }
+    } catch (e) {
+      console.error("Erro ao verificar existência do XML:", e);
+    }
+
+    if (existsInRows || existsOnDisk) {
+      setConfirmOverwriteXml({ sourcePath: selectedXmlPath, fileName });
+      return;
+    }
+
+    // Caso contrário, baixa diretamente sem confirmação
+    await executeImportXml(selectedXmlPath);
   };
 
   // Busca de Desenhos (DXF) na Pasta de Desenhos configurada
@@ -1140,10 +1172,10 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       const res = await window.electron?.analyzer?.deleteProject?.(deleteTarget.fullpath);
       if (res?.ok) {
         toast.success(`Projeto "${deleteTarget.filename}" excluído com sucesso.`);
-        setRows(prev => prev.filter(r => r.fullpath !== deleteTarget.fullpath));
+        setRows(prev => prev.filter(r => r.fullpath !== deleteTarget.fullpath && r.filename !== deleteTarget.filename));
         // Fechar drawer se estiver mostrando o arquivo excluído
-        setDetailData(prev => (prev && prev.fullpath === deleteTarget.fullpath ? null : prev));
-        if (detailData?.fullpath === deleteTarget.fullpath) setDetailOpen(false);
+        setDetailData(prev => (prev && (prev.fullpath === deleteTarget.fullpath || prev.filename === deleteTarget.filename) ? null : prev));
+        if (detailData?.fullpath === deleteTarget.fullpath || detailData?.filename === deleteTarget.filename) setDetailOpen(false);
       } else {
         toast.error("Falha ao excluir.", { description: res?.message || "Erro desconhecido" });
       }
@@ -1281,7 +1313,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 flex-wrap">
               <span>Bartz Verificador XML</span>
               <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full shadow-inner">
-                v6.4.4
+                v6.4.5
               </span>
               {monitoring && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -2118,16 +2150,20 @@ function createCanvasBadgeDataUrl(count: number): string | null {
 
       {/* CONFIRMAÇÕES */}
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
-        <AlertDialogContent className="bg-card border border-amber-500/30">
-          <AlertDialogTitle className="text-foreground">Confirmação de Limpeza</AlertDialogTitle>
-          <AlertDialogDescription className="text-muted-foreground">
-            Tem certeza que deseja limpar o Relatório de Atividade? Essa ação não pode ser desfeita.
-          </AlertDialogDescription>
-          <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
+        <AlertDialogContent className="bg-card border border-amber-500/30 text-foreground w-[480px] max-w-[92vw] p-6 shadow-2xl rounded-2xl overflow-hidden flex flex-col gap-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirmação de Limpeza</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground text-xs leading-relaxed">
+              Tem certeza que deseja limpar o Relatório de Atividade? Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <AlertDialogCancel className="bg-muted/80 text-foreground hover:bg-muted border border-border/60 rounded-xl px-4 py-2 h-9 text-xs font-semibold cursor-pointer">
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={executeClearReport}
-              className="bg-amber-600 text-white hover:bg-amber-500"
+              className="bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl px-4 py-2 h-9 text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
             >
               Sim, limpar
             </AlertDialogAction>
@@ -2136,16 +2172,20 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       </AlertDialog>
 
       <AlertDialog open={confirmExcluirOpen} onOpenChange={setConfirmExcluirOpen}>
-        <AlertDialogContent className="bg-card border border-rose-500/30">
-          <AlertDialogTitle className="text-foreground">Confirmação de Exclusão</AlertDialogTitle>
-          <AlertDialogDescription className="text-muted-foreground">
-            Deseja excluir fisicamente os arquivos das pastas (OK, erro, logs)? Esta ação removerá os arquivos do disco permanentemente.
-          </AlertDialogDescription>
-          <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
+        <AlertDialogContent className="bg-card border border-rose-500/30 text-foreground w-[480px] max-w-[92vw] p-6 shadow-2xl rounded-2xl overflow-hidden flex flex-col gap-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirmação de Exclusão</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground text-xs leading-relaxed">
+              Deseja excluir fisicamente os arquivos das pastas (OK, erro, logs)? Esta ação removerá os arquivos do disco permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <AlertDialogCancel className="bg-muted/80 text-foreground hover:bg-muted border border-border/60 rounded-xl px-4 py-2 h-9 text-xs font-semibold cursor-pointer">
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={executeClearFolders}
-              className="bg-rose-600 text-white hover:bg-rose-500"
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl px-4 py-2 h-9 text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
             >
               Sim, excluir
             </AlertDialogAction>
@@ -2154,18 +2194,22 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       </AlertDialog>
 
       <AlertDialog open={confirmBulkMoveOpen} onOpenChange={setConfirmBulkMoveOpen}>
-        <AlertDialogContent className="bg-card border border-emerald-500/30">
-          <AlertDialogTitle className="text-foreground">Enviar Erros de Máquinas para OK</AlertDialogTitle>
-          <AlertDialogDescription className="text-muted-foreground">
-            Deseja mover <strong className="text-foreground">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-foreground">apenas</strong> o erro "SEM GERAÇÃO DE MÁQUINAS" para a pasta OK?
-            <br /><br />
-            <span className="text-muted-foreground/60 text-xs">Arquivos com outros erros além desse não serão movidos.</span>
-          </AlertDialogDescription>
-          <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
+        <AlertDialogContent className="bg-card border border-emerald-500/30 text-foreground w-[480px] max-w-[92vw] p-6 shadow-2xl rounded-2xl overflow-hidden flex flex-col gap-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Enviar Erros de Máquinas para OK</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground text-xs leading-relaxed">
+              Deseja mover <strong className="text-foreground">{bulkMoveEligible.length}</strong> arquivo(s) que possuem <strong className="text-foreground">apenas</strong> o erro "SEM GERAÇÃO DE MÁQUINAS" para a pasta OK?
+              <br /><br />
+              <span className="text-muted-foreground/60 text-xs">Arquivos com outros erros além desse não serão movidos.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <AlertDialogCancel className="bg-muted/80 text-foreground hover:bg-muted border border-border/60 rounded-xl px-4 py-2 h-9 text-xs font-semibold cursor-pointer">
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={executeBulkMoveToOk}
-              className="bg-emerald-600 text-white hover:bg-emerald-500"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl px-4 py-2 h-9 text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
             >
               Sim, enviar para OK
             </AlertDialogAction>
@@ -2174,20 +2218,101 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       </AlertDialog>
 
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent className="bg-card border border-rose-500/30">
-          <AlertDialogTitle className="text-foreground">Excluir Projeto</AlertDialogTitle>
-          <AlertDialogDescription className="text-muted-foreground">
-            Deseja realmente excluir o projeto <strong className="text-foreground">{deleteTarget?.filename}</strong>?
-            <br /><br />
-            <span className="text-rose-400 text-xs">⚠ Esta ação é irreversível. O arquivo será removido permanentemente do disco.</span>
+        <AlertDialogContent className="bg-card border border-rose-500/30 text-foreground w-[480px] max-w-[92vw] p-6 shadow-2xl rounded-2xl overflow-hidden flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
+              <Trash2 className="h-5 w-5 text-rose-400" />
+            </div>
+            <div>
+              <AlertDialogTitle className="text-base font-bold text-foreground">
+                Excluir Projeto
+              </AlertDialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Confirmação de exclusão permanente
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+              <p>Deseja realmente excluir o projeto?</p>
+              <div className="p-3 bg-muted/60 rounded-xl border border-border/80 font-mono text-xs text-foreground break-all select-all leading-relaxed">
+                {deleteTarget?.filename}
+              </div>
+              <p className="text-rose-400 text-xs flex items-center gap-1.5 pt-1 font-medium">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Esta ação é irreversível. O arquivo será removido permanentemente.
+              </p>
+            </div>
           </AlertDialogDescription>
-          <div className="flex gap-2 justify-end mt-4">
-            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancelar</AlertDialogCancel>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <AlertDialogCancel
+              onClick={() => setConfirmDeleteOpen(false)}
+              className="bg-muted/80 text-foreground hover:bg-muted border border-border/60 rounded-xl px-4 py-2 h-9 text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
-              className="bg-rose-600 text-white hover:bg-rose-500"
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl px-4 py-2 h-9 text-xs gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
             >
+              <Trash2 className="h-3.5 w-3.5" />
               Sim, excluir
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de confirmação para substituir XML já baixado */}
+      <AlertDialog
+        open={!!confirmOverwriteXml}
+        onOpenChange={(open) => !open && setConfirmOverwriteXml(null)}
+      >
+        <AlertDialogContent className="bg-card border border-amber-500/30 text-foreground w-[480px] max-w-[92vw] p-6 shadow-2xl rounded-2xl overflow-hidden flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+            </div>
+            <div>
+              <AlertDialogTitle className="text-base font-bold text-foreground">
+                Substituir arquivo XML?
+              </AlertDialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Este arquivo já foi baixado anteriormente.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+              <p>O seguinte arquivo já se encontra no sistema:</p>
+              <div className="p-3 bg-muted/60 rounded-xl border border-border/80 font-mono text-xs text-foreground break-all select-all leading-relaxed">
+                {confirmOverwriteXml?.fileName}
+              </div>
+              <p className="pt-1">
+                Deseja substituir o arquivo existente e reprocessá-lo com a versão mais recente do servidor?
+              </p>
+            </div>
+          </AlertDialogDescription>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <AlertDialogCancel
+              onClick={() => setConfirmOverwriteXml(null)}
+              className="bg-muted/80 text-foreground hover:bg-muted border border-border/60 rounded-xl px-4 py-2 h-9 text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmOverwriteXml) {
+                  executeImportXml(confirmOverwriteXml.sourcePath);
+                }
+              }}
+              className="bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl px-4 py-2 h-9 text-xs gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Substituir
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

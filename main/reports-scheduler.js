@@ -345,11 +345,38 @@ ipcMain.handle("analyzer:moveToOk", async (_, filePath) => {
 ipcMain.handle("analyzer:deleteProject", async (_, filePath) => {
   try {
     if (!filePath) return { ok: false, message: "Arquivo não informado" };
-    const exists = await fse.pathExists(filePath);
-    if (!exists) return { ok: false, message: "Arquivo não encontrado no disco" };
-    await fse.remove(filePath);
-    console.log(`[Delete] Arquivo excluído: ${filePath}`);
-    return { ok: true };
+
+    const cfg = state.currentCfg || (await loadCfg()) || {};
+    const baseName = path.basename(filePath);
+    let deletedAny = false;
+
+    // 1. Tenta deletar o caminho direto fornecido se existir
+    try {
+      if (await fse.pathExists(filePath)) {
+        await fse.remove(filePath);
+        deletedAny = true;
+        console.log(`[Delete] Arquivo excluído do caminho direto: ${filePath}`);
+      }
+    } catch (err) {
+      console.error(`[Delete] Erro ao remover ${filePath}:`, err);
+    }
+
+    // 2. Busca e deleta em todas as pastas conhecidas (entrada, ok, erro, exportacao)
+    const candidateFolders = [cfg?.entrada, cfg?.ok, cfg?.erro, cfg?.exportacao].filter(Boolean);
+    for (const folder of candidateFolders) {
+      try {
+        const full = path.join(folder, baseName);
+        if (await fse.pathExists(full)) {
+          await fse.remove(full);
+          deletedAny = true;
+          console.log(`[Delete] Arquivo excluído da pasta ${folder}: ${full}`);
+        }
+      } catch (err) {
+        console.error(`[Delete] Erro ao remover da pasta ${folder}:`, err);
+      }
+    }
+
+    return { ok: true, deletedFromDisk: deletedAny };
   } catch (e) {
     console.error("[Delete] Erro ao excluir arquivo:", e);
     return { ok: false, message: String(e.message || e) };
