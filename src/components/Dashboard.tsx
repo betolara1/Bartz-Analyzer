@@ -1313,7 +1313,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 flex-wrap">
               <span>Bartz Verificador XML</span>
               <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full shadow-inner">
-                v6.4.5
+                v6.4.6
               </span>
               {monitoring && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1703,7 +1703,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                           title="Copiar para pasta NESTING(DXF ALESSANDRO)"
                         >
                           <Copy className="h-3.5 w-3.5" />
-                          <span>Copiar DXF</span>
+                          <span>Enviar DXF</span>
                         </Button>
 
                         <Button
