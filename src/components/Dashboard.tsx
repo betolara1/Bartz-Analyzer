@@ -294,6 +294,7 @@ export default function Dashboard({
   const isFirstSpecialOrdersCheck = useRef(true);
   const knownSpecialOrderIds = useRef<Set<number>>(new Set());
   const knownSpecialCommentIds = useRef<Set<number>>(new Set());
+  const knownSpecialOrderOkIds = useRef<Set<number>>(new Set());
 
   // Separação de Chapas Background Monitor
   const [plateSeparationItems, setPlateSeparationItems] = useState<any[]>([]);
@@ -323,6 +324,15 @@ export default function Dashboard({
     if (userId === 37 || userId === 38) return true;
     const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
     return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).some((id: number) => id === 37 || id === 38);
+  }, [currentUser]);
+
+  // Permissão 38 - Engenharia (Notificações de conclusão)
+  const isPerm38 = useMemo(() => {
+    if (!currentUser) return false;
+    const userId = Number(currentUser.pk_usuario ?? currentUser.id ?? 0);
+    if (userId === 38) return true;
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p))).includes(38);
   }, [currentUser]);
 
 function createCanvasBadgeDataUrl(count: number): string | null {
@@ -375,16 +385,51 @@ function createCanvasBadgeDataUrl(count: number): string | null {
         if (isFirstSpecialOrdersCheck.current) {
           const orderIds = new Set<number>();
           const commentIds = new Set<number>();
+          const okOrderIds = new Set<number>();
 
           fetchedOrders.forEach((o) => {
             orderIds.add(o.pk_pedido_engenharia);
             (o.comentarios || []).forEach((c: any) => commentIds.add(c.pk_pedido_comentario));
+            if (o.ok_analisador) {
+              okOrderIds.add(o.pk_pedido_engenharia);
+            }
           });
 
           knownSpecialOrderIds.current = orderIds;
           knownSpecialCommentIds.current = commentIds;
+          knownSpecialOrderOkIds.current = okOrderIds;
           isFirstSpecialOrdersCheck.current = false;
         } else {
+          // Detect orders marked OK by Analisador (Notificando Permissão 38)
+          if (isPerm38) {
+            fetchedOrders.forEach((order) => {
+              if (order.ok_analisador && !knownSpecialOrderOkIds.current.has(order.pk_pedido_engenharia)) {
+                knownSpecialOrderOkIds.current.add(order.pk_pedido_engenharia);
+
+                const orderNum = order.num_pedido || order.pk_pedido;
+                const analistaName = order.ok_analisador_usuario_nome || "Analisador (Permissão 37)";
+                const notifTitle = `✅ Pedido #${orderNum}: Analisador OK!`;
+                const notifBody = `${analistaName} finalizou a parte dele. O pedido está liberado para você concluir.`;
+
+                // Send Windows Native Notification + Flash Taskbar
+                window.electron?.analyzer?.sendNotification?.({
+                  title: notifTitle,
+                  body: notifBody,
+                  count: openCount,
+                });
+
+                toast.success(notifTitle, {
+                  description: notifBody,
+                  duration: 12000,
+                  action: {
+                    label: "Ver Pedido",
+                    onClick: () => setSpecialOrdersOpen(true),
+                  },
+                });
+              }
+            });
+          }
+
           fetchedOrders.forEach((order) => {
             // Detect new special order
             if (!knownSpecialOrderIds.current.has(order.pk_pedido_engenharia)) {
@@ -446,7 +491,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
     } catch (err) {
       console.error("[SpecialOrders Background Check]", err);
     }
-  }, [hasSpecialOrdersPermission]);
+  }, [hasSpecialOrdersPermission, isPerm38]);
 
   useEffect(() => {
     if (!hasSpecialOrdersPermission) return;
@@ -1313,7 +1358,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 flex-wrap">
               <span>Bartz Verificador XML</span>
               <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full shadow-inner">
-                v6.4.6
+                v6.5.0
               </span>
               {monitoring && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

@@ -60,6 +60,10 @@ export interface SpecialOrder {
   dat_envio?: string;
   situacao_pedido?: string;
   nome_usuario?: string;
+  ok_analisador?: number | boolean;
+  ok_analisador_usuario_id?: number | null;
+  ok_analisador_usuario_nome?: string | null;
+  ok_analisador_data?: string | null;
   comentarios: SpecialOrderComment[];
 }
 
@@ -92,6 +96,7 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
   const [downloadingOrderXmlId, setDownloadingOrderXmlId] = useState<number | null>(null);
   const [completingId, setCompletingId] = useState<number | null>(null);
+  const [markingOkId, setMarkingOkId] = useState<number | null>(null);
   const [confirmCompleteOrder, setConfirmCompleteOrder] = useState<SpecialOrder | null>(null);
   const [orders, setOrders] = useState<SpecialOrder[]>(specialOrders || []);
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,6 +107,27 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({});
   const [xmlExistenceMap, setXmlExistenceMap] = useState<Record<string, boolean>>({});
   const [isCheckingXml, setIsCheckingXml] = useState(false);
+
+  // Permissões do Usuário
+  const userPerms = useMemo(() => {
+    if (!currentUser) return [];
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    return perms.map((p: any) => (typeof p === "object" && p !== null ? Number(p.pk_permissao) : Number(p)));
+  }, [currentUser]);
+
+  // Permissão 37 - Analisador
+  const isPerm37 = useMemo(() => {
+    const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
+    if (userId === 37) return true;
+    return userPerms.includes(37);
+  }, [userPerms, currentUser]);
+
+  // Permissão 38 - Engenharia (Conclusão)
+  const isPerm38 = useMemo(() => {
+    const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
+    if (userId === 38) return true;
+    return userPerms.includes(38);
+  }, [userPerms, currentUser]);
 
   const ordersRef = useRef(orders);
   useEffect(() => {
@@ -281,6 +307,38 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
       toast.error("Erro de comunicação ao concluir pedido.");
     } finally {
       setCompletingId(null);
+    }
+  };
+
+  const executeMarkOrderOk = async (order: SpecialOrder, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setMarkingOkId(order.pk_pedido_engenharia);
+    try {
+      const userId = currentUser?.pk_usuario || currentUser?.id;
+      const userName = currentUser?.txt_nome || currentUser?.nome || currentUser?.txt_login || "Analisador";
+      const res = await window.electron?.analyzer?.markSpecialOrderOk?.({
+        pk_pedido_engenharia: order.pk_pedido_engenharia,
+        pk_pedido: order.pk_pedido,
+        pk_usuario: userId,
+        nome_usuario: userName,
+      });
+
+      if (res?.ok) {
+        const orderNum = order.num_pedido || order.pk_pedido;
+        toast.success(`Pedido #${orderNum}: Parte finalizada com sucesso!`, {
+          description: "Tudo certo! Notificação enviada para a Engenharia (Permissão 38). Você pode seguir em frente.",
+          duration: 7000,
+        });
+        fetchSpecialOrders(false);
+        onRefresh?.();
+      } else {
+        toast.error(res?.message || "Erro ao marcar pedido como OK.");
+      }
+    } catch (err: any) {
+      console.error("[SpecialOrdersModal] Erro ao marcar OK:", err);
+      toast.error("Erro de comunicação ao marcar OK.");
+    } finally {
+      setMarkingOkId(null);
     }
   };
 
@@ -594,6 +652,23 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                           {order.txt_cliente}
                         </span>
                       )}
+
+                      {/* Analisador OK Badge */}
+                      {Boolean(order.ok_analisador) && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs px-2.5 py-1 rounded-md font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm shrink-0">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              Parte do Analisador OK
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-xs max-w-xs bg-popover text-popover-foreground border border-border shadow-md">
+                            {order.ok_analisador_usuario_nome
+                              ? `Liberado por ${order.ok_analisador_usuario_nome}${order.ok_analisador_data ? ` em ${order.ok_analisador_data}` : ""}.`
+                              : "Parte do Analisador finalizada com sucesso."}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -657,22 +732,74 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                         );
                       })()}
 
-                      {/* Botão Concluído */}
+                      {/* Botão Concluir (Permissão 38) ou OK (Permissão 37) */}
                       {isAberto ? (
-                        <Button
-                          size="sm"
-                          onClick={(e) => promptCompleteOrder(order, e)}
-                          disabled={completingId === order.pk_pedido_engenharia}
-                          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 gap-1.5 shadow-md transition-all shrink-0 cursor-pointer"
-                          title="Marcar pedido de engenharia como Concluído"
-                        >
-                          {completingId === order.pk_pedido_engenharia ? (
-                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
+                        <>
+                          {/* Botão Concluir: SOMENTE para Permissão 38 */}
+                          {isPerm38 && (
+                            <Button
+                              size="sm"
+                              onClick={(e) => promptCompleteOrder(order, e)}
+                              disabled={completingId === order.pk_pedido_engenharia}
+                              className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 gap-1.5 shadow-md transition-all shrink-0 cursor-pointer active:scale-95"
+                              title="Marcar pedido de engenharia como Concluído"
+                            >
+                              {completingId === order.pk_pedido_engenharia ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                              Concluir
+                            </Button>
                           )}
-                          Concluir
-                        </Button>
+
+                          {/* Permissão 37: Botão OK (se ainda não liberado) ou Badge Parte OK */}
+                          {isPerm37 && !isPerm38 && (
+                            !order.ok_analisador ? (
+                              <Button
+                                size="sm"
+                                onClick={(e) => executeMarkOrderOk(order, e)}
+                                disabled={markingOkId === order.pk_pedido_engenharia}
+                                className="h-8 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 gap-1.5 shadow-md transition-all shrink-0 cursor-pointer active:scale-95"
+                                title="Confirmar que a sua parte foi finalizada e notificar a Engenharia (Permissão 38)"
+                              >
+                                {markingOkId === order.pk_pedido_engenharia ? (
+                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                )}
+                                OK
+                              </Button>
+                            ) : (
+                              <span
+                                className="text-xs px-2.5 py-1 rounded-md font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 shadow-sm shrink-0"
+                                title="Sua parte foi finalizada com sucesso! Notificação enviada para a Engenharia (Permissão 38)."
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                                Parte OK
+                              </span>
+                            )
+                          )}
+
+                          {/* Se for usuário com ambas as permissões (37 e 38) e ainda não deu OK */}
+                          {isPerm37 && isPerm38 && !order.ok_analisador && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => executeMarkOrderOk(order, e)}
+                              disabled={markingOkId === order.pk_pedido_engenharia}
+                              className="h-8 px-3 text-xs border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 font-bold gap-1 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95"
+                              title="Marcar parte do Analisador como OK"
+                            >
+                              {markingOkId === order.pk_pedido_engenharia ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              )}
+                              OK
+                            </Button>
+                          )}
+                        </>
                       ) : (
                         <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 shrink-0">
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -701,6 +828,35 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                       })()}
                     </div>
                   </div>
+
+                  {/* Banner Visual Informativo quando a parte do Analisador estiver OK */}
+                  {Boolean(order.ok_analisador) && (
+                    <div className="mx-4 my-2.5 p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/60 via-emerald-900/30 to-emerald-950/40 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs text-emerald-200 shadow-sm animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-inner">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-emerald-300 flex items-center gap-2">
+                            <span>
+                              {isPerm37
+                                ? "Sua parte está OK — Tudo certo, pode seguir em frente!"
+                                : "Parte do Analisador Finalizada!"}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                              Liberado
+                            </span>
+                          </div>
+                          <div className="text-emerald-200/80 text-[11px] mt-0.5 leading-snug">
+                            {isPerm37
+                              ? "A notificação foi enviada para a Engenharia (Permissão 38) para conclusão do pedido."
+                              : `O Analisador finalizou a verificação deste pedido${order.ok_analisador_usuario_nome ? ` (${order.ok_analisador_usuario_nome})` : ""}. Pronto para conclusão da Engenharia.`}
+                            {order.ok_analisador_data && ` Registrado em ${order.ok_analisador_data}.`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Order Details & Comments Section */}
                   {isExpanded && (

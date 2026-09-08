@@ -329,6 +329,16 @@ ipcMain.handle('analyzer:getSpecialOrders', async () => {
       connectTimeout: 8000,
     });
 
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS tab_analisador_pedido_ok (
+        pk_pedido_engenharia INT(11) NOT NULL PRIMARY KEY,
+        pk_pedido INT(11) NOT NULL,
+        pk_usuario INT(11) NULL,
+        nome_usuario VARCHAR(100) NULL,
+        dat_ok DATETIME NOT NULL
+      )
+    `).catch(() => {});
+
     const [orders] = await connection.execute(`
       SELECT 
         e.pk_pedido_engenharia, 
@@ -338,11 +348,16 @@ ipcMain.handle('analyzer:getSpecialOrders', async () => {
         e.bit_lido,
         DATE_FORMAT(COALESCE(e.dat_data_modificacao, e.dat_data), '%d/%m/%Y %H:%i') AS dat_envio, 
         s.txt_descricao AS situacao_pedido,
-        u.txt_nome AS nome_usuario
+        u.txt_nome AS nome_usuario,
+        ok.pk_usuario AS ok_analisador_usuario_id,
+        ok.nome_usuario AS ok_analisador_usuario_nome,
+        DATE_FORMAT(ok.dat_ok, '%d/%m/%Y %H:%i') AS ok_analisador_data,
+        CASE WHEN ok.pk_pedido_engenharia IS NOT NULL THEN 1 ELSE 0 END AS ok_analisador
       FROM tab_pedido_engenharia e
       LEFT JOIN tab_pedido p ON e.pk_pedido = p.pk_pedido
       LEFT JOIN tab_situacao s ON p.pk_situacao = s.pk_situacao
       LEFT JOIN tab_usuario u ON e.pk_usuario = u.pk_usuario
+      LEFT JOIN tab_analisador_pedido_ok ok ON e.pk_pedido_engenharia = ok.pk_pedido_engenharia
       ORDER BY e.pk_pedido_engenharia DESC
     `);
 
@@ -548,6 +563,70 @@ ipcMain.handle('analyzer:completeEngineeringOrder', async (_e, { pk_pedido_engen
     if (connection) await connection.end().catch(() => {});
     console.error("[Complete Engineering Order Error]", err.message);
     return { ok: false, message: `Erro ao atualizar status: ${err.message}` };
+  }
+});
+
+ipcMain.handle('analyzer:markSpecialOrderOk', async (_e, { pk_pedido_engenharia, pk_pedido, pk_usuario, nome_usuario }) => {
+  let connection;
+  try {
+    if (!pk_pedido_engenharia || !pk_pedido) {
+      return { ok: false, message: 'Dados do pedido não informados.' };
+    }
+
+    let userId = pk_usuario;
+    let userName = nome_usuario;
+    if (!userId || !userName) {
+      try {
+        if (await fse.pathExists(state.USER_SESSION_FILE)) {
+          const session = await fse.readJson(state.USER_SESSION_FILE);
+          if (!userId) userId = session?.pk_usuario || null;
+          if (!userName) userName = session?.txt_nome || session?.txt_login || null;
+        }
+      } catch (e) {}
+    }
+
+    const cfg = state.currentCfg || (await loadCfg());
+    const dbHost = (cfg.dbHost || "mysql55-farm2.uni5.net").trim();
+    const dbPort = Number(cfg.dbPort) || 3306;
+    const dbUser = (cfg.dbUser || "bartzpedidosph").trim();
+    const dbPassword = cfg.dbPassword !== undefined && cfg.dbPassword !== "" ? cfg.dbPassword : "mangaROSA2006";
+    const dbName = (cfg.dbName || "bartzpedidosph").trim();
+
+    connection = await mysql.createConnection({
+      host: dbHost,
+      port: dbPort,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName,
+      connectTimeout: 8000,
+    });
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS tab_analisador_pedido_ok (
+        pk_pedido_engenharia INT(11) NOT NULL PRIMARY KEY,
+        pk_pedido INT(11) NOT NULL,
+        pk_usuario INT(11) NULL,
+        nome_usuario VARCHAR(100) NULL,
+        dat_ok DATETIME NOT NULL
+      )
+    `);
+
+    await connection.execute(`
+      INSERT INTO tab_analisador_pedido_ok (pk_pedido_engenharia, pk_pedido, pk_usuario, nome_usuario, dat_ok)
+      VALUES (?, ?, ?, ?, NOW())
+      ON DUPLICATE KEY UPDATE
+        pk_usuario = VALUES(pk_usuario),
+        nome_usuario = VALUES(nome_usuario),
+        dat_ok = NOW()
+    `, [pk_pedido_engenharia, pk_pedido, userId || null, userName || null]);
+
+    await connection.end();
+
+    return { ok: true, message: 'Parte do Analisador marcada como OK com sucesso!' };
+  } catch (err) {
+    if (connection) await connection.end().catch(() => {});
+    console.error("[Mark Special Order OK Error]", err.message);
+    return { ok: false, message: `Erro ao marcar pedido como OK: ${err.message}` };
   }
 });
 

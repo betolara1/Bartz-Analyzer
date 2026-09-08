@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('electron', {
     getOrderComments: (numPedido) => ipcRenderer.invoke('analyzer:getOrderComments', numPedido),
     getSpecialOrders: () => ipcRenderer.invoke('analyzer:getSpecialOrders'),
     completeEngineeringOrder: (params) => ipcRenderer.invoke('analyzer:completeEngineeringOrder', params),
+    markSpecialOrderOk: (params) => ipcRenderer.invoke('analyzer:markSpecialOrderOk', params),
     sendNotification: (params) => ipcRenderer.invoke('analyzer:sendNotification', params),
     setTaskbarBadge: (count) => ipcRenderer.invoke('analyzer:setTaskbarBadge', count),
     downloadCommentFile: (filename) => ipcRenderer.invoke('analyzer:downloadCommentFile', { filename }),

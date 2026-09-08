@@ -51,6 +51,7 @@ declare global {
         getOrderComments?: (numPedido: string) => Promise<IpcResult & { data?: any[] }>;
         getSpecialOrders?: () => Promise<IpcResult & { data?: any[] }>;
         completeEngineeringOrder?: (params: { pk_pedido_engenharia: number; pk_usuario_alteracao?: number }) => Promise<IpcResult>;
+        markSpecialOrderOk?: (params: { pk_pedido_engenharia: number; pk_pedido: number; pk_usuario?: number; nome_usuario?: string }) => Promise<IpcResult>;
         sendNotification?: (params: { title: string; body: string; count?: number }) => Promise<IpcResult>;
         setTaskbarBadge?: (arg: number | { count: number; dataUrl?: string | null }) => Promise<IpcResult>;
         downloadCommentFile?: (filename: string) => Promise<IpcResult & { destPath?: string }>;
