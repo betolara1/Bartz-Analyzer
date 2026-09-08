@@ -87,6 +87,7 @@ interface PlateSeparationModalProps {
   currentUser?: any;
   initialItems?: PlateSeparationItem[];
   onRefresh?: () => void;
+  initialFilter?: "todos" | "concluido" | "lancado";
 }
 
 export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
@@ -95,11 +96,12 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
   currentUser,
   initialItems,
   onRefresh,
+  initialFilter = "concluido",
 }) => {
   const [items, setItems] = useState<PlateSeparationItem[]>(initialItems || []);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilter);
   const [expandedItems, setExpandedItems] = useState<Record<number | string, boolean>>({});
 
   // Active chat lot ID (derived directly from items state for instant sync)
@@ -193,11 +195,16 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
   }, []);
 
   // Carregar itens ao abrir o modal principal
+  const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open) {
+      if (!prevOpenRef.current) {
+        setStatusFilter(initialFilter);
+      }
       fetchItems(false);
     }
-  }, [open, fetchItems]);
+    prevOpenRef.current = open;
+  }, [open, fetchItems, initialFilter]);
 
   // Polling em tempo real de comentários quando a janela de chat do lote estiver aberta (1000ms)
   useEffect(() => {
@@ -626,16 +633,6 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
               <Filter className="h-3.5 w-3.5 text-muted-foreground" />
               <div className="flex rounded-lg bg-background p-1 border border-border text-xs">
                 <button
-                  onClick={() => setStatusFilter("todos")}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                    statusFilter === "todos"
-                      ? "bg-cyan-600 text-white shadow-sm font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Todos ({visibleItems.length})
-                </button>
-                <button
                   onClick={() => setStatusFilter("concluido")}
                   className={`px-3 py-1 rounded-md font-medium transition-colors ${
                     statusFilter === "concluido"
@@ -668,6 +665,16 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
                     }).length
                   })
                 </button>
+                <button
+                  onClick={() => setStatusFilter("todos")}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                    statusFilter === "todos"
+                      ? "bg-cyan-600 text-white shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Todos ({visibleItems.length})
+                </button>
               </div>
             </div>
           </div>
@@ -687,12 +694,22 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
                   <AlertCircle className="h-6 w-6" />
                 </div>
                 <p className="text-base font-semibold text-foreground">
-                  Nenhum lote concluído ou lançado encontrado
+                  {visibleItems.length === 0
+                    ? "Nenhum lote concluído ou lançado encontrado"
+                    : statusFilter === "concluido"
+                    ? "Nenhum lote concluído aguardando lançamento"
+                    : statusFilter === "lancado"
+                    ? "Nenhum lote lançado encontrado"
+                    : "Nenhum lote encontrado"}
                 </p>
                 <p className="text-xs text-muted-foreground max-w-sm">
-                  {searchTerm || statusFilter !== "todos"
-                    ? "Tente ajustar os termos de busca ou filtros selecionados."
-                    : "Os lotes aparecerão aqui assim que forem concluídos no corte ou lançados no ERP."}
+                  {visibleItems.length === 0
+                    ? "Os lotes aparecerão aqui assim que forem concluídos no corte ou lançados no ERP."
+                    : searchTerm
+                    ? "Tente ajustar os termos de busca."
+                    : statusFilter !== "todos"
+                    ? "Tente selecionar outro filtro ou 'Todos'."
+                    : "Nenhum lote corresponde aos critérios."}
                 </p>
               </div>
             ) : (
