@@ -88,6 +88,9 @@ interface PlateSeparationModalProps {
   initialItems?: PlateSeparationItem[];
   onRefresh?: () => void;
   initialFilter?: "todos" | "concluido" | "lancado";
+  unreadLotIds?: Set<string>;
+  onMarkLotAsRead?: (lotId: string) => void;
+  initialLotIdToOpen?: string | null;
 }
 
 export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
@@ -97,6 +100,9 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
   initialItems,
   onRefresh,
   initialFilter = "concluido",
+  unreadLotIds,
+  onMarkLotAsRead,
+  initialLotIdToOpen,
 }) => {
   const [items, setItems] = useState<PlateSeparationItem[]>(initialItems || []);
   const [loading, setLoading] = useState(false);
@@ -206,6 +212,21 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
     prevOpenRef.current = open;
   }, [open, fetchItems, initialFilter]);
 
+  // Se for passado um lote específico para abrir o chat automaticamente
+  useEffect(() => {
+    if (initialLotIdToOpen) {
+      setSelectedLotId(initialLotIdToOpen);
+      onMarkLotAsRead?.(initialLotIdToOpen);
+    }
+  }, [initialLotIdToOpen, onMarkLotAsRead]);
+
+  // Quando o usuário estiver com o chat de um lote aberto, marca-o como lido
+  useEffect(() => {
+    if (selectedLotId) {
+      onMarkLotAsRead?.(selectedLotId);
+    }
+  }, [selectedLotId, onMarkLotAsRead]);
+
   // Polling em tempo real de comentários quando a janela de chat do lote estiver aberta (1000ms)
   useEffect(() => {
     if (!selectedLotId) return;
@@ -264,6 +285,7 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
             setItems((prev) =>
               prev.map((it) => (it.id === currentLot ? { ...it, comentarios: newComments! } : it))
             );
+            onMarkLotAsRead?.(currentLot);
             setTimeout(() => scrollToBottom(true), 80);
           }
         }
@@ -312,6 +334,7 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
     e.stopPropagation();
     setSelectedLotId(item.id);
     setNewCommentText("");
+    onMarkLotAsRead?.(item.id);
     setTimeout(() => {
       commentInputRef.current?.focus();
     }, 100);
@@ -560,6 +583,30 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
     });
   }, [visibleItems, statusFilter, searchTerm]);
 
+  // Contadores de mensagens não lidas por aba
+  const unreadConcluidosCount = useMemo(() => {
+    if (!unreadLotIds || unreadLotIds.size === 0) return 0;
+    return visibleItems.filter((i) => {
+      const st = (i.status || "").toLowerCase();
+      const isLanc = st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
+      return !isLanc && st.includes("concluido") && unreadLotIds.has(i.id);
+    }).length;
+  }, [visibleItems, unreadLotIds]);
+
+  const unreadLancadosCount = useMemo(() => {
+    if (!unreadLotIds || unreadLotIds.size === 0) return 0;
+    return visibleItems.filter((i) => {
+      const st = (i.status || "").toLowerCase();
+      const isLanc = st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
+      return isLanc && unreadLotIds.has(i.id);
+    }).length;
+  }, [visibleItems, unreadLotIds]);
+
+  const unreadTodosCount = useMemo(() => {
+    if (!unreadLotIds || unreadLotIds.size === 0) return 0;
+    return visibleItems.filter((i) => unreadLotIds.has(i.id)).length;
+  }, [visibleItems, unreadLotIds]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -634,46 +681,65 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
               <div className="flex rounded-lg bg-background p-1 border border-border text-xs">
                 <button
                   onClick={() => setStatusFilter("concluido")}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
                     statusFilter === "concluido"
                       ? "bg-emerald-600 text-white shadow-sm font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Concluídos (
-                  {
-                    visibleItems.filter((i) => {
-                      const st = (i.status || "").toLowerCase();
-                      const isLanc = st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
-                      return !isLanc && st.includes("concluido");
-                    }).length
-                  })
+                  <span>
+                    Concluídos (
+                    {
+                      visibleItems.filter((i) => {
+                        const st = (i.status || "").toLowerCase();
+                        const isLanc = st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
+                        return !isLanc && st.includes("concluido");
+                      }).length
+                    })
+                  </span>
+                  {unreadConcluidosCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[10px] font-black shadow-sm animate-pulse">
+                      💬 {unreadConcluidosCount} nova{unreadConcluidosCount > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setStatusFilter("lancado")}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
                     statusFilter === "lancado"
                       ? "bg-blue-600 text-white shadow-sm font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Lançados (
-                  {
-                    visibleItems.filter((i) => {
-                      const st = (i.status || "").toLowerCase();
-                      return st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
-                    }).length
-                  })
+                  <span>
+                    Lançados (
+                    {
+                      visibleItems.filter((i) => {
+                        const st = (i.status || "").toLowerCase();
+                        return st.includes("lançado") || st.includes("lancado") || !!i.lancado_erp;
+                      }).length
+                    })
+                  </span>
+                  {unreadLancadosCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[10px] font-black shadow-sm animate-pulse">
+                      💬 {unreadLancadosCount} nova{unreadLancadosCount > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setStatusFilter("todos")}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                  className={`px-3 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
                     statusFilter === "todos"
                       ? "bg-cyan-600 text-white shadow-sm font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Todos ({visibleItems.length})
+                  <span>Todos ({visibleItems.length})</span>
+                  {unreadTodosCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[10px] font-black shadow-sm animate-pulse">
+                      💬 {unreadTodosCount} nova{unreadTodosCount > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -814,30 +880,44 @@ export const PlateSeparationModal: React.FC<PlateSeparationModalProps> = ({
                           </Button>
                         )}
 
-                        {/* Botão Comentários com Contagem */}
-                        <Button
-                          size="sm"
-                          onClick={(e) => handleOpenCommentsModal(item, e)}
-                          variant="outline"
-                          className={`h-8 px-2.5 text-xs font-bold gap-1.5 shadow-md transition-all shrink-0 cursor-pointer ${
-                            commentsCount > 0
-                              ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25"
-                              : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                          }`}
-                          title="Ver e adicionar comentários"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
-                          <span>Comentários</span>
-                          <span
-                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                              commentsCount > 0
-                                ? "bg-cyan-500 text-black shadow-sm"
-                                : "bg-muted text-muted-foreground border border-border"
-                            }`}
-                          >
-                            {commentsCount}
-                          </span>
-                        </Button>
+                        {/* Botão Comentários com Contagem e Balãozinho de Nova Mensagem */}
+                        {(() => {
+                          const isUnread = unreadLotIds?.has(item.id);
+                          return (
+                            <Button
+                              size="sm"
+                              onClick={(e) => handleOpenCommentsModal(item, e)}
+                              variant="outline"
+                              className={`h-8 px-2.5 text-xs font-bold gap-1.5 shadow-md transition-all shrink-0 cursor-pointer ${
+                                isUnread
+                                  ? "border-red-500 bg-red-950/40 text-red-200 hover:bg-red-900/50 ring-1 ring-red-500/50 shadow-red-500/20"
+                                  : commentsCount > 0
+                                  ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25"
+                                  : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                              }`}
+                              title={isUnread ? "Existem novas mensagens neste lote!" : "Ver e adicionar comentários"}
+                            >
+                              <MessageSquare className={`h-3.5 w-3.5 ${isUnread ? "text-red-400 animate-bounce" : "text-cyan-400"}`} />
+                              <span>Comentários</span>
+                              {isUnread ? (
+                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md animate-pulse">
+                                  <span>{commentsCount}</span>
+                                  <span>🔴 Nova!</span>
+                                </span>
+                              ) : (
+                                <span
+                                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                    commentsCount > 0
+                                      ? "bg-cyan-500 text-black shadow-sm"
+                                      : "bg-muted text-muted-foreground border border-border"
+                                  }`}
+                                >
+                                  {commentsCount}
+                                </span>
+                              )}
+                            </Button>
+                          );
+                        })()}
 
                         <div className="text-muted-foreground">
                           {isExpanded ? (

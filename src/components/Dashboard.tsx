@@ -14,7 +14,7 @@ import {
   AlertTriangle, Eye, FolderOpen, BarChart3, AlertCircle, Download, Check,
   ArrowRightLeft, ListTodo, FileText, CheckCircle2, TrendingUp, Activity, Send,
   CircleHelp, Sliders, Search, FileSearch, Loader2, Copy, Files, User, LogOut, Sparkles,
-  ChevronLeft, ChevronRight, ChevronDown, Trash2, Layers
+  ChevronLeft, ChevronRight, ChevronDown, Trash2, Layers, MessageSquare
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -300,6 +300,16 @@ export default function Dashboard({
   const [plateSeparationItems, setPlateSeparationItems] = useState<any[]>([]);
   const isFirstPlateSeparationCheck = useRef(true);
   const knownPlateSeparationIds = useRef<Set<string>>(new Set());
+  const knownPlateCommentIds = useRef<Set<string>>(new Set());
+  const [unreadPlateLotIds, setUnreadPlateLotIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("bartz_unread_plate_lots");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [plateLotToOpenChat, setPlateLotToOpenChat] = useState<string | null>(null);
 
   // Permissão 36 - Botão Especiais
   const hasSpecialOrdersPermission = useMemo(() => {
@@ -518,16 +528,31 @@ function createCanvasBadgeDataUrl(count: number): string | null {
 
         const completedCount = fetchedItems.filter(isLotCompletedPendingLaunch).length;
 
+        const myName = (
+          currentUser?.txt_nome ||
+          currentUser?.txt_login ||
+          currentUser?.nome_usuario ||
+          currentUser?.name ||
+          ""
+        ).toLowerCase().trim();
+
         if (isFirstPlateSeparationCheck.current) {
           const itemIds = new Set<string>();
+          const commentIds = new Set<string>();
           fetchedItems.forEach((it) => {
             if (isLotCompletedPendingLaunch(it)) {
               itemIds.add(String(it.id));
             }
+            (it.comentarios || []).forEach((c: any) => {
+              const cid = String(c.id || `${it.id}_${c.data || ""}_${c.texto || ""}`);
+              commentIds.add(cid);
+            });
           });
           knownPlateSeparationIds.current = itemIds;
+          knownPlateCommentIds.current = commentIds;
           isFirstPlateSeparationCheck.current = false;
         } else {
+          // 1. Detectar novos lotes concluídos pendentes de lançamento
           fetchedItems.forEach((item) => {
             const isConcluido = isLotCompletedPendingLaunch(item);
             if (isConcluido && !knownPlateSeparationIds.current.has(String(item.id))) {
@@ -553,12 +578,96 @@ function createCanvasBadgeDataUrl(count: number): string | null {
               });
             }
           });
+
+          // 2. Detectar novas mensagens/comentários nos lotes da Separação de Chapas
+          fetchedItems.forEach((item) => {
+            const isLancado =
+              String(item.status || "").toLowerCase().includes("lançado") ||
+              String(item.status || "").toLowerCase().includes("lancado") ||
+              !!item.lancado_erp;
+            const isConcluido = !isLancado && String(item.status || "").toLowerCase().includes("concluido");
+            const abaNome = isConcluido ? "Concluídos" : isLancado ? "Lançados" : "Pendentes";
+
+            (item.comentarios || []).forEach((comment: any) => {
+              const cid = String(comment.id || `${item.id}_${comment.data || ""}_${comment.texto || ""}`);
+              if (!knownPlateCommentIds.current.has(cid)) {
+                knownPlateCommentIds.current.add(cid);
+
+                const author = String(comment.autor || "").trim();
+                const isFromMe = myName && author.toLowerCase() === myName;
+
+                if (!isFromMe) {
+                  const itemIdStr = String(item.id);
+                  setUnreadPlateLotIds((prev) => {
+                    const next = new Set(prev);
+                    next.add(itemIdStr);
+                    try {
+                      localStorage.setItem("bartz_unread_plate_lots", JSON.stringify(Array.from(next)));
+                    } catch {}
+                    return next;
+                  });
+
+                  // Alerta sonoro agradável
+                  try {
+                    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.18);
+                  } catch {}
+
+                  const notifTitle = `💬 Nova Mensagem — Lote ${item.id} [${abaNome}]`;
+                  const cleanText = String(comment.texto || "").replace(/\s+/g, " ").trim();
+                  const notifBody = `${author ? `${author}: ` : ""}"${cleanText.length > 70 ? cleanText.substring(0, 67) + "..." : cleanText}"`;
+
+                  // Envia notificação nativa do Windows + Flash na Barra de Tarefas
+                  window.electron?.analyzer?.sendNotification?.({
+                    title: notifTitle,
+                    body: notifBody,
+                    count: completedCount,
+                  });
+
+                  // Balãozinho / Toast no Bartz-Analyzer
+                  toast.info(notifTitle, {
+                    description: notifBody,
+                    duration: 10000,
+                    action: {
+                      label: "Ver Mensagem",
+                      onClick: () => {
+                        setPlateLotToOpenChat(itemIdStr);
+                        setPlateSeparationOpen(true);
+                      },
+                    },
+                  });
+                }
+              }
+            });
+          });
         }
       }
     } catch (err) {
       console.error("[PlateSeparation Background Check]", err);
     }
-  }, [hasPlateSeparationPermission]);
+  }, [hasPlateSeparationPermission, currentUser]);
+
+  const handleMarkPlateLotAsRead = useCallback((lotId: string) => {
+    setUnreadPlateLotIds((prev) => {
+      if (!prev.has(lotId)) return prev;
+      const next = new Set(prev);
+      next.delete(lotId);
+      try {
+        localStorage.setItem("bartz_unread_plate_lots", JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!hasPlateSeparationPermission) return;
@@ -1358,7 +1467,7 @@ function createCanvasBadgeDataUrl(count: number): string | null {
             <div className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 flex-wrap">
               <span>Bartz Verificador XML</span>
               <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full shadow-inner">
-                v6.5.1
+                v6.5.2
               </span>
               {monitoring && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1434,6 +1543,15 @@ function createCanvasBadgeDataUrl(count: number): string | null {
                 {completedPlatesCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full bg-cyan-600 text-white text-[10px] font-extrabold shadow-sm">
                     {completedPlatesCount}
+                  </span>
+                )}
+                {unreadPlateLotIds.size > 0 && (
+                  <span
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-extrabold shadow-sm animate-pulse"
+                    title={`${unreadPlateLotIds.size} lote(s) com novas mensagens`}
+                  >
+                    <MessageSquare className="h-2.5 w-2.5" />
+                    <span>{unreadPlateLotIds.size}</span>
                   </span>
                 )}
               </Button>
@@ -2382,10 +2500,16 @@ function createCanvasBadgeDataUrl(count: number): string | null {
       {hasPlateSeparationPermission && (
         <PlateSeparationModal
           open={plateSeparationOpen}
-          onOpenChange={setPlateSeparationOpen}
+          onOpenChange={(op) => {
+            setPlateSeparationOpen(op);
+            if (!op) setPlateLotToOpenChat(null);
+          }}
           currentUser={currentUser}
           initialItems={plateSeparationItems}
           onRefresh={checkPlateSeparationUpdates}
+          unreadLotIds={unreadPlateLotIds}
+          onMarkLotAsRead={handleMarkPlateLotAsRead}
+          initialLotIdToOpen={plateLotToOpenChat}
         />
       )}
 
