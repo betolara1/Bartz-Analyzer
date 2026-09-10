@@ -659,7 +659,11 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                           <TooltipTrigger asChild>
                             <span className="text-xs px-2.5 py-1 rounded-md font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm shrink-0">
                               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                              Parte do Analisador OK
+                              {isPerm38
+                                ? (order.ok_analisador_data
+                                    ? `Pedido OK. Registrado (${order.ok_analisador_data})`
+                                    : "Pedido OK. Registrado")
+                                : "Parte do Analisador OK"}
                             </span>
                           </TooltipTrigger>
                           <TooltipContent className="text-xs max-w-xs bg-popover text-popover-foreground border border-border shadow-md">
@@ -828,35 +832,6 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                       })()}
                     </div>
                   </div>
-
-                  {/* Banner Visual Informativo quando a parte do Analisador estiver OK */}
-                  {Boolean(order.ok_analisador) && (
-                    <div className="mx-4 my-2.5 p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/60 via-emerald-900/30 to-emerald-950/40 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs text-emerald-200 shadow-sm animate-in fade-in duration-200">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-inner">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-emerald-300 flex items-center gap-2">
-                            <span>
-                              {isPerm37
-                                ? "Sua parte está OK — Tudo certo, pode seguir em frente!"
-                                : "Parte do Analisador Finalizada!"}
-                            </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
-                              Liberado
-                            </span>
-                          </div>
-                          <div className="text-emerald-200/80 text-[11px] mt-0.5 leading-snug">
-                            {isPerm37
-                              ? "A notificação foi enviada para a Engenharia (Permissão 38) para conclusão do pedido."
-                              : `O Analisador finalizou a verificação deste pedido${order.ok_analisador_usuario_nome ? ` (${order.ok_analisador_usuario_nome})` : ""}. Pronto para conclusão da Engenharia.`}
-                            {order.ok_analisador_data && ` Registrado em ${order.ok_analisador_data}.`}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Order Details & Comments Section */}
                   {isExpanded && (
