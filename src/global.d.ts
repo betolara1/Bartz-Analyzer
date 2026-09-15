@@ -22,9 +22,9 @@ declare global {
         replaceCgGroups?: (filePath: string, map: Record<string, string>) => Promise<IpcResult & { counts?: Record<string, number>; backupPath?: string }>;
         fillReferencia?: (filePath: string, value: string) => Promise<IpcResult & { replaced?: number; backupPath?: string }>;
         fillReferenciaByIds?: (filePath: string, replacements: { id: string; value: string; descricao?: string }[]) => Promise<IpcResult & { counts?: Record<string, number>; backupPath?: string; arquivo?: string }>;
-        replaceItemDescription?: (filePath: string, ids: string[], newDescription: string, desenho?: string) => Promise<IpcResult & { counts?: Record<string, number>; backupPath?: string; arquivo?: string }>;
-        replaceItemDimension?: (filePath: string, ids: string[], newDimension: string | { largura: string | number; altura: string | number; profundidade: string | number }, desenho?: string) => Promise<IpcResult & { counts?: Record<string, number>; backupPath?: string; arquivo?: string }>;
-        deleteItem?: (filePath: string, id: string, desenho?: string, isParent?: boolean) => Promise<IpcResult & { deletedCount?: number; backupPath?: string; arquivo?: string }>;
+        replaceItemDescription?: (filePath: string, ids: string[], newDescription: string, desenho?: string, options?: { idPromob?: string; uniqueId?: string }) => Promise<IpcResult & { counts?: Record<string, number>; backupPath?: string; arquivo?: string }>;
+        replaceItemDimension?: (filePath: string, ids: string[], newDimension: string | { largura: string | number; altura: string | number; profundidade: string | number }, desenho?: string, options?: { idPromob?: string; uniqueId?: string; updateChildren?: boolean; isParent?: boolean; oldDimension?: any }) => Promise<IpcResult & { counts?: Record<string, number>; backupPath?: string; arquivo?: string }>;
+        deleteItem?: (filePath: string, id: string, desenho?: string, isParent?: boolean, options?: { idPromob?: string; uniqueId?: string }) => Promise<IpcResult & { deletedCount?: number; backupPath?: string; arquivo?: string }>;
         findDrawingFile?: (drawingCode: string, xmlFilePath?: string) => Promise<{ found: boolean; path: string | null; name?: string; panelInfo?: any; fresaInfo?: any; message?: string }>;
         openDrawing?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
         openDrawingFolder?: (drawingCode: string) => Promise<{ ok: boolean; path?: string; message?: string }>;

@@ -54,6 +54,8 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
   const [deleteTargetItem, setDeleteTargetItem] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [propagateToChildren, setPropagateToChildren] = useState(true);
+
   // Helper methods to identify hierarchy
   const getItemId = (item: any, index: number): number | string => {
     if (item.nodeId !== undefined && item.nodeId !== null) return item.nodeId;
@@ -185,7 +187,11 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
         data.fullpath,
         selectedItem.ids || [selectedItem.id],
         newDescription.trim(),
-        selectedItem.desenho
+        selectedItem.desenho,
+        {
+          idPromob: selectedItem.idPromob,
+          uniqueId: selectedItem.uniqueId
+        }
       );
 
       if (res?.ok) {
@@ -205,6 +211,7 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
 
   const handleOpenEditDimModal = (item: any) => {
     setSelectedDimItem(item);
+    setPropagateToChildren(true);
     let l = item.largura ? String(item.largura) : "";
     let a = item.altura ? String(item.altura) : "";
     let p = item.profundidade ? String(item.profundidade) : "";
@@ -228,6 +235,7 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
     setIsSavingDim(true);
     const id = toast.loading("Salvando nova dimensão...");
     try {
+      const isParent = isParentItem(selectedDimItem);
       const res = await window.electron?.analyzer?.replaceItemDimension?.(
         data.fullpath,
         selectedDimItem.ids || [selectedDimItem.id],
@@ -236,7 +244,19 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
           altura: newAltura.trim(),
           profundidade: newProfundidade.trim()
         },
-        selectedDimItem.desenho
+        selectedDimItem.desenho,
+        {
+          idPromob: selectedDimItem.idPromob,
+          uniqueId: selectedDimItem.uniqueId,
+          updateChildren: isParent ? propagateToChildren : false,
+          isParent,
+          oldDimension: {
+            largura: selectedDimItem.largura,
+            altura: selectedDimItem.altura,
+            profundidade: selectedDimItem.profundidade,
+            dimensao: selectedDimItem.dimensao
+          }
+        }
       );
 
       if (res?.ok) {
@@ -276,7 +296,11 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
         data.fullpath,
         deleteTargetItem.id,
         deleteTargetItem.desenho,
-        itemIsParent
+        itemIsParent,
+        {
+          idPromob: deleteTargetItem.idPromob,
+          uniqueId: deleteTargetItem.uniqueId
+        }
       );
 
       if (res?.ok) {
@@ -870,6 +894,27 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                     {newLargura.trim() || "?"} x {newAltura.trim() || "?"} x {newProfundidade.trim() || "?"}
                   </span>
                 </div>
+
+                {isParentItem(selectedDimItem) && (
+                  <div className="pt-2 border-t border-[#232323]">
+                    <label className="flex items-start gap-2.5 cursor-pointer select-none group p-2.5 rounded-lg bg-sky-500/5 hover:bg-sky-500/10 border border-sky-500/20 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={propagateToChildren}
+                        onChange={(e) => setPropagateToChildren(e.target.checked)}
+                        className="mt-0.5 rounded border-zinc-700 text-sky-500 focus:ring-sky-500/30 cursor-pointer"
+                      />
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-sky-200 group-hover:text-white transition-colors">
+                          Atualizar sub-itens com tamanho igual ao pai
+                        </span>
+                        <p className="text-[10px] text-zinc-400 leading-snug">
+                          Apenas os componentes filhos com dimensão igual ao pai original (ex: chapas, embalagens de mesmo tamanho) serão atualizados. Filhos com medidas próprias (ex: cola, fitas de borda, embalagens bolha) permanecerão intactos.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -939,6 +984,17 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                   </div>
                 </div>
               </div>
+
+              {isParentItem(selectedDimItem) && (
+                <div className="text-[11px] text-zinc-300 bg-sky-500/10 border border-sky-500/25 rounded-lg p-2.5">
+                  <span className="font-bold text-sky-300">Escopo da alteração: </span>
+                  {propagateToChildren ? (
+                    <span>Apenas este item pai específico e os sub-itens com a mesma dimensão dele. Filhos com medidas próprias e outros itens idênticos abaixo não serão afetados.</span>
+                  ) : (
+                    <span>Apenas este item pai específico (sem alterar os filhos). Os outros itens idênticos abaixo não serão afetados.</span>
+                  )}
+                </div>
+              )}
 
               <div className="text-[10px] text-zinc-500 font-medium italic">
                 * Um backup do arquivo original será criado antes de aplicar esta alteração.

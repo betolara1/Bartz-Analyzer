@@ -262,4 +262,28 @@ describe('XML Validation Logic', () => {
         expect(payload.meta.poItems[1].dimensao).toBe('50x50x20');
     });
 
+    it('should extract idPromob and uniqueId correctly in allTreeNodes', () => {
+        const xml = `
+        <PEDIDO>
+            <ITENS_PEDIDO>
+                <ITEM ID="item_1" ID_PROMOB="75848" REFERENCIA="AA0344" DESCRICAO="Item 1" LARGURA="80" ALTURA="5" PROFUNDIDADE="160">
+                    <UNIQUE_ID CODIGO="uid-111" />
+                    <ESTRUTURA>
+                        <ITEM ID="child_1" ID_PROMOB="75850" REFERENCIA="10.15.0245" DESCRICAO="Filho 1" LARGURA="80" ALTURA="5" PROFUNDIDADE="160" />
+                    </ESTRUTURA>
+                </ITEM>
+                <ITEM ID="item_1" ID_PROMOB="75846" REFERENCIA="AA0344" DESCRICAO="Item 2" LARGURA="80" ALTURA="5" PROFUNDIDADE="160">
+                    <UNIQUE_ID CODIGO="uid-222" />
+                </ITEM>
+            </ITENS_PEDIDO>
+        </PEDIDO>`;
+        const { payload } = validateXmlContent(xml);
+        expect(payload.meta.allItems).toHaveLength(3);
+        expect(payload.meta.allItems[0].idPromob).toBe('75848');
+        expect(payload.meta.allItems[0].uniqueId).toBe('uid-111');
+        expect(payload.meta.allItems[1].idPromob).toBe('75850');
+        expect(payload.meta.allItems[2].idPromob).toBe('75846');
+        expect(payload.meta.allItems[2].uniqueId).toBe('uid-222');
+    });
+
 });

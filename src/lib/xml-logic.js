@@ -372,6 +372,15 @@ function validateXmlContent(txt, cfg = {}) {
                 const a = parseDim(node.ALTURA);
                 const p = parseDim(node.PROFUNDIDADE);
 
+                let uniqueId = "";
+                if (node.UNIQUE_ID) {
+                    if (typeof node.UNIQUE_ID === 'object') {
+                        uniqueId = String(node.UNIQUE_ID.CODIGO || node.UNIQUE_ID._CODIGO || "").trim();
+                    } else if (typeof node.UNIQUE_ID === 'string') {
+                        uniqueId = node.UNIQUE_ID.trim();
+                    }
+                }
+
                 const record = {
                     nodeId: currentNodeId,
                     parentId: parentNodeId,
@@ -380,6 +389,7 @@ function validateXmlContent(txt, cfg = {}) {
                     descendantIds: [],
                     id,
                     idPromob,
+                    uniqueId,
                     idPai,
                     caminhoItemCatalog,
                     itemBase,

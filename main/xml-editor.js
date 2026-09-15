@@ -368,7 +368,7 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
 /** --- replace DESCRICAO attribute for specific ITEM IDs --- **/
 ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
   try {
-    const { filePath, ids, newDescription, desenho } = obj || {};
+    const { filePath, ids, newDescription, desenho, idPromob, uniqueId } = obj || {};
     if (!filePath || !Array.isArray(ids) || ids.length === 0 || typeof newDescription !== 'string') {
       send('error', { where: 'replaceItemDescription', message: 'Parâmetros inválidos.' });
       return { ok: false, message: 'invalid-params' };
@@ -398,15 +398,18 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
       const matchItems = raw.match(itemRegex) || [];
       let matchedItemTag = "";
 
-      if (desenho) {
-        for (const itemTag of matchItems) {
+      for (const itemTag of matchItems) {
+        if (desenho) {
           const desenhoAttrRegex = /DESENHO\s*=\s*"([^"]*)"/i;
           const matchDes = itemTag.match(desenhoAttrRegex);
-          if (matchDes && matchDes[1] === desenho) {
-            matchedItemTag = itemTag;
-            break;
-          }
+          if (!matchDes || matchDes[1] !== desenho) continue;
         }
+        if (idPromob) {
+          const mIdPromob = itemTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
+          if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) continue;
+        }
+        matchedItemTag = itemTag;
+        break;
       }
 
       if (!matchedItemTag && matchItems.length > 0) {
@@ -438,6 +441,13 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
           const matchDes = itemMatch.match(desenhoAttrRegex);
           const currentDesenho = matchDes ? matchDes[1] : "";
           if (currentDesenho !== desenho) {
+            return itemMatch;
+          }
+        }
+
+        if (idPromob) {
+          const mIdPromob = itemMatch.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
+          if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) {
             return itemMatch;
           }
         }
@@ -560,7 +570,7 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
 /** --- replace LARGURA, ALTURA, PROFUNDIDADE attributes for specific ITEM IDs --- **/
 ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
   try {
-    const { filePath, ids, newDimension, desenho } = obj || {};
+    const { filePath, ids, newDimension, desenho, idPromob, uniqueId, updateChildren, oldDimension } = obj || {};
     if (!filePath || !Array.isArray(ids) || ids.length === 0 || !newDimension) {
       send('error', { where: 'replaceItemDimension', message: 'Parâmetros inválidos.' });
       return { ok: false, message: 'invalid-params' };
@@ -594,6 +604,12 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
 
     let raw = await fsp.readFile(real, 'utf8');
     const counts = {};
+
+    const parseDimVal = (val) => {
+      if (val === undefined || val === null || val === '') return NaN;
+      const num = parseFloat(String(val).replace(',', '.'));
+      return isNaN(num) ? NaN : Math.round(num * 100) / 100;
+    };
 
     const setAttr = (tagStr, attrName, attrValue) => {
       const attrRegex = new RegExp(`\\b${attrName}\\s*=\\s*"([^"]*)"`, 'i');
@@ -639,6 +655,10 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
 
         // Self-closing tag
         if (openTag.endsWith('/>')) {
+          if (idPromob) {
+            const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
+            if (!mIdPromob || String(mIdPromob[1]).trim() !== String(idPromob).trim()) continue;
+          }
           itemBlocks.push({ startIdx, endIdx: startIdx + openTag.length, block: openTag });
           continue;
         }
@@ -657,7 +677,28 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
             depth--;
             if (depth === 0) {
               const endIdx = tagMatch.index + tagMatch[0].length;
-              itemBlocks.push({ startIdx, endIdx, block: raw.substring(startIdx, endIdx) });
+              const blockStr = raw.substring(startIdx, endIdx);
+
+              // Filter by ID_PROMOB if specified
+              if (idPromob) {
+                const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i) ||
+                                  blockStr.match(/<CARACTERISTICA\b[^>]*\bCODIGO\s*=\s*"ID_PROMOB"[^>]*\bRESPOSTA\s*=\s*"([^"]*)"/i);
+                if (!mIdPromob || String(mIdPromob[1]).trim() !== String(idPromob).trim()) {
+                  foundEnd = true;
+                  break;
+                }
+              }
+
+              // Filter by UNIQUE_ID if specified
+              if (uniqueId) {
+                const mUid = blockStr.match(/<UNIQUE_ID\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);
+                if (!mUid || String(mUid[1]).trim() !== String(uniqueId).trim()) {
+                  foundEnd = true;
+                  break;
+                }
+              }
+
+              itemBlocks.push({ startIdx, endIdx, block: blockStr });
               foundEnd = true;
               break;
             }
@@ -667,6 +708,10 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
         }
 
         if (!foundEnd) {
+          if (idPromob) {
+            const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
+            if (!mIdPromob || String(mIdPromob[1]).trim() !== String(idPromob).trim()) continue;
+          }
           itemBlocks.push({ startIdx, endIdx: startIdx + openTag.length, block: openTag });
         }
       }
@@ -679,12 +724,27 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
 
         // 1. Update the main <ITEM> opening tag attributes
         const openMatch = block.match(/^<ITEM\b[^>]*>/i);
+        let parentOldL = NaN, parentOldA = NaN, parentOldP = NaN;
+
         if (openMatch) {
+          const oldLStr = openMatch[0].match(/\bLARGURA\s*=\s*"([^"]*)"/i)?.[1] || "";
+          const oldAStr = openMatch[0].match(/\bALTURA\s*=\s*"([^"]*)"/i)?.[1] || "";
+          const oldPStr = openMatch[0].match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i)?.[1] || "";
+          parentOldL = parseDimVal(oldLStr);
+          parentOldA = parseDimVal(oldAStr);
+          parentOldP = parseDimVal(oldPStr);
+
           let updatedOpen = openMatch[0];
           updatedOpen = setAttr(updatedOpen, 'LARGURA', l);
           updatedOpen = setAttr(updatedOpen, 'ALTURA', a);
           updatedOpen = setAttr(updatedOpen, 'PROFUNDIDADE', p);
           block = updatedOpen + block.slice(openMatch[0].length);
+        }
+
+        if (oldDimension) {
+          if (isNaN(parentOldL)) parentOldL = parseDimVal(oldDimension.largura ?? oldDimension.l);
+          if (isNaN(parentOldA)) parentOldA = parseDimVal(oldDimension.altura ?? oldDimension.a);
+          if (isNaN(parentOldP)) parentOldP = parseDimVal(oldDimension.profundidade ?? oldDimension.p);
         }
 
         // Detect ESPESSURA (doors/panels where ALTURA 2D = PROFUNDIDADE)
@@ -715,17 +775,59 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
           block = updateResposta(block, 'COLUNA', 'ESPESSURA', espessuraValue);
         }
 
-        // 5. Update known child <ITEM> tags in <ESTRUTURA> (chapa, EMBALAGEM_FIXO, painel, frente, porta)
-        block = block.replace(
-          /(<ITEM\b(?=[^>]*\bID\s*=\s*"(?:chapa|EMBALAGEM_FIXO|painel|frente|porta)"[^>]*)[^>]*>)/gi,
-          (childTag) => {
-            let u = childTag;
-            u = setAttr(u, 'LARGURA', l);
-            u = setAttr(u, 'ALTURA', a);
-            u = setAttr(u, 'PROFUNDIDADE', p);
-            return u;
-          }
-        );
+        // 5. Update child <ITEM> tags in <ESTRUTURA> (APENAS se o tamanho for igual ao do pai original)
+        if (updateChildren) {
+          const estruturaRegex = /<ESTRUTURA\b([\s\S]*?)<\/ESTRUTURA>/gi;
+          block = block.replace(estruturaRegex, (estBlock) => {
+            return estBlock.replace(/<ITEM\b([^>]*?)(\/?>)/gi, (childTag) => {
+              const cL = parseDimVal(childTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i)?.[1]);
+              const cA = parseDimVal(childTag.match(/\bALTURA\s*=\s*"([^"]*)"/i)?.[1]);
+              const cP = parseDimVal(childTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i)?.[1]);
+
+              let isMatch = false;
+              let targetL = l;
+              let targetA = a;
+              let targetP = p;
+
+              if (!isNaN(cL) && !isNaN(cA) && !isNaN(cP) && !isNaN(parentOldL) && !isNaN(parentOldA) && !isNaN(parentOldP)) {
+                const areClose = (n1, n2) => Math.abs(n1 - n2) < 0.1;
+
+                if (areClose(cL, parentOldL) && areClose(cA, parentOldA) && areClose(cP, parentOldP)) {
+                  // Correspondência direta
+                  isMatch = true;
+                  targetL = l; targetA = a; targetP = p;
+                } else if (areClose(cL, parentOldL) && areClose(cA, parentOldP) && areClose(cP, parentOldA)) {
+                  // Inversão Altura / Profundidade (espessura)
+                  isMatch = true;
+                  targetL = l; targetA = p; targetP = a;
+                } else {
+                  // Comparação independente da ordem dos eixos
+                  const childSorted = [cL, cA, cP].sort((x, y) => x - y);
+                  const parentSorted = [parentOldL, parentOldA, parentOldP].sort((x, y) => x - y);
+                  if (areClose(childSorted[0], parentSorted[0]) &&
+                      areClose(childSorted[1], parentSorted[1]) &&
+                      areClose(childSorted[2], parentSorted[2])) {
+                    isMatch = true;
+                    targetL = areClose(cL, parentOldA) ? a : (areClose(cL, parentOldP) ? p : l);
+                    targetA = areClose(cA, parentOldL) ? l : (areClose(cA, parentOldP) ? p : a);
+                    targetP = areClose(cP, parentOldL) ? l : (areClose(cP, parentOldA) ? a : p);
+                  }
+                }
+              }
+
+              if (!isMatch) {
+                // Dimensão diferente do pai (ex: cola, fita de borda, embalagem diferente) - permanece inalterado!
+                return childTag;
+              }
+
+              let u = childTag;
+              u = setAttr(u, 'LARGURA', targetL);
+              u = setAttr(u, 'ALTURA', targetA);
+              u = setAttr(u, 'PROFUNDIDADE', targetP);
+              return u;
+            });
+          });
+        }
 
         // Replace in raw
         raw = raw.substring(0, blockInfo.startIdx) + block + raw.substring(blockInfo.endIdx);
@@ -803,7 +905,7 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
 /** --- delete ITEM (and its entire subtree if parent) from XML --- **/
 ipcMain.handle('analyzer:deleteItem', async (_e, obj) => {
   try {
-    const { filePath, id, desenho, isParent } = obj || {};
+    const { filePath, id, desenho, isParent, idPromob, uniqueId } = obj || {};
     if (!filePath || !id) {
       return { ok: false, message: 'Parâmetros inválidos.' };
     }
@@ -835,12 +937,16 @@ ipcMain.handle('analyzer:deleteItem', async (_e, obj) => {
         if (mDes && mDes[1] !== desenho) continue;
       }
 
+      // Filter by ID_PROMOB on opening tag if specified
+      if (idPromob) {
+        const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
+        if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) continue;
+      }
+
       // Self-closing tag - just remove the tag line
       if (openTag.endsWith('/>')) {
-        // Also remove trailing newline/whitespace
         let endIdx = startIdx + openTag.length;
         while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
-        // Remove leading whitespace on the same line
         let startAdj = startIdx;
         while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
         blocksToRemove.push({ startIdx: startAdj, endIdx });
@@ -860,11 +966,24 @@ ipcMain.handle('analyzer:deleteItem', async (_e, obj) => {
           if (isClose) {
             depth--;
             if (depth === 0) {
-              let endIdx = tagMatch.index + tagMatch[0].length;
-              while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
+              const endIdx = tagMatch.index + tagMatch[0].length;
+              const blockStr = raw.substring(startIdx, endIdx);
+
+              if (idPromob) {
+                const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i) ||
+                                  blockStr.match(/<CARACTERISTICA\b[^>]*\bCODIGO\s*=\s*"ID_PROMOB"[^>]*\bRESPOSTA\s*=\s*"([^"]*)"/i);
+                if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) break;
+              }
+              if (uniqueId) {
+                const mUid = blockStr.match(/<UNIQUE_ID\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);
+                if (mUid && String(mUid[1]).trim() !== String(uniqueId).trim()) break;
+              }
+
+              let finalEndIdx = endIdx;
+              while (finalEndIdx < raw.length && (raw[finalEndIdx] === '\r' || raw[finalEndIdx] === '\n')) finalEndIdx++;
               let startAdj = startIdx;
               while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
-              blocksToRemove.push({ startIdx: startAdj, endIdx });
+              blocksToRemove.push({ startIdx: startAdj, endIdx: finalEndIdx });
               break;
             }
           } else if (!isSelfClose) {
@@ -885,11 +1004,30 @@ ipcMain.handle('analyzer:deleteItem', async (_e, obj) => {
           if (isClose) {
             depth--;
             if (depth === 0) {
-              let endIdx = tagMatch.index + tagMatch[0].length;
-              while (endIdx < raw.length && (raw[endIdx] === '\r' || raw[endIdx] === '\n')) endIdx++;
+              const endIdx = tagMatch.index + tagMatch[0].length;
+              const blockStr = raw.substring(startIdx, endIdx);
+
+              if (idPromob) {
+                const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i) ||
+                                  blockStr.match(/<CARACTERISTICA\b[^>]*\bCODIGO\s*=\s*"ID_PROMOB"[^>]*\bRESPOSTA\s*=\s*"([^"]*)"/i);
+                if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) {
+                  foundEnd = true;
+                  break;
+                }
+              }
+              if (uniqueId) {
+                const mUid = blockStr.match(/<UNIQUE_ID\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);
+                if (mUid && String(mUid[1]).trim() !== String(uniqueId).trim()) {
+                  foundEnd = true;
+                  break;
+                }
+              }
+
+              let finalEndIdx = endIdx;
+              while (finalEndIdx < raw.length && (raw[finalEndIdx] === '\r' || raw[finalEndIdx] === '\n')) finalEndIdx++;
               let startAdj = startIdx;
               while (startAdj > 0 && raw[startAdj - 1] === ' ') startAdj--;
-              blocksToRemove.push({ startIdx: startAdj, endIdx });
+              blocksToRemove.push({ startIdx: startAdj, endIdx: finalEndIdx });
               foundEnd = true;
               break;
             }
