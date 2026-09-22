@@ -199,7 +199,7 @@ export function MuxarabiSection({ isOpen, onToggle, data, hasAdminPermission }: 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#232323]">
-                   {muxarabiItems.map((item: any, i: number) => {
+                  {muxarabiItems.map((item: any, i: number) => {
                     const match = item.descricao?.match(/(\d+\s*x\s*\d+)/i);
                     const sizeCode = match ? match[1].replace(/\s+/g, '').toLowerCase() : null;
                     const thMatch = item.descricao?.match(/(\d{2})\s*mm/i);

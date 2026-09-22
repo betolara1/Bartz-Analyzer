@@ -364,11 +364,10 @@ export function Es08Section({
                               <button
                                 disabled={!needsFix || isFixing}
                                 onClick={() => onFix(drawing)}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer ${
-                                  needsFix
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer ${needsFix
                                     ? "bg-rose-600 hover:bg-rose-500 text-white shadow-sm active:scale-[0.97]"
                                     : "bg-rose-500/10 text-rose-400/40 border border-rose-500/10 opacity-40 cursor-not-allowed"
-                                }`}
+                                  }`}
                                 title={needsFix ? "Corrigir fresa/usinagem/painel (37mm → 18mm / 31mm → 15mm)" : "Nenhuma correção necessária"}
                               >
                                 {isFixing ? (

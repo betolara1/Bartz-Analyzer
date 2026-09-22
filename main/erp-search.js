@@ -238,6 +238,40 @@ ipcMain.handle('analyzer:searchErpProduct', async (_e, params) => {
   }
 });
 
+function groupCommentRows(comments) {
+  const map = new Map();
+  if (Array.isArray(comments)) {
+    for (const c of comments) {
+      const id = c.pk_pedido_comentario;
+      if (!id) continue;
+      if (!map.has(id)) {
+        map.set(id, {
+          pk_pedido_comentario: c.pk_pedido_comentario,
+          pk_pedido: c.pk_pedido,
+          txt_titulo: c.txt_titulo,
+          txt_comentario: c.txt_comentario,
+          int_situacao: c.int_situacao,
+          dat_data: c.dat_data,
+          nome_usuario: c.nome_usuario,
+          anexos: [],
+          txt_arquivo: c.txt_arquivo || undefined,
+        });
+      }
+      const item = map.get(id);
+      if (c.txt_arquivo && typeof c.txt_arquivo === 'string') {
+        const trimmed = c.txt_arquivo.trim();
+        if (trimmed && !item.anexos.includes(trimmed)) {
+          item.anexos.push(trimmed);
+        }
+        if (!item.txt_arquivo) {
+          item.txt_arquivo = trimmed;
+        }
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
 ipcMain.handle('analyzer:getOrderComments', async (_e, numPedido) => {
   let connection;
   try {
@@ -291,7 +325,7 @@ ipcMain.handle('analyzer:getOrderComments', async (_e, numPedido) => {
 
     await connection.end();
 
-    return { ok: true, data: Array.isArray(comments) ? comments : [] };
+    return { ok: true, data: groupCommentRows(comments) };
   } catch (e) {
     if (connection) try { await connection.end(); } catch (_) { }
     console.error(`[Order Comments DB Error] ${e.message}`);
@@ -303,7 +337,8 @@ ipcMain.handle('analyzer:getOrderComments', async (_e, numPedido) => {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      return { ok: true, data: Array.isArray(data) ? data : (data ? [data] : []) };
+      const rawData = Array.isArray(data) ? data : (data ? [data] : []);
+      return { ok: true, data: groupCommentRows(rawData) };
     } catch (fallbackErr) {
       return { ok: false, message: `Erro ao buscar pedido: ${e.message}` };
     }
@@ -389,6 +424,7 @@ ipcMain.handle('analyzer:getSpecialOrders', async () => {
       `, pedidoIds);
 
       if (Array.isArray(comments)) {
+        const commentsMapByPedido = {};
         comments.forEach(c => {
           const sit = c.int_situacao !== null && c.int_situacao !== undefined ? Number(c.int_situacao) : 0;
           const isSituacaoOk = sit === 0 || sit === 1;
@@ -397,12 +433,41 @@ ipcMain.handle('analyzer:getSpecialOrders', async () => {
           const isDesconsiderado = title.includes('desconsiderad') || commentText.includes('desconsiderad');
 
           if (isSituacaoOk && !isDesconsiderado) {
-            if (!commentsByPedido[c.pk_pedido]) {
-              commentsByPedido[c.pk_pedido] = [];
+            const pedidoId = c.pk_pedido;
+            if (!commentsMapByPedido[pedidoId]) {
+              commentsMapByPedido[pedidoId] = new Map();
             }
-            commentsByPedido[c.pk_pedido].push(c);
+            const map = commentsMapByPedido[pedidoId];
+            const id = c.pk_pedido_comentario;
+            if (!map.has(id)) {
+              map.set(id, {
+                pk_pedido_comentario: c.pk_pedido_comentario,
+                pk_pedido: c.pk_pedido,
+                txt_titulo: c.txt_titulo,
+                txt_comentario: c.txt_comentario,
+                int_situacao: c.int_situacao,
+                dat_data: c.dat_data,
+                nome_usuario: c.nome_usuario,
+                anexos: [],
+                txt_arquivo: c.txt_arquivo || undefined,
+              });
+            }
+            const commentObj = map.get(id);
+            if (c.txt_arquivo && typeof c.txt_arquivo === 'string') {
+              const trimmed = c.txt_arquivo.trim();
+              if (trimmed && !commentObj.anexos.includes(trimmed)) {
+                commentObj.anexos.push(trimmed);
+              }
+              if (!commentObj.txt_arquivo) {
+                commentObj.txt_arquivo = trimmed;
+              }
+            }
           }
         });
+
+        for (const [pedidoId, map] of Object.entries(commentsMapByPedido)) {
+          commentsByPedido[pedidoId] = Array.from(map.values());
+        }
       }
     }
 

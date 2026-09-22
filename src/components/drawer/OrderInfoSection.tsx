@@ -22,6 +22,55 @@ function cleanComment(text: string): string {
 export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch }: OrderInfoSectionProps) {
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
 
+  const displayComments = React.useMemo(() => {
+    const map = new Map<number, any>();
+    const withoutId: any[] = [];
+
+    (comments || []).forEach((c) => {
+      const id = c.pk_pedido_comentario;
+      if (!id) {
+        withoutId.push(c);
+        return;
+      }
+
+      const incomingFiles: string[] = [];
+      if (Array.isArray(c.anexos)) {
+        c.anexos.forEach((f: any) => {
+          if (f && typeof f === "string") {
+            const trimmed = f.trim();
+            if (trimmed && !incomingFiles.includes(trimmed)) {
+              incomingFiles.push(trimmed);
+            }
+          }
+        });
+      }
+      if (c.txt_arquivo && typeof c.txt_arquivo === "string") {
+        const trimmed = c.txt_arquivo.trim();
+        if (trimmed && !incomingFiles.includes(trimmed)) {
+          incomingFiles.push(trimmed);
+        }
+      }
+
+      if (!map.has(id)) {
+        map.set(id, {
+          ...c,
+          anexos: incomingFiles,
+        });
+      } else {
+        const existing = map.get(id);
+        const current = existing.anexos || [];
+        for (const f of incomingFiles) {
+          if (!current.includes(f)) {
+            current.push(f);
+          }
+        }
+        existing.anexos = current;
+      }
+    });
+
+    return [...Array.from(map.values()), ...withoutId];
+  }, [comments]);
+
   const handleDownloadFile = async (filename: string) => {
     setDownloadingFile(filename);
     try {
@@ -29,10 +78,6 @@ export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch 
       if (res?.ok && res.destPath) {
         toast.success("Arquivo baixado com sucesso!", {
           description: `Salvo em: ${res.destPath}`,
-          action: {
-            label: "Abrir Arquivo",
-            onClick: () => window.electron?.analyzer?.openFile?.(res.destPath!),
-          },
         });
       } else if (res?.message && !res.message.toLowerCase().includes("cancelado")) {
         toast.error(res.message);
@@ -87,13 +132,32 @@ export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch 
               <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
               <div className="text-[11px] font-medium text-muted-foreground tracking-wide">Carregando dados do servidor...</div>
             </div>
-          ) : comments.length > 0 ? (
+          ) : displayComments.length > 0 ? (
             <div className="space-y-2.5">
-              {comments.map((c, i) => {
+              {displayComments.map((c, i) => {
                 const commentText = cleanComment(c.txt_comentario || "Nenhum comentário registrado.");
                 const lines = commentText.split(/<br\s*\/?>/gi);
+
+                const anexos: string[] = [];
+                if (Array.isArray(c.anexos)) {
+                  c.anexos.forEach((f: any) => {
+                    if (f && typeof f === "string") {
+                      const trimmed = f.trim();
+                      if (trimmed && !anexos.includes(trimmed)) {
+                        anexos.push(trimmed);
+                      }
+                    }
+                  });
+                }
+                if (c.txt_arquivo && typeof c.txt_arquivo === "string") {
+                  const trimmed = c.txt_arquivo.trim();
+                  if (trimmed && !anexos.includes(trimmed)) {
+                    anexos.push(trimmed);
+                  }
+                }
+
                 return (
-                  <div key={i} className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1.5 group/comment hover:border-border/80 transition-colors">
+                  <div key={c.pk_pedido_comentario || i} className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1.5 group/comment hover:border-border/80 transition-colors">
                     {c.txt_titulo && (
                       <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
                         <FileText className="h-3 w-3 shrink-0" />
@@ -109,30 +173,43 @@ export function OrderInfoSection({ isOpen, onToggle, loading, comments, onFetch 
                       ))}
                     </div>
 
-                    {/* Anexo do comentário */}
-                    {c.txt_arquivo && (
-                      <div className="mt-2 p-2 px-3 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 overflow-hidden text-xs text-indigo-200">
-                          <Paperclip className="h-4 w-4 text-indigo-400 shrink-0" />
-                          <span className="truncate font-semibold text-xs" title={c.txt_arquivo}>
-                            {c.txt_arquivo}
-                          </span>
+                    {/* Anexos do comentário */}
+                    {anexos.length > 0 && (
+                      <div className="mt-3 space-y-2 pt-2 border-t border-border/30">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                          <Paperclip className="h-3.5 w-3.5" />
+                          <span>Arquivo{anexos.length > 1 ? "s" : ""} Anexo{anexos.length > 1 ? "s" : ""} ({anexos.length})</span>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadFile(c.txt_arquivo);
-                          }}
-                          disabled={downloadingFile === c.txt_arquivo}
-                          className="h-7 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all rounded-md flex items-center cursor-pointer disabled:opacity-50"
-                        >
-                          {downloadingFile === c.txt_arquivo ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          <span className="ml-1">Baixar Anexo</span>
-                        </button>
+                        <div className="space-y-1.5">
+                          {anexos.map((file: string, fIdx: number) => (
+                            <div
+                              key={fIdx}
+                              className="p-2 px-3 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between gap-3 hover:bg-indigo-500/15 transition-colors"
+                            >
+                              <div className="flex items-center gap-2 overflow-hidden text-xs text-indigo-200">
+                                <FileText className="h-4 w-4 text-indigo-400 shrink-0" />
+                                <span className="truncate font-semibold text-xs" title={file}>
+                                  {file}
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadFile(file);
+                                }}
+                                disabled={downloadingFile === file}
+                                className="h-7 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all rounded-md flex items-center cursor-pointer disabled:opacity-50"
+                              >
+                                {downloadingFile === file ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Download className="h-3 w-3" />
+                                )}
+                                <span className="ml-1">Baixar Anexo</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

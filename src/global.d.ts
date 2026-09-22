@@ -34,7 +34,7 @@ declare global {
         checkOrdersXmlExistence?: (orderNumbers: string[]) => Promise<{ ok: boolean; existsMap?: Record<string, boolean>; message?: string }>;
         checkXmlDownloaded?: (sourceFullPath?: string, fileName?: string) => Promise<{ ok: boolean; exists: boolean; foundIn?: string; fullPath?: string; message?: string }>;
         copyXmlToEntrada?: (sourceFullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
-        copyXmlToBusca?: (sourceFullPath: string) => Promise<{ ok: boolean; destPath?: string; message?: string }>;
+        copyXmlToBusca?: (sourceFullPath: string) => Promise<{ ok: boolean; destPath?: string; resolvedSource?: string; message?: string }>;
         searchDrawingFiles?: (searchTerm: string) => Promise<{ ok: boolean; results?: { name: string; fullPath: string }[]; message?: string }>;
         resolveDrawingPedido?: (drawingName: string) => Promise<{ ok: boolean; pedido?: string; pedidoFilename?: string; pedidoSource?: 'historico' | 'erp' | 'busca'; message?: string }>;
         openDrawingByPath?: (fullPath: string) => Promise<{ ok: boolean; path?: string; message?: string }>;

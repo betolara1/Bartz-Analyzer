@@ -500,9 +500,8 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                   return (
                     <tr
                       key={itemId}
-                      className={`hover:bg-white/[0.03] transition-colors group/inner ${
-                        isParent ? "bg-white/[0.015]" : ""
-                      }`}
+                      className={`hover:bg-white/[0.03] transition-colors group/inner ${isParent ? "bg-white/[0.015]" : ""
+                        }`}
                     >
                       <td className="px-4 py-3 font-mono text-sky-400">
                         <div
@@ -538,11 +537,10 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                           <div className="truncate flex items-center gap-1.5 flex-wrap">
                             <span
                               onClick={isParent ? () => toggleExpand(itemId) : undefined}
-                              className={`truncate ${
-                                isParent
+                              className={`truncate ${isParent
                                   ? "text-sky-300 font-bold cursor-pointer hover:underline"
                                   : "font-medium"
-                              }`}
+                                }`}
                             >
                               {item.itemBase || item.referencia || "—"}
                             </span>
@@ -716,7 +714,7 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração de descrição do item</p>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
@@ -843,7 +841,7 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração de dimensões (Largura x Altura x Profundidade)</p>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">

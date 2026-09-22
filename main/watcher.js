@@ -193,11 +193,20 @@ ipcMain.handle('analyzer:copyXmlToBusca', async (_e, { sourceFullPath }) => {
       return { ok: false, message: `Pasta de Busca XML não encontrada: ${destFolder}` };
     }
 
-    const fileName = path.basename(sourceFullPath);
+    const realSource = await resolveFilePathMaybeBase(sourceFullPath, cfg);
+    if (!realSource) {
+      return { ok: false, message: `Arquivo XML não encontrado em nenhuma das pastas configuradas (Entrada, OK, Erro ou Exportação).` };
+    }
+
+    const fileName = path.basename(realSource);
     const destFullPath = path.join(destFolder, fileName);
 
-    await fse.copy(sourceFullPath, destFullPath, { overwrite: true });
-    return { ok: true, destPath: destFullPath };
+    if (path.resolve(realSource).toLowerCase() === path.resolve(destFullPath).toLowerCase()) {
+      return { ok: true, destPath: destFullPath, message: "O arquivo já está na pasta de busca." };
+    }
+
+    await fse.copy(realSource, destFullPath, { overwrite: true });
+    return { ok: true, destPath: destFullPath, resolvedSource: realSource };
   } catch (e) {
     return { ok: false, message: String(e && e.message || e) };
   }

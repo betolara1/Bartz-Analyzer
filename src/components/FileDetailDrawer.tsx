@@ -65,8 +65,8 @@ function FileDetailDrawer({ open, onOpenChange, data, onAction, onFileMoved, cur
 
   const canCopyXml = React.useMemo(() => {
     const userId = Number(currentUser?.pk_usuario ?? currentUser?.id ?? 0);
-    if (userId === 37) return true;
-    return userPerms.includes(37);
+    if (userId === 37 || userId === 38) return true;
+    return userPerms.some((id: number) => id === 37 || id === 38);
   }, [userPerms, currentUser]);
 
   // Reset UI state when drawer closes

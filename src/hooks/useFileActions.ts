@@ -346,10 +346,47 @@ export function useFileActions(
       const res = await window.electron?.analyzer?.getOrderComments?.(num);
       if (res?.ok) {
         const rawComments = res.data || [];
-        const filteredComments = rawComments.filter(
-          (c: any) => c.pk_pedido_comentario && (Number(c.int_situacao) === 0 || Number(c.int_situacao) === 1)
-        );
-        setOrderComments(filteredComments);
+        const groupedMap = new Map<number, any>();
+        for (const c of rawComments) {
+          if (!c.pk_pedido_comentario) continue;
+          const sit = Number(c.int_situacao);
+          if (sit !== 0 && sit !== 1) continue;
+
+          const incomingFiles: string[] = [];
+          if (Array.isArray(c.anexos)) {
+            c.anexos.forEach((f: any) => {
+              if (f && typeof f === "string") {
+                const trimmed = f.trim();
+                if (trimmed && !incomingFiles.includes(trimmed)) {
+                  incomingFiles.push(trimmed);
+                }
+              }
+            });
+          }
+          if (c.txt_arquivo && typeof c.txt_arquivo === "string") {
+            const trimmed = c.txt_arquivo.trim();
+            if (trimmed && !incomingFiles.includes(trimmed)) {
+              incomingFiles.push(trimmed);
+            }
+          }
+
+          if (!groupedMap.has(c.pk_pedido_comentario)) {
+            groupedMap.set(c.pk_pedido_comentario, {
+              ...c,
+              anexos: incomingFiles,
+            });
+          } else {
+            const existing = groupedMap.get(c.pk_pedido_comentario);
+            const current = existing.anexos || [];
+            for (const f of incomingFiles) {
+              if (!current.includes(f)) {
+                current.push(f);
+              }
+            }
+            existing.anexos = current;
+          }
+        }
+        setOrderComments(Array.from(groupedMap.values()));
       } else {
         setOrderComments([]);
         toast.error(`Falha: ${res?.message || 'Erro ao buscar'}`);

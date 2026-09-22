@@ -433,7 +433,7 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração de descrição de item POXXXX</p>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
@@ -560,7 +560,7 @@ export function PoItemsSection({ isOpen, onToggle, data, hasAdminPermission }: P
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração de dimensões de item POXXXX</p>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">

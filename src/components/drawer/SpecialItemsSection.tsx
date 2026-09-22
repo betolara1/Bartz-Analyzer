@@ -452,7 +452,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data, hasAdminPermission
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração especial de componentes</p>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
@@ -579,7 +579,7 @@ export function SpecialItemsSection({ isOpen, onToggle, data, hasAdminPermission
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">Alteração especial de componentes</p>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
@@ -729,5 +729,5 @@ export function SpecialItemsSection({ isOpen, onToggle, data, hasAdminPermission
         </div>
       )}
     </section>
-);
+  );
 }

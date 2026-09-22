@@ -48,6 +48,7 @@ export interface SpecialOrderComment {
   dat_data?: string;
   nome_usuario?: string;
   txt_arquivo?: string;
+  anexos?: string[];
 }
 
 export interface SpecialOrder {
@@ -265,10 +266,6 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
       if (res?.ok && res.destPath) {
         toast.success("Arquivo baixado com sucesso!", {
           description: `Salvo em: ${res.destPath}`,
-          action: {
-            label: "Abrir Arquivo",
-            onClick: () => window.electron?.analyzer?.openFile?.(res.destPath!),
-          },
         });
       } else if (res?.message && !res.message.toLowerCase().includes("cancelado")) {
         toast.error(res.message);
@@ -393,14 +390,55 @@ export const SpecialOrdersModal: React.FC<SpecialOrdersModalProps> = ({
   };
 
 function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrderComment[] {
-  return comments.filter((c) => {
+  const map = new Map<number, SpecialOrderComment>();
+
+  for (const c of comments) {
     const sit = c.int_situacao !== null && c.int_situacao !== undefined ? Number(c.int_situacao) : 0;
     const isSituacaoOk = sit === 0 || sit === 1;
     const title = String(c.txt_titulo || "").toLowerCase();
     const text = String(c.txt_comentario || "").toLowerCase();
     const isDesconsiderado = title.includes("desconsiderad") || text.includes("desconsiderad");
-    return isSituacaoOk && !isDesconsiderado;
-  });
+    if (!isSituacaoOk || isDesconsiderado) continue;
+
+    const id = c.pk_pedido_comentario;
+    if (!id) continue;
+
+    const incomingFiles: string[] = [];
+    if (Array.isArray(c.anexos)) {
+      c.anexos.forEach((f) => {
+        if (f && typeof f === "string") {
+          const trimmed = f.trim();
+          if (trimmed && !incomingFiles.includes(trimmed)) {
+            incomingFiles.push(trimmed);
+          }
+        }
+      });
+    }
+    if (c.txt_arquivo && typeof c.txt_arquivo === "string") {
+      const trimmed = c.txt_arquivo.trim();
+      if (trimmed && !incomingFiles.includes(trimmed)) {
+        incomingFiles.push(trimmed);
+      }
+    }
+
+    if (!map.has(id)) {
+      map.set(id, {
+        ...c,
+        anexos: incomingFiles,
+      });
+    } else {
+      const existing = map.get(id)!;
+      const current = existing.anexos || [];
+      for (const f of incomingFiles) {
+        if (!current.includes(f)) {
+          current.push(f);
+        }
+      }
+      existing.anexos = current;
+    }
+  }
+
+  return Array.from(map.values());
 }
 
   const filteredOrders = useMemo(() => {
@@ -442,7 +480,13 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
         const titleStr = String(c.txt_titulo || "").toLowerCase();
         const commentStr = String(c.txt_comentario || "").toLowerCase();
         const authorStr = String(c.nome_usuario || "").toLowerCase();
-        return titleStr.includes(term) || commentStr.includes(term) || authorStr.includes(term);
+        const filesStr = (c.anexos || []).join(" ").toLowerCase();
+        return (
+          titleStr.includes(term) ||
+          commentStr.includes(term) ||
+          authorStr.includes(term) ||
+          filesStr.includes(term)
+        );
       });
     });
   }, [orders, searchTerm, statusFilter]);
@@ -919,33 +963,68 @@ function filterValidComments(comments: SpecialOrderComment[] = []): SpecialOrder
                                           ))}
                                         </div>
 
-                                        {comment.txt_arquivo && (
-                                          <div className="mt-2.5 p-2 px-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3">
-                                            <div className="flex items-center gap-2 overflow-hidden text-xs text-purple-200">
-                                              <Paperclip className="h-4 w-4 text-purple-400 shrink-0" />
-                                              <span className="truncate font-semibold text-xs" title={comment.txt_arquivo}>
-                                                {comment.txt_arquivo}
-                                              </span>
+                                        {(() => {
+                                          const anexos: string[] = [];
+                                          if (Array.isArray(comment.anexos)) {
+                                            comment.anexos.forEach((f) => {
+                                              if (f && typeof f === "string") {
+                                                const trimmed = f.trim();
+                                                if (trimmed && !anexos.includes(trimmed)) {
+                                                  anexos.push(trimmed);
+                                                }
+                                              }
+                                            });
+                                          }
+                                          if (comment.txt_arquivo && typeof comment.txt_arquivo === "string") {
+                                            const trimmed = comment.txt_arquivo.trim();
+                                            if (trimmed && !anexos.includes(trimmed)) {
+                                              anexos.push(trimmed);
+                                            }
+                                          }
+
+                                          if (anexos.length === 0) return null;
+
+                                          return (
+                                            <div className="mt-3 pt-2.5 border-t border-border/30 space-y-2">
+                                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-300">
+                                                <Paperclip className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                                                <span>Arquivo{anexos.length > 1 ? "s" : ""} Anexo{anexos.length > 1 ? "s" : ""} ({anexos.length}):</span>
+                                              </div>
+                                              <div className="space-y-1.5">
+                                                {anexos.map((file, fileIdx) => (
+                                                  <div
+                                                    key={fileIdx}
+                                                    className="p-2 px-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3 hover:bg-purple-500/15 transition-colors"
+                                                  >
+                                                    <div className="flex items-center gap-2 overflow-hidden text-xs text-purple-200">
+                                                      <FileText className="h-4 w-4 text-purple-400 shrink-0" />
+                                                      <span className="truncate font-semibold text-xs" title={file}>
+                                                        {file}
+                                                      </span>
+                                                    </div>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDownloadFile(file);
+                                                      }}
+                                                      disabled={downloadingFile === file}
+                                                      className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all"
+                                                    >
+                                                      {downloadingFile === file ? (
+                                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                                      ) : (
+                                                        <Download className="h-3 w-3" />
+                                                      )}
+                                                      Baixar Anexo
+                                                    </Button>
+                                                  </div>
+                                                ))}
+                                              </div>
                                             </div>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDownloadFile(comment.txt_arquivo!);
-                                              }}
-                                              disabled={downloadingFile === comment.txt_arquivo}
-                                              className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white border-0 gap-1.5 shrink-0 font-medium shadow-sm transition-all"
-                                            >
-                                              {downloadingFile === comment.txt_arquivo ? (
-                                                <RefreshCw className="h-3 w-3 animate-spin" />
-                                              ) : (
-                                                <Download className="h-3 w-3" />
-                                              )}
-                                              Baixar Anexo
-                                            </Button>
-                                          </div>
-                                        )}
+                                          );
+                                        })()}
                                       </div>
                                     )}
                                   </div>

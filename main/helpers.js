@@ -121,7 +121,7 @@ async function resolveFilePathMaybeBase(input, cfg) {
   if (!input) return null;
   if (await fse.pathExists(input)) return input;
   const base = path.basename(input);
-  const candidates = [cfg?.entrada, cfg?.ok, cfg?.erro, cfg?.exportacao].filter(Boolean);
+  const candidates = [cfg?.ok, cfg?.erro, cfg?.entrada, cfg?.exportacao, cfg?.simplificado].filter(Boolean);
   for (const dir of candidates) {
     const full = path.join(dir, base);
     if (await fse.pathExists(full)) return full;
