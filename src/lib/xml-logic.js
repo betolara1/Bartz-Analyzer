@@ -1,0 +1,731 @@
+// src/lib/xml-logic.js
+// Lógica de validação XML extraída para testes e reuso
+const { XMLParser } = require('fast-xml-parser');
+
+/**
+ * Valida o conteúdo XML de um orçamento Bartz.
+ */
+function validateXmlContent(txt, cfg = {}) {
+    const payload = {
+        erros: [],
+        warnings: [],
+        tags: [],
+        autoFixes: [],
+        meta: {},
+    };
+
+    // ===== BUILDER flags =====
+    const hasBldrS = /\bBUILDER\s*=\s*"S"/i.test(txt);
+    const hasBldrN = /\bBUILDER\s*=\s*"N"/i.test(txt);
+    const isFerragensOnly = hasBldrN && !hasBldrS;
+    if (isFerragensOnly) {
+        payload.tags.push("ferragens");
+        payload.meta.ferragensOnly = true;
+    }
+
+    // ===== Regras fixas =====
+    const itemMatches = Array.from(txt.matchAll(/<ITEM\b[\s\S]*?>/gi));
+    const refEmptyMatches = [];
+
+    for (const m of itemMatches) {
+        const itemTag = m[0];
+        const hasEmptyRef = /\bREFERENCIA\s*=\s*""/i.test(itemTag);
+        const hasEmptyBase = /\bITEM_BASE\s*=\s*""/i.test(itemTag);
+        const hasNoRef = !/\bREFERENCIA\s*=\s*"/i.test(itemTag);
+        const hasNoBase = !/\bITEM_BASE\s*=\s*"/i.test(itemTag);
+
+        const refIsMissing = hasEmptyRef || hasNoRef;
+        const baseIsMissing = hasEmptyBase || hasNoBase;
+
+        if (refIsMissing && baseIsMissing) {
+            const idMatch = itemTag.match(/\bID\s*=\s*"([^"]+)"/i);
+            const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]+)"/i);
+            const caminhoMatch = itemTag.match(/\bCAMINHOITEMCATALOG\s*=\s*"([^"]+)"/i);
+
+            refEmptyMatches.push({
+                id: idMatch ? idMatch[1] : null,
+                descricao: descMatch ? descMatch[1] : null,
+                caminhoItemCatalog: caminhoMatch ? caminhoMatch[1] : null,
+                snippet: itemTag.slice(0, 500)
+            });
+        }
+    }
+
+    if (refEmptyMatches.length > 0) {
+        payload.erros.push({ descricao: "ITEM SEM CÓDIGO" });
+        payload.tags.push("sem_codigo");
+
+        const map = new Map();
+        for (const r of refEmptyMatches) {
+            const key = `${r.id || ''}|${r.descricao || ''}`;
+            if (!map.has(key)) map.set(key, r);
+        }
+        payload.meta.referenciaEmpty = Array.from(map.values());
+    }
+
+    if (/\bQUANTIDADE\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM QUANTIDADE" });
+    if (/\bPRECO_TOTAL\s*=\s*"0(?:\.0+)?"/i.test(txt)) payload.erros.push({ descricao: "ITEM SEM PREÇO" });
+
+    // ===== ITEM_BASE="ES08" (DUPLADO 37MM) =====
+    try {
+        const es08Matches = [];
+        for (const m of itemMatches) {
+            const itemTag = m[0];
+            const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(ES08[^"]*)"/i) || itemTag.match(/\bITEM_BASE\s*=\s*"ES08"/i);
+            if (baseMatch) {
+                const itemBase = baseMatch[1] ? baseMatch[1].toUpperCase() : "ES08";
+                const idMatch = itemTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                const refMatch = itemTag.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+                const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+                const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+
+                const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+                const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+                const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+
+                es08Matches.push({
+                    id: idMatch ? idMatch[1] : null,
+                    itemBase,
+                    referencia: refMatch ? refMatch[1] : null,
+                    desenho: desenhoMatch ? desenhoMatch[1] : null,
+                    descricao: descMatch ? descMatch[1] : "",
+                    dimensao: `${l}x${a}x${p}`,
+                    snippet: itemTag.slice(0, 500)
+                });
+            }
+        }
+        if (es08Matches.length) {
+            payload.erros.push({ descricao: "ITEM DUPLADO 37MM" });
+            payload.tags.push("duplado37mm");
+            const map = new Map();
+            for (const r of es08Matches) {
+                const key = `${r.itemBase || ''}|${r.desenho || ''}|${r.referencia || ''}`;
+                if (!map.has(key)) map.set(key, r);
+            }
+            payload.meta.es08Matches = Array.from(map.values());
+        }
+    } catch (e) { }
+
+    // Cor coringa
+    const COR_CORINGA_LIST = [
+        "PAINEL_CG1_06", "PAINEL_CG1_18", "PAINEL_CG1_37", "PAINEL_CG1_15", "PAINEL_CG1_25",
+        "PAINEL_CG2_06", "PAINEL_CG2_18", "PAINEL_CG2_37", "PAINEL_CG2_15", "PAINEL_CG2_25",
+        "FITA_CG1_19", "FITA_CG1_22", "FITA_CG1_29", "FITA_CG1_35", "FITA_CG1_42", "FITA_CG1_50",
+        "FITA_CG2_19", "FITA_CG2_22", "FITA_CG2_29", "FITA_CG2_35", "FITA_CG2_42", "FITA_CG2_50",
+        "CHAPA_CG1_06", "CHAPA_CG1_18", "CHAPA_CG1_37", "CHAPA_CG1_15", "CHAPA_CG1_25",
+        "CHAPA_CG2_06", "CHAPA_CG2_18", "CHAPA_CG2_37", "CHAPA_CG2_15", "CHAPA_CG2_25",
+        "TAPAFURO_CG1_06", "TAPAFURO_CG1_18", "TAPAFURO_CG1_37", "TAPAFURO_CG1_15", "TAPAFURO_CG1_25",
+        "TAPAFURO_CG2_06", "TAPAFURO_CG2_18", "TAPAFURO_CG2_37", "TAPAFURO_CG2_15", "TAPAFURO_CG2_25",
+        "CAPA_CG1", "TAPAFURO_CG1", "TAPAFURO_CG2", "CAPA_CG2",
+    ];
+    try {
+        const corRegex = new RegExp(`\\b(${COR_CORINGA_LIST.join("|")})\\b`, "gi");
+        const corMatches = Array.from(new Set(Array.from(txt.matchAll(corRegex)).map(m => (m[1] || m[0] || '').toString().toUpperCase()))).filter(Boolean);
+        if (corMatches.length) {
+            payload.erros.push({ descricao: "CADASTRO DE COR CORINGA" });
+            payload.tags.push("coringa");
+            payload.meta.coringaMatches = corMatches;
+        }
+
+        const hasCG1Global = /(?<![a-zA-Z0-9])CG1(?![a-zA-Z0-9])/i.test(txt);
+        const hasCG2Global = /(?<![a-zA-Z0-9])CG2(?![a-zA-Z0-9])/i.test(txt);
+        const hasCoringa1Global = /(?<![a-zA-Z0-9])CORINGA1(?![a-zA-Z0-9])/i.test(txt);
+        const hasCoringa2Global = /(?<![a-zA-Z0-9])CORINGA2(?![a-zA-Z0-9])/i.test(txt);
+
+        if (hasCG1Global || hasCG2Global || hasCoringa1Global || hasCoringa2Global) {
+            payload.erros.push({ descricao: "PENDENTE: TROCA DE SIGLAS (LOTE)" });
+            payload.tags.push("coringa");
+            if (hasCG1Global) payload.meta.cg1_detected = true;
+            if (hasCG2Global) payload.meta.cg2_detected = true;
+            if (hasCoringa1Global) payload.meta.coringa1_detected = true;
+            if (hasCoringa2Global) payload.meta.coringa2_detected = true;
+        }
+    } catch (e) { }
+
+    // ITENS ESPECIAIS
+    try {
+        const specialItems = [];
+        for (const m of itemMatches) {
+            const itemTag = m[0];
+            const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(ES0[^"]*)"/i);
+            if (baseMatch) {
+                const itemBase = baseMatch[1].toUpperCase();
+                const idMatch = itemTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+                const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+                const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+
+                const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+                const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+                const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+
+                specialItems.push({
+                    id: idMatch ? idMatch[1] : "",
+                    itemBase,
+                    desenho: desenhoMatch ? desenhoMatch[1] : "",
+                    descricao: descMatch ? descMatch[1] : "",
+                    largura: l,
+                    altura: a,
+                    profundidade: p,
+                    dimensao: `${l}x${a}x${p}`
+                });
+            }
+        }
+        const spMap = new Map();
+        for (const s of specialItems) {
+            const key = `${s.itemBase}|${s.desenho}|${s.descricao}|${s.dimensao}`;
+            if (!spMap.has(key)) {
+                spMap.set(key, {
+                    id: s.id,
+                    itemBase: s.itemBase,
+                    desenho: s.desenho,
+                    descricao: s.descricao,
+                    largura: s.largura,
+                    altura: s.altura,
+                    profundidade: s.profundidade,
+                    dimensao: s.dimensao,
+                    ids: [s.id]
+                });
+            } else {
+                spMap.get(key).ids.push(s.id);
+            }
+        }
+        payload.meta.specialItems = Array.from(spMap.values());
+    } catch (e) { }
+
+    // ITENS POXXXX / POXXXXAA
+    try {
+        const poItems = [];
+        for (const m of itemMatches) {
+            const itemTag = m[0];
+            const baseMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(PO\d{6}[^"]*)"/i);
+            const refMatch = itemTag.match(/\bREFERENCIA\s*=\s*"(PO\d{6}[^"]*)"/i);
+            if (baseMatch || refMatch) {
+                const itemBase = (baseMatch ? baseMatch[1] : refMatch[1]).toUpperCase();
+                const referencia = (refMatch ? refMatch[1] : (baseMatch ? baseMatch[1] : "")).toUpperCase();
+                const idMatch = itemTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                const largMatch = itemTag.match(/\bLARGURA\s*=\s*"([^"]*)"/i);
+                const altMatch = itemTag.match(/\bALTURA\s*=\s*"([^"]*)"/i);
+                const profMatch = itemTag.match(/\bPROFUNDIDADE\s*=\s*"([^"]*)"/i);
+
+                const l = largMatch ? Math.round(parseFloat(largMatch[1])) : "0";
+                const a = altMatch ? Math.round(parseFloat(altMatch[1])) : "0";
+                const p = profMatch ? Math.round(parseFloat(profMatch[1])) : "0";
+
+                poItems.push({
+                    id: idMatch ? idMatch[1] : "",
+                    itemBase,
+                    referencia,
+                    desenho: desenhoMatch ? desenhoMatch[1] : "",
+                    descricao: descMatch ? descMatch[1] : "",
+                    largura: l,
+                    altura: a,
+                    profundidade: p,
+                    dimensao: `${l}x${a}x${p}`
+                });
+            }
+        }
+        const poMap = new Map();
+        for (const s of poItems) {
+            const key = `${s.itemBase}|${s.desenho}|${s.descricao}|${s.dimensao}`;
+            if (!poMap.has(key)) {
+                poMap.set(key, {
+                    id: s.id,
+                    itemBase: s.itemBase,
+                    referencia: s.referencia,
+                    desenho: s.desenho,
+                    descricao: s.descricao,
+                    largura: s.largura,
+                    altura: s.altura,
+                    profundidade: s.profundidade,
+                    dimensao: s.dimensao,
+                    ids: [s.id]
+                });
+            } else {
+                poMap.get(key).ids.push(s.id);
+            }
+        }
+        payload.meta.poItems = Array.from(poMap.values());
+    } catch (e) { }
+
+    // IMPORTKEY
+    try {
+        const importKeyMatch = txt.match(/<IMPORTKEY\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);
+        if (importKeyMatch) payload.meta.importKey = importKeyMatch[1];
+    } catch (e) { }
+
+    // MUXARABI
+    try {
+        const muxarabiItems = [];
+        for (const m of itemMatches) {
+            const itemTag = m[0];
+            const mxMatch = itemTag.match(/\bITEM_BASE\s*=\s*"(MX008[^"]*)"/i);
+            if (mxMatch) {
+                const itemBase = mxMatch[1].toUpperCase();
+                const desenhoMatch = itemTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
+                const descMatch = itemTag.match(/\bDESCRICAO\s*=\s*"([^"]*)"/i);
+                muxarabiItems.push({
+                    itemBase,
+                    desenho: desenhoMatch ? desenhoMatch[1] : "",
+                    descricao: descMatch ? descMatch[1] : ""
+                });
+            }
+        }
+        if (muxarabiItems.length > 0) {
+            const mxMap = new Map();
+            for (const m of muxarabiItems) {
+                const key = `${m.itemBase}|${m.desenho}|${m.descricao}`;
+                if (!mxMap.has(key)) mxMap.set(key, m);
+            }
+            payload.meta.muxarabiItems = Array.from(mxMap.values());
+        }
+        if (/\bMX008001\b/i.test(txt) || /\bMX008002\b/i.test(txt)) {
+            payload.erros.push({ descricao: "PEÇA MUXARABI" });
+            payload.tags.push("muxarabi");
+        }
+    } catch (e) { }
+
+    // MODULOS CURVOS
+    if (/\bLR00(0[1-9]|1[01])\b/i.test(txt)) {
+        payload.warnings.push("MÓD.CURVO  NO PED");
+        payload.tags.push("curvo");
+    }
+
+    // ===== SEM ITEM FILHO =====
+    // Analisa apenas itens PAI (top-level, direto dentro de <ITENS_PEDIDO> ou <ITENS>)
+    // Itens filhos (aninhados dentro de outro <ITEM>) NÃO devem ser verificados
+    try {
+        const parser = new XMLParser({ 
+            ignoreAttributes: false, 
+            attributeNamePrefix: "",
+            isArray: (name) => ['ITEM', 'ITEMS', 'ITENS', 'CARACTERISTICA'].includes(name)
+        });
+        const jsonObj = parser.parse(txt);
+        
+        // EXTRAÇÃO HIERÁRQUICA DE TODOS OS ITENS (PAIS E FILHOS)
+        let nextNodeId = 0;
+        const allTreeNodes = [];
+
+        const parseDim = (val) => {
+            if (!val) return 0;
+            const parsed = parseFloat(val);
+            return isNaN(parsed) ? 0 : Math.round(parsed);
+        };
+
+        const traverseNode = (node, parentNodeId = null, depth = 0, ancestorNodeIds = []) => {
+            if (!node || typeof node !== 'object') return;
+
+            if (Array.isArray(node)) {
+                node.forEach(n => traverseNode(n, parentNodeId, depth, ancestorNodeIds));
+                return;
+            }
+
+            // Se for um nó de ITEM
+            if (node.ID !== undefined || node.REFERENCIA !== undefined || node.ITEM_BASE !== undefined || node.DESCRICAO !== undefined) {
+                const currentNodeId = nextNodeId++;
+                const currentAncestors = [...ancestorNodeIds];
+                if (parentNodeId !== null) {
+                    currentAncestors.push(parentNodeId);
+                }
+
+                const id = String(node.ID || "").trim();
+                let idPromob = String(node.ID_PROMOB || "").trim();
+                let idPai = String(node.ID_PAI || node.PAI || "").trim();
+                const caminhoItemCatalog = String(node.CAMINHOITEMCATALOG || "").trim();
+                const itemBase = String(node.ITEM_BASE || "").trim().toUpperCase();
+                const referencia = String(node.REFERENCIA || "").trim().toUpperCase();
+                const desenho = String(node.DESENHO || "").trim();
+                let descricao = String(node.DESCRICAO || "").trim();
+
+                // Extrair características (CODE_ASPAN, DESCRICAO, ID_PAI, ID_PROMOB, etc.) para busca rica
+                const extraSearchParts = [];
+                if (node.CONFIGURADO && node.CONFIGURADO.CARACTERISTICA) {
+                    const caracs = Array.isArray(node.CONFIGURADO.CARACTERISTICA)
+                        ? node.CONFIGURADO.CARACTERISTICA
+                        : [node.CONFIGURADO.CARACTERISTICA];
+                    for (const c of caracs) {
+                        if (c && c.RESPOSTA !== undefined) {
+                            const resp = String(c.RESPOSTA).trim();
+                            extraSearchParts.push(resp);
+                            const cod = String(c.CODIGO || "").toUpperCase();
+                            if (!descricao && (cod === "CODE_ASPAN" || cod === "DESCRICAO" || cod === "DESC")) {
+                                descricao = resp;
+                            }
+                            if (cod === "ID_PAI" && !idPai) {
+                                idPai = resp;
+                            }
+                            if (cod === "ID_PROMOB" && !idPromob) {
+                                idPromob = resp;
+                            }
+                        }
+                    }
+                }
+
+                const l = parseDim(node.LARGURA);
+                const a = parseDim(node.ALTURA);
+                const p = parseDim(node.PROFUNDIDADE);
+
+                let uniqueId = "";
+                if (node.UNIQUE_ID) {
+                    if (typeof node.UNIQUE_ID === 'object') {
+                        uniqueId = String(node.UNIQUE_ID.CODIGO || node.UNIQUE_ID._CODIGO || "").trim();
+                    } else if (typeof node.UNIQUE_ID === 'string') {
+                        uniqueId = node.UNIQUE_ID.trim();
+                    }
+                }
+
+                const record = {
+                    nodeId: currentNodeId,
+                    parentId: parentNodeId,
+                    ancestorIds: currentAncestors,
+                    childNodeIds: [],
+                    descendantIds: [],
+                    id,
+                    idPromob,
+                    uniqueId,
+                    idPai,
+                    caminhoItemCatalog,
+                    itemBase,
+                    referencia,
+                    desenho,
+                    descricao,
+                    largura: l,
+                    altura: a,
+                    profundidade: p,
+                    extraSearch: extraSearchParts.join(" "),
+                    dimensao: `${l}x${a}x${p}`,
+                    depth,
+                    ids: [id]
+                };
+
+                allTreeNodes.push(record);
+
+                // Percorre filhos aninhados mantendo hierarquia
+                for (const key in node) {
+                    if (key === 'CONFIGURADO' || key === 'MAQUINAS' || key === 'ROTEIRO') continue;
+                    traverseNode(node[key], currentNodeId, depth + 1, currentAncestors);
+                }
+
+                return;
+            }
+
+            // Não é um nó ITEM diretamente, percorre os filhos mantendo o mesmo parent
+            for (const key in node) {
+                if (key === 'CONFIGURADO' || key === 'MAQUINAS' || key === 'ROTEIRO') continue;
+                traverseNode(node[key], parentNodeId, depth, ancestorNodeIds);
+            }
+        };
+
+        traverseNode(jsonObj);
+
+        // Conectar childNodeIds
+        for (const node of allTreeNodes) {
+            if (node.parentId !== null) {
+                const parent = allTreeNodes.find(n => n.nodeId === node.parentId);
+                if (parent) {
+                    parent.childNodeIds.push(node.nodeId);
+                }
+            }
+        }
+
+        // Conectar descendantIds de baixo para cima
+        for (let i = allTreeNodes.length - 1; i >= 0; i--) {
+            const node = allTreeNodes[i];
+            const descendants = new Set(node.childNodeIds);
+            for (const childId of node.childNodeIds) {
+                const childNode = allTreeNodes.find(n => n.nodeId === childId);
+                if (childNode && childNode.descendantIds) {
+                    childNode.descendantIds.forEach(id => descendants.add(id));
+                }
+            }
+            node.descendantIds = Array.from(descendants);
+        }
+
+        payload.meta.allItems = allTreeNodes;
+
+        // VINCULAÇÃO DE ITEM PAI PARA REFERENCIA EMPTY
+        if (payload.meta.referenciaEmpty && payload.meta.referenciaEmpty.length > 0) {
+            const mapByIdPromob = new Map();
+            const mapById = new Map();
+            const mapByNodeId = new Map();
+
+            for (const n of allTreeNodes) {
+                mapByNodeId.set(n.nodeId, n);
+                if (n.idPromob) mapByIdPromob.set(n.idPromob, n);
+                if (n.id) {
+                    if (!mapById.has(n.id)) mapById.set(n.id, n);
+                }
+            }
+
+            for (const refItem of payload.meta.referenciaEmpty) {
+                // Tenta encontrar o nó correspondente na árvore
+                const matchNode = allTreeNodes.find(n => n.id === refItem.id && (!refItem.descricao || n.descricao === refItem.descricao)) ||
+                                  allTreeNodes.find(n => n.id === refItem.id);
+
+                let parentNode = null;
+                if (matchNode) {
+                    if (matchNode.idPai) {
+                        parentNode = mapByIdPromob.get(matchNode.idPai) || mapById.get(matchNode.idPai);
+                    }
+                    if (!parentNode && matchNode.parentId !== null) {
+                        parentNode = mapByNodeId.get(matchNode.parentId);
+                    }
+                    if (!parentNode && matchNode.ancestorIds && matchNode.ancestorIds.length > 0) {
+                        const lastAncestorId = matchNode.ancestorIds[matchNode.ancestorIds.length - 1];
+                        parentNode = mapByNodeId.get(lastAncestorId);
+                    }
+                }
+
+                // Fallback via regex no XML se não encontrou via árvore
+                if (!parentNode && refItem.id) {
+                    try {
+                        const escapedId = refItem.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const itemBlockRx = new RegExp(`<ITEM\\b[^>]*\\bID="${escapedId}"[\\s\\S]*?<\\/ITEM>`, "i");
+                        const blockMatch = txt.match(itemBlockRx);
+                        if (blockMatch) {
+                            const idPaiMatch = blockMatch[0].match(/<CARACTERISTICA\\b[^>]*\\bCODIGO="ID_PAI"[^>]*\\bRESPOSTA="([^"]+)"/i) ||
+                                              blockMatch[0].match(/\\bID_PAI="([^"]+)"/i);
+                            if (idPaiMatch) {
+                                const foundIdPai = idPaiMatch[1];
+                                const parentTagRx = new RegExp(`<ITEM\\b[^>]*\\bID_PROMOB="${foundIdPai}"[^>]*>`, "i");
+                                const parentTagMatch = txt.match(parentTagRx);
+                                if (parentTagMatch) {
+                                    const pt = parentTagMatch[0];
+                                    const pDesc = pt.match(/\\bDESCRICAO="([^"]+)"/i);
+                                    const pId = pt.match(/\\bID="([^"]+)"/i);
+                                    const pDesenho = pt.match(/\\bDESENHO="([^"]+)"/i);
+                                    const pRef = pt.match(/\\bREFERENCIA="([^"]+)"/i);
+                                    const pBase = pt.match(/\\bITEM_BASE="([^"]+)"/i);
+                                    const pCaminho = pt.match(/\\bCAMINHOITEMCATALOG="([^"]+)"/i);
+                                    parentNode = {
+                                        id: pId ? pId[1] : foundIdPai,
+                                        idPromob: foundIdPai,
+                                        descricao: pDesc ? pDesc[1] : "",
+                                        desenho: pDesenho ? pDesenho[1] : "",
+                                        referencia: pRef ? pRef[1] : (pBase ? pBase[1] : ""),
+                                        caminhoItemCatalog: pCaminho ? pCaminho[1] : ""
+                                    };
+                                }
+                            }
+                        }
+                    } catch (e) { }
+                }
+
+                if (parentNode) {
+                    refItem.idPai = parentNode.id || parentNode.idPromob || "";
+                    refItem.descricaoPai = parentNode.descricao || parentNode.desenho || parentNode.id || "";
+                    refItem.caminhoPai = parentNode.caminhoItemCatalog || "";
+                    refItem.desenhoPai = parentNode.desenho || "";
+                    refItem.referenciaPai = parentNode.referencia || parentNode.itemBase || "";
+                    refItem.dimensaoPai = parentNode.dimensao || "";
+                    refItem.idPromobPai = parentNode.idPromob || "";
+                }
+            }
+        }
+
+        // SEM ITEM FILHO: Analisa bloco por bloco de <ITEM> dentro de <ITENS_PEDIDO>
+        // Se o bloco do item PAI não contém <UNIQUE_ID>, é inconsistência "sem filho"
+        const semFilhoMatches = [];
+
+        // Encontra o conteúdo do container principal (ITENS_PEDIDO ou ITENS de primeiro nível)
+        let containerContent = null;
+
+        // Tenta ITENS_PEDIDO primeiro (mais específico)
+        const ipMatch = txt.match(/<ITENS_PEDIDO\b[^>]*>([\s\S]*)<\/ITENS_PEDIDO>/i);
+        if (ipMatch) {
+            containerContent = ipMatch[1];
+        } else {
+            // Fallback: primeiro <ITENS> do documento com depth tracking
+            const itensOpenMatch = txt.match(/<ITENS\b[^>]*>/i);
+            if (itensOpenMatch) {
+                const startIdx = itensOpenMatch.index + itensOpenMatch[0].length;
+                let d = 1;
+                const itensTagRx = /<(\/?)(ITENS)\b[^>]*>/gi;
+                itensTagRx.lastIndex = startIdx;
+                let tm;
+                while ((tm = itensTagRx.exec(txt)) !== null) {
+                    if (tm[1] === '/') {
+                        d--;
+                        if (d === 0) {
+                            containerContent = txt.substring(startIdx, tm.index);
+                            break;
+                        }
+                    } else {
+                        d++;
+                    }
+                }
+            }
+        }
+
+        if (containerContent) {
+            // Extrai cada bloco top-level de <ITEM> por tracking de profundidade
+            const itemTagRx = /<(\/?)ITEM\b([^>]*?)(\/?)>/gi;
+            let tm;
+            let depth = 0;
+            let blockStart = -1;
+
+            while ((tm = itemTagRx.exec(containerContent)) !== null) {
+                const isClose = tm[1] === '/';
+                const isSelfClose = tm[3] === '/';
+
+                if (!isClose && !isSelfClose) {
+                    // Opening <ITEM ...>
+                    if (depth === 0) blockStart = tm.index;
+                    depth++;
+                } else if (isSelfClose) {
+                    // Self-closing <ITEM ... />
+                    if (depth === 0) {
+                        const block = tm[0];
+                        if (!/<UNIQUE_ID\b/i.test(block)) {
+                            const idM = block.match(/\bID\s*=\s*"([^"]*)"/i);
+                            const refM = block.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+                            semFilhoMatches.push({
+                                id: idM ? idM[1] : "",
+                                referencia: refM ? refM[1] : "",
+                                rawBlock: block
+                            });
+                        }
+                    }
+                } else {
+                    // Closing </ITEM>
+                    depth--;
+                    if (depth === 0 && blockStart >= 0) {
+                        const blockEnd = tm.index + tm[0].length;
+                        const block = containerContent.substring(blockStart, blockEnd);
+
+                        // Se o bloco NÃO contém <UNIQUE_ID>, é "sem filho"
+                        if (!/<UNIQUE_ID\b/i.test(block)) {
+                            const openTagM = block.match(/<ITEM\b([^>]*)>/i);
+                            const openTag = openTagM ? openTagM[1] : "";
+                            const idM = openTag.match(/\bID\s*=\s*"([^"]*)"/i);
+                            const refM = openTag.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+                            semFilhoMatches.push({
+                                id: idM ? idM[1] : "",
+                                referencia: refM ? refM[1] : "",
+                                rawBlock: block
+                            });
+                        }
+                        blockStart = -1;
+                    }
+                }
+            }
+        }
+
+        if (semFilhoMatches.length > 0) {
+            payload.erros.push({ descricao: "Sem Item Filho" });
+            payload.tags.push("sem_filho");
+            payload.meta.semFilhoItems = semFilhoMatches;
+        }
+    } catch (e) { }
+
+    // MAQUINAS
+    const machines = [];
+    for (const m of txt.matchAll(/<MAQUINA\b([^>]*\bID_PLUGIN\s*=\s*"([^"]+)"[^>]*\bNOME_PLUGIN\s*=\s*"([^"]+)")/gi)) {
+        const id = (m[2] || "").trim();
+        const name = (m[3] || "").trim();
+        if (id === "2530" || id === "2534") {
+            machines.push({ id, name });
+        }
+    }
+    payload.meta.machines = machines;
+
+    if (!isFerragensOnly) {
+        const REQUIRED_PLUGINS = ["2530", "2534"];
+        const seen = new Set(machines.map(m => m.id));
+        if (!REQUIRED_PLUGINS.every(id => seen.has(id))) {
+            payload.tags.push("SEM GERAÇÃO DE MÁQUINAS");
+            payload.warnings.push("SEM GERAÇÃO DE MÁQUINAS");
+        }
+        const PLUGIN_NAMES = { "2530": "Aspan", "2534": "NCB612" };
+        payload.meta.machines = Array.from(seen).map(id => ({ id, name: PLUGIN_NAMES[id] }));
+    }
+
+    // AUTO-FIX
+    let updatedTxt = txt;
+    if (cfg.enableAutoFix) {
+        let changed = false;
+        let priceFixCount = 0;
+        let qtyFixCount = 0;
+
+        updatedTxt = updatedTxt.replace(/<ITEM\b([^>]*)>/gi, (full, attrs) => {
+            let updatedAttrs = attrs;
+            const refMatch = updatedAttrs.match(/\bREFERENCIA\s*=\s*"([^"]*)"/i);
+            const ref = (refMatch?.[1] || "").trim();
+
+            const qtyMatch = updatedAttrs.match(/\bQUANTIDADE\s*=\s*"([^"]*)"/i);
+            if (qtyMatch) {
+                const qtyVal = (qtyMatch[1] || "").trim();
+                if (ref && /^0(?:\.0+)?$/.test(qtyVal)) {
+                    updatedAttrs = updatedAttrs.replace(/(\bQUANTIDADE\s*=\s*")0(?:\.0+)?(")/i, `$11$2`);
+                    qtyFixCount++;
+                    changed = true;
+                }
+            }
+
+            const priceMatch = updatedAttrs.match(/\bPRECO_TOTAL\s*=\s*"([^"]*)"/i);
+            if (priceMatch) {
+                const pVal = (priceMatch[1] || "").trim();
+                if (/^0(?:\.0+)?$/.test(pVal)) {
+                    updatedAttrs = updatedAttrs.replace(/(\bPRECO_TOTAL\s*=\s*")0(?:\.0+)?(")/i, `$10.10$2`);
+                    priceFixCount++;
+                    changed = true;
+                }
+            }
+            return `<ITEM${updatedAttrs}>`;
+        });
+
+        if (qtyFixCount > 0) {
+            payload.autoFixes.push(`Ajustes de QUANTIDADE aplicados em ${qtyFixCount} item(ns)`);
+            payload.erros = (payload.erros || []).filter(e => (e.descricao || e).toUpperCase() !== "ITEM SEM QUANTIDADE");
+        }
+        if (priceFixCount > 0) {
+            payload.autoFixes.push(`Ajustes de PREÇO aplicados em ${priceFixCount} item(ns)`);
+            payload.erros = (payload.erros || []).filter(e => (e.descricao || e).toUpperCase() !== "ITEM SEM PREÇO");
+        }
+
+        if (payload.meta.semFilhoItems && payload.meta.semFilhoItems.length > 0) {
+            let semFilhoRemovedCount = 0;
+            payload.meta.semFilhoItems.forEach(item => {
+                if (item.rawBlock) {
+                    // Try to remove leading spaces/tabs and newline before the block for a cleaner deletion
+                    // But if it doesn't match perfectly, fallback to just replacing the block itself
+                    const rawEscaped = item.rawBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regexClean = new RegExp(`[ \\t]*\\n?[ \\t]*` + rawEscaped + `\\n?`, 'i');
+                    if (regexClean.test(updatedTxt)) {
+                        updatedTxt = updatedTxt.replace(regexClean, '');
+                    } else {
+                        updatedTxt = updatedTxt.replace(item.rawBlock, '');
+                    }
+                    semFilhoRemovedCount++;
+                }
+            });
+            if (semFilhoRemovedCount > 0) {
+                payload.autoFixes.push(`Removido ${semFilhoRemovedCount} item(ns) vazio(s) sem filho`);
+                payload.erros = (payload.erros || []).filter(e => (e.descricao || e).toUpperCase() !== "SEM ITEM FILHO");
+            }
+        }
+    }
+
+    // Dedup final
+    payload.tags = Array.from(new Set(payload.tags));
+    const dedup = (arr) => {
+        const s = new Set();
+        return (arr || []).filter(x => {
+            const k = (typeof x === "string" ? x : x?.descricao || String(x)).toLowerCase();
+            if (s.has(k)) return false; s.add(k); return true;
+        });
+    };
+    payload.erros = dedup(payload.erros);
+    payload.warnings = dedup(payload.warnings);
+
+    return { payload, updatedTxt };
+}
+
+module.exports = { validateXmlContent };
