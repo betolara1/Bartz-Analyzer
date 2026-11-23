@@ -65,6 +65,8 @@ export function SeparadosSection({ data, hasAdminPermission }: SeparadosSectionP
     data,
     theme: "sky",
     includePromobMetadata: true,
+    allowReplaceAllCodeMatches: true,
+    allItems,
     enableDimensionPropagation: true,
     descriptionSubtitle: "Alteração textual da descrição do produto no XML",
     dimensionSubtitle: "Alteração de dimensões (Largura x Altura x Profundidade)",

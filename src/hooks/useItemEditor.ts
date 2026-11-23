@@ -2,7 +2,15 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Row } from "../types";
 import { electronClient } from "../services/electronClient";
-import { parseItemDimensions, isParentItem } from "../utils/itemHelpers";
+import {
+  familyScopeNote,
+  getTargetIds,
+  getTargetRefs,
+  parseItemDimensions,
+  isParentItem,
+  resolveDescriptionTargets,
+  resolveDimensionTargets,
+} from "../utils/itemHelpers";
 
 export type ItemEditorTheme = "sky" | "indigo" | "purple";
 
@@ -42,6 +50,9 @@ export interface UseItemEditorOptions {
   enableDimensionPropagation?: boolean;
   /** Aba Itens: descrição no pai e no filho; dimensão no pai, filho e chapa. */
   syncItensFamily?: boolean;
+  allowReplaceAllCodeMatches?: boolean;
+  /** All parsed XML items; used only by the Items tab to resolve family scope. */
+  allItems?: any[];
 }
 
 export interface ResolvedModalConfig {
@@ -52,6 +63,7 @@ export interface ResolvedModalConfig {
   includePromobMetadata: boolean;
   enableDimensionPropagation: boolean;
   syncItensFamily: boolean;
+  allowReplaceAllCodeMatches: boolean;
 }
 
 export interface UseItemEditorReturn {
@@ -96,6 +108,8 @@ export interface UseItemEditorReturn {
   newCode: string;
   setNewCode: (v: string) => void;
   isSavingCode: boolean;
+  replaceAllSameCode: boolean;
+  setReplaceAllSameCode: (value: boolean) => void;
   handleOpenEditCodeModal: (item: any) => void;
   handleCloseEditCodeModal: () => void;
   handleProceedToConfirmCode: () => void;
@@ -124,6 +138,8 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     includePromobMetadata = false,
     enableDimensionPropagation = false,
     syncItensFamily = false,
+    allowReplaceAllCodeMatches = false,
+    allItems = [],
   } = options;
 
   const modalConfig: ResolvedModalConfig = {
@@ -134,6 +150,7 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     includePromobMetadata,
     enableDimensionPropagation,
     syncItensFamily,
+    allowReplaceAllCodeMatches,
   };
 
   // --- Description State ---
@@ -159,6 +176,7 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
   const [selectedCodeItem, setSelectedCodeItem] = useState<any>(null);
   const [newCode, setNewCode] = useState("");
   const [isSavingCode, setIsSavingCode] = useState(false);
+  const [replaceAllSameCode, setReplaceAllSameCode] = useState(false);
 
   // --- Delete State ---
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -167,10 +185,11 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
 
   // --- Description Handlers ---
   const handleOpenEditModal = useCallback((item: any) => {
-    setSelectedItem(item);
+    const targets = syncItensFamily ? resolveDescriptionTargets(item, allItems) : [{ item }];
+    setSelectedItem({ ...item, editTargetIds: getTargetIds(targets), editTargetRefs: getTargetRefs(targets, allItems), editScopeNote: syncItensFamily ? familyScopeNote(targets, "descricao") : null });
     setNewDescription(item?.descricao || "");
     setIsEditModalOpen(true);
-  }, []);
+  }, [allItems, syncItensFamily]);
 
   const handleCloseEditModal = useCallback(() => {
     setIsEditModalOpen(false);
@@ -193,9 +212,11 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     setIsSaving(true);
     const id = toast.loading("Salvando nova descrição...");
     try {
-      const ids = selectedItem.ids || [selectedItem.id];
+      const ids = selectedItem.editTargetIds || selectedItem.ids || [selectedItem.id];
+      const targetByIds = (selectedItem.editTargetIds || []).length > 0;
+      const targetOptions = targetByIds ? { exactIds: true, targetRefs: selectedItem.editTargetRefs } : {};
       const opt = includePromobMetadata
-        ? { idPromob: selectedItem.idPromob, uniqueId: selectedItem.uniqueId }
+        ? { idPromob: targetByIds ? undefined : selectedItem.idPromob, uniqueId: targetByIds ? undefined : selectedItem.uniqueId, ...targetOptions }
         : undefined;
 
       const res = await electronClient.analyzer.replaceItemDescription(
@@ -223,14 +244,15 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
 
   // --- Dimension Handlers ---
   const handleOpenEditDimModal = useCallback((item: any) => {
-    setSelectedDimItem(item);
+    const targets = syncItensFamily ? resolveDimensionTargets(item, allItems) : [{ item }];
+    setSelectedDimItem({ ...item, editTargetIds: getTargetIds(targets), editTargetRefs: getTargetRefs(targets, allItems), editScopeNote: syncItensFamily ? familyScopeNote(targets, "dimensao") : null });
     setPropagateToChildren(true);
     const dims = parseItemDimensions(item);
     setNewLargura(dims.largura);
     setNewAltura(dims.altura);
     setNewProfundidade(dims.profundidade);
     setIsEditDimModalOpen(true);
-  }, []);
+  }, [allItems, syncItensFamily]);
 
   const handleCloseEditDimModal = useCallback(() => {
     setIsEditDimModalOpen(false);
@@ -254,11 +276,14 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     const id = toast.loading("Salvando nova dimensão...");
     try {
       const isParent = isParentItem(selectedDimItem);
-      const ids = selectedDimItem.ids || [selectedDimItem.id];
+      const ids = selectedDimItem.editTargetIds || selectedDimItem.ids || [selectedDimItem.id];
+      // Aba Itens: pai + filho + chapa recebem o mesmo valor, localizados por id + uniqueId (sem varrer IDs repetidos).
+      const targetByIds = syncItensFamily && (selectedDimItem.editTargetIds || []).length > 0;
       const opt = {
-        idPromob: includePromobMetadata ? selectedDimItem.idPromob : undefined,
-        uniqueId: includePromobMetadata ? selectedDimItem.uniqueId : undefined,
-        updateChildren: enableDimensionPropagation && isParent ? propagateToChildren : false,
+        ...(targetByIds ? { exactIds: true, targetRefs: selectedDimItem.editTargetRefs } : {}),
+        idPromob: includePromobMetadata && !syncItensFamily ? selectedDimItem.idPromob : undefined,
+        uniqueId: includePromobMetadata && !syncItensFamily ? selectedDimItem.uniqueId : undefined,
+        updateChildren: !syncItensFamily && enableDimensionPropagation && isParent ? propagateToChildren : false,
         isParent,
         oldDimension: {
           largura: selectedDimItem.largura,
@@ -302,10 +327,12 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     propagateToChildren,
     includePromobMetadata,
     enableDimensionPropagation,
+    syncItensFamily,
   ]);
 
   // --- Code Handlers ---
   const handleOpenEditCodeModal = useCallback((item: any) => {
+    setReplaceAllSameCode(false);
     setSelectedItem(null);
     setSelectedDimItem(null);
     setSelectedCodeItem(item);
@@ -334,12 +361,27 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     setIsSavingCode(true);
     const toastId = toast.loading(codeModalLabels.loadingToast);
     try {
-      const oldCode = (selectedCodeItem.itemBase || selectedCodeItem.referencia || "").trim();
-      const ids = selectedCodeItem.ids || [selectedCodeItem.id];
+      const replaceAllMatches = allowReplaceAllCodeMatches && replaceAllSameCode;
+      const ids = replaceAllMatches ? [] : (selectedCodeItem.id != null ? [selectedCodeItem.id] : []);
+      if (ids.length === 0) {
+        if (!replaceAllMatches) {
+          toast.error("Não foi possível identificar o ID deste item no XML.");
+          return;
+        }
+      }
+      // Aba Itens: troca somente o nó selecionado, mesmo que existam outros com o mesmo código/ID.
+      const exactOpts = (syncItensFamily || allowReplaceAllCodeMatches) && !replaceAllMatches
+        ? {
+            exactIds: true,
+            targetRefs: getTargetRefs([{ item: selectedCodeItem, role: "item" }], allItems),
+          }
+        : {};
       const opt = {
-        oldCode,
-        oldItemBase: selectedCodeItem.itemBase,
-        oldReferencia: selectedCodeItem.referencia,
+        ...exactOpts,
+        replaceAllMatches,
+        oldCode: replaceAllMatches ? (selectedCodeItem.itemBase || selectedCodeItem.referencia) : undefined,
+        oldItemBase: replaceAllMatches ? selectedCodeItem.itemBase : undefined,
+        oldReferencia: replaceAllMatches ? selectedCodeItem.referencia : undefined,
         idPromob: includePromobMetadata ? selectedCodeItem.idPromob : undefined,
         uniqueId: includePromobMetadata ? selectedCodeItem.uniqueId : undefined,
       };
@@ -369,7 +411,7 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
       setIsSavingCode(false);
       toast.dismiss(toastId);
     }
-  }, [data, selectedCodeItem, newCode, codeModalLabels, includePromobMetadata]);
+  }, [data, selectedCodeItem, newCode, codeModalLabels, includePromobMetadata, syncItensFamily, allowReplaceAllCodeMatches, replaceAllSameCode, allItems]);
 
   // --- Delete Handlers ---
   const handleOpenDeleteConfirm = useCallback((item: any) => {
@@ -459,6 +501,8 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     newCode,
     setNewCode,
     isSavingCode,
+    replaceAllSameCode,
+    setReplaceAllSameCode,
     handleOpenEditCodeModal,
     handleCloseEditCodeModal,
     handleProceedToConfirmCode,
@@ -475,4 +519,3 @@ export function useItemEditor(options: UseItemEditorOptions): UseItemEditorRetur
     modalConfig,
   };
 }
-

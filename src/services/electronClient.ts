@@ -44,7 +44,7 @@ export const electronClient = {
       ids: string[],
       newDescription: string,
       desenho?: string,
-      options?: { idPromob?: string; uniqueId?: string }
+      options?: { idPromob?: string; uniqueId?: string; exactIds?: boolean; targetRefs?: Array<{ id: string; uniqueId?: string; path?: number[] }> }
     ) => window.electron?.analyzer?.replaceItemDescription?.(filePath, ids, newDescription, desenho, options),
     replaceItemDimension: (
       filePath: string,
@@ -57,6 +57,8 @@ export const electronClient = {
         updateChildren?: boolean;
         isParent?: boolean;
         oldDimension?: any;
+        exactIds?: boolean;
+        targetRefs?: Array<{ id: string; uniqueId?: string; path?: number[] }>;
       }
     ) => window.electron?.analyzer?.replaceItemDimension?.(filePath, ids, newDimension, desenho, options),
     replaceItemCode: (
@@ -70,6 +72,9 @@ export const electronClient = {
         oldReferencia?: string;
         idPromob?: string;
         uniqueId?: string;
+        exactIds?: boolean;
+        targetRefs?: Array<{ id: string; uniqueId?: string; path?: number[] }>;
+        replaceAllMatches?: boolean;
       }
     ) => window.electron?.analyzer?.replaceItemCode?.(filePath, ids, newCode, desenho, options),
     deleteItem: (
@@ -202,4 +207,3 @@ export const electronClient = {
     installUpdate: () => window.electron?.updater?.installUpdate?.(),
   },
 };
-

@@ -32,6 +32,8 @@ export function ItemsSection({ isOpen, onToggle, data, hasAdminPermission }: Ite
   const editor = useItemEditor({
     data,
     theme: "sky",
+    syncItensFamily: true,
+    allItems,
     includePromobMetadata: true,
     enableDimensionPropagation: true,
     descriptionSubtitle: "Alteração textual da descrição do produto no XML",

@@ -4,7 +4,7 @@
 
 ### Sistema Industrial de Monitoramento, Validação de Engenharia, Integração ERP DB2/MySQL e Auto-Fix de XML/DXF para Produção CNC
 
-[![Versão](https://img.shields.io/badge/Versão-6.0.4-8B5CF6?style=for-the-badge&logo=electron&logoColor=white)](https://github.com/betolara1/Bartz-Analyzer)
+[![Versão](https://img.shields.io/badge/Versão-6.7.0-8B5CF6?style=for-the-badge&logo=electron&logoColor=white)](https://github.com/betolara1/Bartz-Analyzer)
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-37.3-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
@@ -216,12 +216,24 @@ Ao clicar em qualquer pedido na interface React, um **Drawer interativo de alta 
 * **Referências Pendentes:** Identificação do item pai e preenchimento ágil de códigos de referência ERP.
 * **Cores Coringa:** Interface otimizada com inputs padronizados, substituição rápida de siglas (`CG1`, `CG2`, `CORINGA1`) por cores do ERP e sistema de **Backup & Undo** de 1 clique.
 * **Peças Dupladas (ES08):** Visualização de espessuras, status de usinagem e acionador de correção de fresa.
-* **Itens do Pedido:** Tabela completa com itens pai/filho, edição de descrições e re-associação de arquivos `DESENHO`.
+* **Itens do Pedido:** Tabela hierárquica de itens pai/filho, com edição de descrição, dimensão e código. A edição localiza os nós pelo caminho na árvore XML e pelo `ITEM.ID`; `ITEM_BASE` e `REFERENCIA` não são usados como identificadores, pois podem se repetir.
+  * **Descrição:** ao editar um pai ou seu filho de produto, atualiza o par daquela linha. Componentes como chapa, cola, fita e embalagem mantêm a descrição própria. A gravação é limitada aos nós selecionados, mesmo quando há códigos iguais em outras linhas.
+  * **Dimensão:** editar pai, filho ou chapa atualiza os itens relacionados definidos para aquela linha com o mesmo valor de largura, altura e profundidade.
+  * **Código/item base:** altera somente o nó selecionado e seus campos `ITEM_BASE`, `REFERENCIA` e `PRICE` aplicáveis; códigos iguais em outras linhas permanecem intactos.
+* **Separados:** a edição de `ITEM_BASE` / `REFERENCIA` mostra a opção **Trocar tudo**, desmarcada por padrão. Desmarcada, altera apenas a linha selecionada. Marcada, altera todos os itens cujo `ITEM_BASE` ou `REFERENCIA` corresponda aos valores originais da linha selecionada. A opção está disponível somente nesta aba.
 * **Separação de Chapas:** Gestão de lotes de MDF/MDP associados ao projeto.
 * **Pesquisa de Produtos ERP:** Modal integrado de busca no ERP corporativo por código ou descrição para inserção direta no pedido.
 * **Lote de Pedidos de Compra (PO):** Filtragem e exibição isolada de itens em formato `POXXXXXX`.
 * **ImportKey & Promob:** Verificação de chave de importação e download do arquivo `.promob`.
 * **Muxarabi & Desenhos Especiais:** Visualizador e acionador direto dos desenhos DXF no software CAD padrão.
+
+#### Pendências de validação das edições XML
+
+As regras acima estão implementadas, mas precisam ser confirmadas com XMLs reais antes de considerar a validação operacional concluída:
+
+* Em **Itens**, editar descrição e dimensão de pai, filho e chapa em um XML com códigos repetidos; confirmar que só os nós da linha selecionada mudam.
+* Em **Separados**, repetir a troca de código com **Trocar tudo** desmarcado e marcado. No segundo caso, conferir a contagem e os campos `ITEM_BASE`, `REFERENCIA` e `PRICE` dos itens alterados.
+* Conferir se descrições gravadas na tag `<ITEM>` também precisam atualizar algum `PartName` ou outro campo auxiliar do XML; a edição exata atual altera o atributo `DESCRICAO` apenas nos nós selecionados.
 
 ---
 

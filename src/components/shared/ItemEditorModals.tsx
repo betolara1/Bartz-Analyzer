@@ -109,6 +109,8 @@ export const ItemEditorModals: React.FC<ItemEditorModalsProps> = ({ editor }) =>
     newCode,
     setNewCode,
     isSavingCode,
+    replaceAllSameCode,
+    setReplaceAllSameCode,
     handleCloseEditCodeModal,
     handleProceedToConfirmCode,
     handleBackToEditCode,
@@ -226,6 +228,11 @@ export const ItemEditorModals: React.FC<ItemEditorModalsProps> = ({ editor }) =>
               <p className="text-xs text-zinc-300 leading-relaxed font-medium">
                 Você tem certeza que deseja alterar a descrição deste produto no arquivo XML? Esta alteração será gravada diretamente nas tags correspondentes.
               </p>
+              {selectedItem.editScopeNote && (
+                <div className={`text-[11px] text-zinc-300 ${t.scopeBox} rounded-lg p-2.5`}>
+                  <span className={`font-bold ${t.scopeText}`}>Escopo da alteração: </span>{selectedItem.editScopeNote}
+                </div>
+              )}
 
               <div className="space-y-3 p-4 rounded-xl bg-[#0E0E0E] border border-[#232323]">
                 <div>
@@ -336,7 +343,7 @@ export const ItemEditorModals: React.FC<ItemEditorModalsProps> = ({ editor }) =>
                   </span>
                 </div>
 
-                {modalConfig.enableDimensionPropagation && isParentItem(selectedDimItem) && (
+                {!modalConfig.syncItensFamily && modalConfig.enableDimensionPropagation && isParentItem(selectedDimItem) && (
                   <div className="pt-2 border-t border-[#232323]">
                     <label className={`flex items-start gap-2.5 cursor-pointer select-none group p-2.5 rounded-lg ${t.propagateBox} transition-colors`}>
                       <input
@@ -420,7 +427,7 @@ export const ItemEditorModals: React.FC<ItemEditorModalsProps> = ({ editor }) =>
                 </div>
               </div>
 
-              {modalConfig.enableDimensionPropagation && isParentItem(selectedDimItem) && (
+              {!modalConfig.syncItensFamily && modalConfig.enableDimensionPropagation && isParentItem(selectedDimItem) && (
                 <div className={`text-[11px] text-zinc-300 ${t.scopeBox} rounded-lg p-2.5`}>
                   <span className={`font-bold ${t.scopeText}`}>Escopo da alteração: </span>
                   {propagateToChildren ? (
@@ -428,6 +435,11 @@ export const ItemEditorModals: React.FC<ItemEditorModalsProps> = ({ editor }) =>
                   ) : (
                     <span>Apenas este item pai específico (sem alterar os filhos). Os outros itens idênticos abaixo não serão afetados.</span>
                   )}
+                </div>
+              )}
+              {selectedDimItem.editScopeNote && (
+                <div className={`text-[11px] text-zinc-300 ${t.scopeBox} rounded-lg p-2.5`}>
+                  <span className={`font-bold ${t.scopeText}`}>Escopo da alteração: </span>{selectedDimItem.editScopeNote}
                 </div>
               )}
 
@@ -558,8 +570,28 @@ export const ItemEditorModals: React.FC<ItemEditorModalsProps> = ({ editor }) =>
             {/* Body */}
             <div className="p-6 space-y-4">
               <p className="text-xs text-zinc-300 leading-relaxed font-medium">
-                Você tem certeza que deseja alterar o {labels.errorPrefix} deste produto no arquivo XML? Esta alteração será gravada em <span className={`${t.resultText} font-semibold`}>todos os itens</span> com este código no XML, atualizando tanto o atributo <span className={`${t.scopeText} font-mono font-semibold`}>ITEM_BASE</span> quanto o <span className={`${t.scopeText} font-mono font-semibold`}>REFERENCIA</span>.
+                Você tem certeza que deseja alterar o {labels.errorPrefix} deste produto no arquivo XML? Serão atualizados os atributos <span className={`${t.scopeText} font-mono font-semibold`}>ITEM_BASE</span> e <span className={`${t.scopeText} font-mono font-semibold`}>REFERENCIA</span>.
               </p>
+
+              {modalConfig.allowReplaceAllCodeMatches && (
+                <label className={`flex items-start gap-2.5 cursor-pointer select-none group p-3 rounded-lg ${t.propagateBox} transition-colors`}>
+                  <input
+                    type="checkbox"
+                    checked={replaceAllSameCode}
+                    onChange={(event) => setReplaceAllSameCode(event.target.checked)}
+                    disabled={isSavingCode}
+                    className={`mt-0.5 rounded border-zinc-700 ${t.checkbox} cursor-pointer`}
+                  />
+                  <span className="space-y-0.5">
+                    <span className={`block text-xs font-semibold ${t.propagateTitle}`}>Trocar tudo</span>
+                    <span className="block text-[10px] text-zinc-400 leading-snug">
+                      {replaceAllSameCode
+                        ? `Trocar todos os itens com o código ${selectedCodeItem.itemBase || selectedCodeItem.referencia || "selecionado"}.`
+                        : "Trocar somente esta linha."}
+                    </span>
+                  </span>
+                </label>
+              )}
 
               <div className="space-y-3 p-4 rounded-xl bg-[#0E0E0E] border border-[#232323]">
                 <div>

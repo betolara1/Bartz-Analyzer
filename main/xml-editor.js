@@ -18,6 +18,7 @@ const {
   appendReplaceHistory,
 } = require("./helpers");
 const { processOne, validateXml } = require("./xml-processor");
+const exactTargets = require("./xml-exact-targets");
 
 /** --- replace a detected cor coringa in the given file (creates backup + history) --- **/
 ipcMain.handle("analyzer:replaceCoringa", async (_e, obj) => {
@@ -368,7 +369,7 @@ ipcMain.handle('analyzer:fillReferenciaByIds', async (_e, obj) => {
 /** --- replace DESCRICAO attribute for specific ITEM IDs --- **/
 ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
   try {
-    const { filePath, ids, newDescription, desenho, idPromob, uniqueId } = obj || {};
+    const { filePath, ids, newDescription, desenho, idPromob, uniqueId, exactIds, targetRefs } = obj || {};
     if (!filePath || !Array.isArray(ids) || ids.length === 0 || typeof newDescription !== 'string') {
       send('error', { where: 'replaceItemDescription', message: 'Parâmetros inválidos.' });
       return { ok: false, message: 'invalid-params' };
@@ -383,8 +384,59 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
 
     let raw = await fsp.readFile(real, 'utf8');
     const counts = {};
+    if (exactIds) {
+      // Aba Itens: altera somente os nós pedidos (id + uniqueId), em qualquer profundidade.
+      const r = exactTargets.replaceDescriptionExact(raw, exactTargets.normalizeRefs(ids, targetRefs), String(newDescription));
+      if (!r.ok) {
+        send('error', { where: 'replaceItemDescription', message: r.message === 'ambiguous-target' ? 'Item ambíguo: ID repetido sem UNIQUE_ID.' : 'Item não encontrado no XML.' });
+        return { ok: false, message: r.message };
+      }
+      raw = r.xml;
+      Object.assign(counts, r.counts);
+    }
+    const exactRefById = new Map((Array.isArray(targetRefs) ? targetRefs : []).map((ref) => [String(ref.id), ref]));
 
-    for (const id of ids) {
+    const findExactItemBlocks = (xml, targetId, targetUniqueId) => {
+      const tagRegex = /<(\/?)ITEM\b([^>]*?)(\/?)>/gi;
+      const blocks = [];
+      const escapedTargetId = escapeRegExp(String(targetId));
+      let depth = 0;
+      let start = -1;
+      let openingTag = "";
+      let match;
+
+      while ((match = tagRegex.exec(xml)) !== null) {
+        const isClosing = match[1] === "/";
+        const isSelfClosing = match[3] === "/";
+        if (!isClosing && !isSelfClosing) {
+          if (depth === 0) {
+            start = match.index;
+            openingTag = match[0];
+          }
+          depth++;
+        } else if (isSelfClosing) {
+          if (depth === 0) {
+            const idMatch = match[0].match(/\bID\s*=\s*"([^"]*)"/i);
+            if (idMatch?.[1] === String(targetId)) blocks.push({ start: match.index, end: tagRegex.lastIndex, text: match[0] });
+          }
+        } else if (depth > 0) {
+          depth--;
+          if (depth === 0 && start >= 0) {
+            const text = xml.slice(start, tagRegex.lastIndex);
+            const idMatch = openingTag.match(new RegExp(`\\bID\\s*=\\s*"${escapedTargetId}"(?:\\s|>)`, "i"));
+            const uniqueMatch = text.match(/<UNIQUE_ID\b[^>]*\bCODIGO\s*=\s*"([^"]*)"[^>]*\/?\s*>/i);
+            if (idMatch && (!targetUniqueId || uniqueMatch?.[1]?.trim() === String(targetUniqueId).trim())) {
+              blocks.push({ start, end: tagRegex.lastIndex, text });
+            }
+            start = -1;
+            openingTag = "";
+          }
+        }
+      }
+      return blocks;
+    };
+
+    for (const id of (exactIds ? [] : ids)) {
       if (!id) continue;
 
       // Step 1: Build the itemRegex targeting by ID (unique identifier in XML)
@@ -392,22 +444,25 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
       const itemRegex = new RegExp(`<ITEM(?:[^<]|\\n)*?ID\\s*=\\s*"${escapedId}"(?:[^<]|\\n)*?(?:>|/>)`, 'gi');
 
       let oldDesc = "";
-      let itemDrawing = desenho || "";
+      let itemDrawing = "";
+      const exactRef = exactRefById.get(String(id));
+      const exactBlocks = exactIds ? findExactItemBlocks(raw, id, exactRef?.uniqueId) : [];
 
       // Step 2: Find the old description and drawing from the correct item tag
-      const matchItems = raw.match(itemRegex) || [];
+      const matchItems = exactIds ? exactBlocks.map((block) => block.text) : (raw.match(itemRegex) || []);
       let matchedItemTag = "";
 
       for (const itemTag of matchItems) {
-        if (desenho) {
+        if (!exactIds && desenho) {
           const desenhoAttrRegex = /DESENHO\s*=\s*"([^"]*)"/i;
           const matchDes = itemTag.match(desenhoAttrRegex);
           if (!matchDes || matchDes[1] !== desenho) continue;
         }
-        if (idPromob) {
+        if (!exactIds && idPromob) {
           const mIdPromob = itemTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
           if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) continue;
         }
+
         matchedItemTag = itemTag;
         break;
       }
@@ -423,20 +478,27 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
           oldDesc = matchDesc[1];
         }
 
-        if (!itemDrawing) {
-          const desenhoAttrRegex = /DESENHO\s*=\s*"([^"]*)"/i;
-          const matchDesenho = matchedItemTag.match(desenhoAttrRegex);
-          if (matchDesenho) {
-            itemDrawing = matchDesenho[1];
-          }
+        const desenhoAttrRegex = /DESENHO\s*=\s*"([^"]*)"/i;
+        const matchDesenho = matchedItemTag.match(desenhoAttrRegex);
+        if (matchDesenho) {
+          itemDrawing = matchDesenho[1];
         }
       }
 
       let c = 0;
 
       // Step 3: Replace DESCRICAO on the correct ITEM tag
-      raw = raw.replace(itemRegex, (itemMatch) => {
-        if (desenho) {
+      if (exactIds) {
+        for (const block of exactBlocks.sort((a, b) => b.start - a.start)) {
+          const descAttrRegex = /DESCRICAO\s*=\s*"([^"]*)"/i;
+          let updated = block.text;
+          if (descAttrRegex.test(updated)) updated = updated.replace(descAttrRegex, `DESCRICAO="${String(newDescription)}"`);
+          else updated = updated.replace(/^(<ITEM\b[^>]*)(>)/i, `$1 DESCRICAO="${String(newDescription)}"$2`);
+          raw = raw.slice(0, block.start) + updated + raw.slice(block.end);
+          c++;
+        }
+      } else raw = raw.replace(itemRegex, (itemMatch) => {
+        if (!exactIds && desenho) {
           const desenhoAttrRegex = /DESENHO\s*=\s*"([^"]*)"/i;
           const matchDes = itemMatch.match(desenhoAttrRegex);
           const currentDesenho = matchDes ? matchDes[1] : "";
@@ -445,7 +507,7 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
           }
         }
 
-        if (idPromob) {
+        if (!exactIds && idPromob) {
           const mIdPromob = itemMatch.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
           if (mIdPromob && String(mIdPromob[1]).trim() !== String(idPromob).trim()) {
             return itemMatch;
@@ -476,7 +538,7 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
 
           raw = raw.replace(setupRegex, (setupBlock) => {
             const hasDrawing = new RegExp(`\\b${escapedDesenho}\\b`, 'i').test(setupBlock);
-            if (hasDrawing) {
+            if (hasDrawing && !exactIds) {
               const escapedOldDesc = escapeRegExp(oldDesc.trim());
               const partNameRegex = new RegExp(`<COLUNA\\s+CODIGO\\s*=\\s*"PartName"\\s+RESPOSTA\\s*=\\s*"\\s*${escapedOldDesc}\\s*"\\s*/>`, 'gi');
 
@@ -487,7 +549,7 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
             }
             return setupBlock;
           });
-        } else {
+        } else if (!exactIds) {
           // Fallback globally if no drawing code is found
           const escapedOldDesc = escapeRegExp(oldDesc.trim());
           const partNameRegex = new RegExp(`<COLUNA\\s+CODIGO\\s*=\\s*"PartName"\\s+RESPOSTA\\s*=\\s*"\\s*${escapedOldDesc}\\s*"\\s*/>`, 'gi');
@@ -570,7 +632,7 @@ ipcMain.handle('analyzer:replaceItemDescription', async (_e, obj) => {
 /** --- replace LARGURA, ALTURA, PROFUNDIDADE attributes for specific ITEM IDs --- **/
 ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
   try {
-    const { filePath, ids, newDimension, desenho, idPromob, uniqueId, updateChildren, oldDimension } = obj || {};
+    const { filePath, ids, newDimension, desenho, idPromob, uniqueId, updateChildren, oldDimension, exactIds, targetRefs } = obj || {};
     if (!filePath || !Array.isArray(ids) || ids.length === 0 || !newDimension) {
       send('error', { where: 'replaceItemDimension', message: 'Parâmetros inválidos.' });
       return { ok: false, message: 'invalid-params' };
@@ -632,7 +694,18 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
       });
     };
 
-    for (const id of ids) {
+    if (exactIds) {
+      // Aba Itens: pai, filho e chapa recebem o mesmo L x A x P; nada além dos nós alvo é alterado.
+      const r = exactTargets.replaceDimensionExact(raw, exactTargets.normalizeRefs(ids, targetRefs), { l, a, p });
+      if (!r.ok) {
+        send('error', { where: 'replaceItemDimension', message: r.message === 'ambiguous-target' ? 'Item ambíguo: ID repetido sem UNIQUE_ID.' : 'Item não encontrado no XML.' });
+        return { ok: false, message: r.message };
+      }
+      raw = r.xml;
+      Object.assign(counts, r.counts);
+    }
+
+    for (const id of (exactIds ? [] : ids)) {
       if (!id) continue;
 
       const escapedId = escapeRegExp(String(id));
@@ -647,7 +720,7 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
         const startIdx = match.index;
         const openTag = match[0];
 
-        // Filter by DESENHO if specified
+        // Filter by DESENHO if specified.
         if (desenho) {
           const mDes = openTag.match(/\bDESENHO\s*=\s*"([^"]*)"/i);
           if (mDes && mDes[1] !== desenho) continue;
@@ -658,6 +731,10 @@ ipcMain.handle('analyzer:replaceItemDimension', async (_e, obj) => {
           if (idPromob) {
             const mIdPromob = openTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i);
             if (!mIdPromob || String(mIdPromob[1]).trim() !== String(idPromob).trim()) continue;
+          }
+          if (uniqueId) {
+            const mUid = openTag.match(/<UNIQUE_ID\b[^>]*\bCODIGO\s*=\s*"([^"]*)"/i);
+            if (!mUid || String(mUid[1]).trim() !== String(uniqueId).trim()) continue;
           }
           itemBlocks.push({ startIdx, endIdx: startIdx + openTag.length, block: openTag });
           continue;
@@ -1120,10 +1197,10 @@ ipcMain.handle('analyzer:deleteItem', async (_e, obj) => {
   }
 });
 
-/** --- replace REFERENCIA and ITEM_BASE attributes for all items matching code (alterar código em todos os itens do XML) --- **/
+/** --- replace REFERENCIA and ITEM_BASE attributes for selected IDs, or matching codes when no IDs are provided --- **/
 ipcMain.handle('analyzer:replaceItemCode', async (_e, obj) => {
   try {
-    const { filePath, ids, newCode, oldCode, oldItemBase, oldReferencia } = obj || {};
+    const { filePath, ids, newCode, oldCode, oldItemBase, oldReferencia, idPromob, uniqueId, exactIds, targetRefs, replaceAllMatches } = obj || {};
     if (!filePath || typeof newCode !== 'string' || !newCode.trim()) {
       send('error', { where: 'replaceItemCode', message: 'Parâmetros inválidos.' });
       return { ok: false, message: 'invalid-params' };
@@ -1146,12 +1223,15 @@ ipcMain.handle('analyzer:replaceItemCode', async (_e, obj) => {
       }
     };
 
-    addCode(oldCode);
-    addCode(oldItemBase);
-    addCode(oldReferencia);
+    const exactSelection = !replaceAllMatches && Array.isArray(ids) && ids.length > 0;
+    if (!exactSelection) {
+      addCode(oldCode);
+      addCode(oldItemBase);
+      addCode(oldReferencia);
+    }
 
     // Pre-scan: extrair ITEM_BASE e REFERENCIA de qualquer item cujo ID esteja em ids
-    const idSet = new Set(Array.isArray(ids) ? ids.map(String) : []);
+    const idSet = new Set(replaceAllMatches ? [] : (Array.isArray(ids) ? ids.map(String) : []));
     if (idSet.size > 0) {
       const itemTagMatches = raw.matchAll(/<ITEM\b[^>]*>/gi);
       for (const match of itemTagMatches) {
@@ -1170,7 +1250,17 @@ ipcMain.handle('analyzer:replaceItemCode', async (_e, obj) => {
     let replacedCount = 0;
     const counts = {};
 
-    raw = raw.replace(/<ITEM\b[^>]*>/gi, (itemTag) => {
+    if (exactIds) {
+      // Aba Itens: troca o código SOMENTE do nó selecionado (id + uniqueId), nunca dos "iguais".
+      const r = exactTargets.replaceCodeExact(raw, exactTargets.normalizeRefs(ids, targetRefs), trimmedNewCode);
+      if (!r.ok) {
+        send('error', { where: 'replaceItemCode', message: r.message === 'ambiguous-target' ? 'Item ambíguo: ID repetido sem UNIQUE_ID.' : 'Item não encontrado no XML.' });
+        return { ok: false, message: r.message };
+      }
+      raw = r.xml;
+      replacedCount = r.count;
+      Object.assign(counts, r.counts);
+    } else raw = raw.replace(/<ITEM\b[^>]*>/gi, (itemTag) => {
       // 1. Extrair ID
       const idMatch = itemTag.match(/\bID\s*=\s*"([^"]*)"/i);
       const currentId = idMatch ? idMatch[1] : "";
@@ -1192,8 +1282,22 @@ ipcMain.handle('analyzer:replaceItemCode', async (_e, obj) => {
       const baseMatches = currentBase && targetOldCodes.has(currentBase.toUpperCase());
       const refMatches = currentRef && targetOldCodes.has(currentRef.toUpperCase());
 
-      if (!idMatches && !baseMatches && !refMatches) {
+      if (exactSelection ? !idMatches : (!idMatches && !baseMatches && !refMatches)) {
         return itemTag;
+      }
+
+      // When called from the Items tab with exact metadata, restrict replacement
+      // to the selected XML node, even if other items share the same code.
+      if (idMatches && (idPromob || uniqueId)) {
+        if (idPromob) {
+          const itemPromob = itemTag.match(/\bID_PROMOB\s*=\s*"([^"]*)"/i)?.[1] || "";
+          if (itemPromob.trim() !== String(idPromob).trim()) return itemTag;
+        }
+        if (uniqueId) {
+          const itemUid = itemTag.match(/<UNIQUE_ID\b[^>]*\bCODIGO\s*=\s*"([^"]*)"[^>]*\/?\s*>/i)?.[1] ||
+            itemTag.match(/\bUNIQUE_ID\s*=\s*"([^"]*)"/i)?.[1] || "";
+          if (itemUid.trim() !== String(uniqueId).trim()) return itemTag;
+        }
       }
 
       // Este item deve ser alterado!
@@ -1214,7 +1318,7 @@ ipcMain.handle('analyzer:replaceItemCode', async (_e, obj) => {
       }
 
       // Se PRICE existir e for igual a algum dos códigos antigos ou este item foi selecionado, atualiza PRICE também
-      if (priceMatch && (targetOldCodes.has(currentPrice.toUpperCase()) || idMatches)) {
+      if (priceMatch && (exactSelection ? idMatches : targetOldCodes.has(currentPrice.toUpperCase()))) {
         updated = updated.replace(/\bPRICE\s*=\s*"[^"]*"/i, () => `PRICE="${trimmedNewCode}"`);
       }
 
@@ -1288,4 +1392,3 @@ ipcMain.handle('analyzer:replaceItemCode', async (_e, obj) => {
     return { ok: false, message: String((e && e.message) || e) };
   }
 });
-

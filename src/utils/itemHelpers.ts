@@ -101,16 +101,63 @@ function getDescendantItems(parent: any, allItems: any[]): any[] {
   return ids.map((id: any) => findNode(allItems, id)).filter(Boolean);
 }
 
+/** Returns all XML IDs for a selected target set without collapsing repeated product codes. */
+export function getTargetIds(targets: FamilyTarget[]): string[] {
+  return Array.from(new Set((targets || [])
+    .flatMap(({ item }) => Array.isArray(item?.ids) ? item.ids : [item?.id])
+    .filter((id) => id != null && String(id).trim() !== "")
+    .map((id) => String(id))));
+}
+
+/** Stable identifiers for a specific XML node when its ID is reused elsewhere. */
+export function getTargetRefs(targets: FamilyTarget[], allItems: any[] = []): Array<{ id: string; uniqueId?: string; path?: number[] }> {
+  const refs = (targets || []).flatMap(({ item }) => {
+    const ids = Array.isArray(item?.ids) ? item.ids : [item?.id];
+    const chain: any[] = [item];
+    let current = item;
+    while (current?.parentId != null) {
+      current = findNode(allItems, current.parentId);
+      if (!current) break;
+      chain.unshift(current);
+    }
+    const path = chain.map((node) => {
+      const siblings = node.parentId == null
+        ? allItems.filter((candidate) => candidate?.parentId == null)
+        : getDirectChildren(findNode(allItems, node.parentId), allItems);
+      return siblings.findIndex((sibling) => sameNode(sibling, node));
+    });
+    return ids
+      .filter((id) => id != null && String(id).trim() !== "")
+      .map((id) => ({
+        id: String(id),
+        uniqueId: item?.uniqueId != null && String(item.uniqueId).trim() !== "" ? String(item.uniqueId).trim() : undefined,
+        path: path.every((index) => index >= 0) ? path : undefined,
+      }));
+  });
+  const seen = new Set<string>();
+  return refs.filter((ref) => {
+    const key = `${ref.id}|${ref.uniqueId || ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function isProdutoFilho(child: any, parent: any): boolean {
   if (!child || isChapaItem(child)) return false;
+  const childBase = String(child.itemBase || child.referencia || "").trim().toUpperCase();
+  const childDesc = String(child.descricao || "").trim();
+  // A nested non-sheet item is the product child. Consumables and packaging
+  // (for example cola, fita and embalagem) retain their independent descriptions.
+  if (/^(EMBALAGEM|COLA|FITA|FERRAGEM)\b/i.test(childBase) || /^(embalagem|cola|fita|ferragem)\b/i.test(String(child.descricao || "").trim())) return false;
   if (isParentItem(child)) return true;
-  const parentDesc = String(parent?.descricao || "").trim();
-  const childDesc = String(child?.descricao || "").trim();
-  return !!parentDesc && parentDesc === childDesc;
+  // Product modules are nested with their parts; these known consumables,
+  // packaging and sheet codes are the exceptions that keep their own text.
+  return (!!childBase || !!childDesc) && !/^(10\.\d+|EMBALAGEM|COLA|FITA|FERRAGEM)\b/i.test(childBase) && !/^(embalagem|cola|fita|ferragem)\b/i.test(childDesc);
 }
 
 function pushUniqueTarget(list: FamilyTarget[], item: any, role: FamilyTarget["role"]) {
-  if (!item || item.id == null || String(item.id).trim() === "") return;
+  if (!item || (item.id == null && (!Array.isArray(item.ids) || item.ids.length === 0)) || (item.id != null && String(item.id).trim() === "")) return;
   if (list.some((t) => sameNode(t.item, item))) return;
   list.push({ item, role });
 }
@@ -134,23 +181,32 @@ function sameDimensionBag(a: any, b: any): boolean {
   return sa.every((n, i) => Math.abs(n - sb[i]) < 0.1);
 }
 
-/** Descrição na aba Itens: pai e filho (o produto aninhado, não cola/fita/chapa). */
+/** Descrição na aba Itens: sync pai + produto filho; a edição de componentes internos fica local. */
 export function resolveDescriptionTargets(item: any, allItems: any[]): FamilyTarget[] {
   if (!item) return [];
   if (!Array.isArray(allItems) || allItems.length === 0) return [{ item, role: "item" }];
 
+  const parent = item.parentId != null ? findNode(allItems, item.parentId) : null;
   const root = getRootItem(item, allItems);
-  const filhos = getDirectChildren(root, allItems).filter((child) => isProdutoFilho(child, root));
-  const isRoot = sameNode(item, root);
-  const asFilho = filhos.find((filho) => sameNode(filho, item));
-  if (!isRoot && !asFilho) return [{ item, role: "item" }];
+  const relevantParent = parent && isProdutoFilho(item, parent) ? parent : null;
+  const relevantChildren = getDirectChildren(item, allItems).filter((child) => isProdutoFilho(child, item));
+  const familyParent = relevantParent || (sameNode(item, root) && relevantChildren.length ? item : null);
 
-  const targets: FamilyTarget[] = [];
-  pushUniqueTarget(targets, root, "pai");
-  for (const filho of isRoot ? filhos : [asFilho]) {
-    pushUniqueTarget(targets, filho, "filho");
+  if (relevantParent) {
+    const targets: FamilyTarget[] = [];
+    pushUniqueTarget(targets, relevantParent, "pai");
+    pushUniqueTarget(targets, item, "filho");
+    return targets.length > 1 ? targets : [{ item, role: "item" }];
   }
-  return targets.length > 1 ? targets : [{ item, role: "item" }];
+
+  if (familyParent) {
+    const targets: FamilyTarget[] = [];
+    pushUniqueTarget(targets, familyParent, "pai");
+    if (relevantChildren.length === 1) pushUniqueTarget(targets, relevantChildren[0], "filho");
+    return targets.length > 1 ? targets : [{ item, role: "item" }];
+  }
+
+  return [{ item, role: "item" }];
 }
 
 /** Dimensão na aba Itens: pai, filho e a chapa do mesmo tamanho. */
@@ -178,15 +234,20 @@ export function resolveDimensionTargets(item: any, allItems: any[]): FamilyTarge
   pushUniqueTarget(targets, root, "pai");
   for (const filho of scopeFilhos) pushUniqueTarget(targets, filho, "filho");
 
-  const pools = scopeFilhos.length ? scopeFilhos : [root];
+  // Chapas candidatas: as que ficam sob o(s) filho(s) do escopo e também as que ficam
+  // diretamente sob o pai (irmãs do filho), que é o caso mais comum no XML.
+  const candidates: any[] = scopeFilhos.length
+    ? [
+        ...getDirectChildren(root, allItems).filter(isChapaItem),
+        ...scopeFilhos.flatMap((filho) => getDescendantItems(filho, allItems)),
+      ]
+    : getDescendantItems(root, allItems);
   const refs = [item, root, ...scopeFilhos];
-  for (const pool of pools) {
-    for (const descendant of getDescendantItems(pool, allItems)) {
-      if (!isChapaItem(descendant)) continue;
-      const matchesSize = refs.some((ref) => sameDimensionBag(descendant, ref));
-      if (matchesSize || sameNode(descendant, item)) {
-        pushUniqueTarget(targets, descendant, "chapa");
-      }
+  for (const descendant of candidates) {
+    if (!isChapaItem(descendant)) continue;
+    const matchesSize = refs.some((ref) => sameDimensionBag(descendant, ref));
+    if (matchesSize || sameNode(descendant, item)) {
+      pushUniqueTarget(targets, descendant, "chapa");
     }
   }
 
@@ -242,4 +303,3 @@ export function matchesItemFilter(
     (extraSearch ? extraSearch.includes(search) : false)
   );
 }
-
